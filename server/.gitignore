@@ -1,0 +1,9 @@
+/target
+
+#ENVs
+.env.*
+.env
+
+/migration/target/*
+
+.vscode/
