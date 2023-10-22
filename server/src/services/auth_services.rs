@@ -5,8 +5,9 @@ use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel};
 use std::sync::Arc;
 use uuid::Uuid;
 
+use shared_types::user_dtos::{ShortUserDTO, UserLoginServiceDTO};
+
 use crate::config::Config;
-use crate::dtos::user_dtos::{UserLoginServiceDTO, ShortUserDTO};
 use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
 use crate::models::refresh_token_model::{Entity as RefreshTokenEntity, Model as RefreshTokenModel};
 use crate::shared::utils::errors::{ServerError, HttpError};

@@ -7,7 +7,6 @@ mod components {
         pub mod button;
     }
 }
-mod dtos;
 mod globals;
 mod hooks;
 mod routes;

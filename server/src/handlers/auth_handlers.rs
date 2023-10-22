@@ -4,8 +4,8 @@ use actix_web::{web, HttpResponse, HttpRequest, Result};
 use sea_orm::DatabaseConnection;
 use std::sync::Arc;
 
+use shared_types::user_dtos::{UserLoginDTO, UserCreateDTO, UserLoginResponseDTO};
 use crate::config::Config;
-use crate::dtos::user_dtos::{UserLoginDTO, UserCreateDTO, UserLoginResponseDTO};
 use crate::services::AuthService;
 use crate::shared::utils::errors::{ServerError, HttpError};
 
