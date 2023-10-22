@@ -2,5 +2,6 @@
 resolver = "2"
 members = [
     "client",
-    "server"
+    "server",
+    "shared_types"
 ]

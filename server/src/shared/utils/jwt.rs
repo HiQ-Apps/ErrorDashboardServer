@@ -5,9 +5,9 @@ use sea_orm::{EntityTrait, DatabaseConnection};
 use serde_json::to_value;
 use uuid::Uuid;
 
+use shared_types::auth_dtos::{RefreshTokenDTO, Claims};
+
 use crate::config::Config;
-use crate::dtos::auth_dtos::RefreshTokenDTO;
-use crate::dtos::auth_dtos::Claims;
 use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
 use crate::models::refresh_token_model::Model as RefreshTokenModel;
 use crate::shared::utils::errors::{ServerError, HttpError};

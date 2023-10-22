@@ -657,6 +657,7 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
+ "shared_types",
  "stylist",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -2741,6 +2742,7 @@ dependencies = [
  "sea-orm",
  "serde",
  "serde_json",
+ "shared_types",
  "tokio",
  "tokio-postgres",
  "uuid",
@@ -2766,6 +2768,16 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest",
+]
+
+[[package]]
+name = "shared_types"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "uuid",
 ]
 
 [[package]]
