@@ -44,6 +44,7 @@ pub enum ServerError {
 
     // Query errors
     UserNotFound,
+    NamespaceNotFound,
 
     // Request errors
     InvalidHeader,
@@ -67,6 +68,7 @@ impl Display for ServerError {
 
             // Query errors
             ServerError::UserNotFound => write!(f, "User not found"),
+            ServerError::NamespaceNotFound => write!(f, "Namespace not found"),
 
             // Request errors
             ServerError::InvalidHeader => write!(f, "The provided header is invalid or not in the expected format"),
@@ -90,6 +92,7 @@ impl ActixResponseError for ServerError {
 
             // Query error responses
             ServerError::UserNotFound => HttpResponse::Unauthorized().json("User not found"),
+            ServerError::NamespaceNotFound => HttpResponse::NotFound().json("Namespace not found"),
 
             // Request error responses
             ServerError::MissingHeader => HttpResponse::BadRequest().json("Missing Authorization header"),

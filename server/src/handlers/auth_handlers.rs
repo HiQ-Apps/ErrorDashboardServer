@@ -13,7 +13,11 @@ use crate::shared::utils::errors::{ServerError, HttpError};
 pub struct AuthHandler;
 
 impl AuthHandler {
-    pub async fn login(db: web::Data<Arc<DatabaseConnection>>, config: web::Data<Arc<Config>>, login_data: web::Json<UserLoginDTO>) -> Result<HttpResponse, ServerError> {
+    pub async fn login(
+        db: web::Data<Arc<DatabaseConnection>>,
+        config: web::Data<Arc<Config>>,
+        login_data: web::Json<UserLoginDTO>
+    ) -> Result<HttpResponse, ServerError> {
         let auth_services = AuthService::new(db.as_ref().clone(), config.as_ref().clone())?;
         let UserLoginDTO { email, password } = login_data.into_inner();
 
@@ -33,7 +37,11 @@ impl AuthHandler {
         }
     }
 
-    pub async fn register(db: web::Data<Arc<DatabaseConnection>>, config: web::Data<Arc<Config>>, new_user: web::Json<UserCreateDTO>) -> Result<HttpResponse, ServerError> {
+    pub async fn register(
+        db: web::Data<Arc<DatabaseConnection>>,
+        config: web::Data<Arc<Config>>,
+        new_user: web::Json<UserCreateDTO>
+    ) -> Result<HttpResponse, ServerError> {
         let auth_services = AuthService::new(db.as_ref().clone(), config.as_ref().clone())?;
         
         match auth_services.register(new_user.username.clone(), new_user.email.clone(), new_user.password.clone()).await {
@@ -46,7 +54,11 @@ impl AuthHandler {
         }
     }
 
-    pub async fn refresh_access_token(req: HttpRequest, db: web::Data<Arc<DatabaseConnection>>, config: web::Data<Arc<Config>>) -> Result<HttpResponse, ServerError> {
+    pub async fn refresh_access_token(
+        req: HttpRequest,
+        db: web::Data<Arc<DatabaseConnection>>,
+        config: web::Data<Arc<Config>>
+    ) -> Result<HttpResponse, ServerError> {
         let auth_header = req.headers().get("refresh_token");
 
         match auth_header {
