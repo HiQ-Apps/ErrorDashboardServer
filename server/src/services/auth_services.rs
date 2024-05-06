@@ -8,8 +8,8 @@ use uuid::Uuid;
 use shared_types::user_dtos::{ShortUserDTO, UserLoginServiceDTO};
 
 use crate::config::Config;
-use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
-use crate::models::refresh_token_model::{Entity as RefreshTokenEntity, Model as RefreshTokenModel};
+use crate::models::user_model::{UserEntity, Model as UserModel};
+use crate::models::refresh_token_model::{RefreshTokenEntity, Model as RefreshTokenModel};
 use crate::shared::utils::errors::{ServerError, HttpError};
 use crate::shared::utils::jwt::{create_access_token, create_refresh_token, refresh_access_token_util};
 
@@ -89,7 +89,7 @@ impl AuthService {
     ) -> Result<Uuid, ServerError> {
         let hash_cost = self.configs.hash_cost.parse().unwrap();
         let uid = Uuid::new_v4();
-        let now = Utc::now().naive_local();
+        let now = Utc::now();
         let hashed_pass = hash(user_pass, hash_cost).unwrap();
 
         let user = UserModel {
