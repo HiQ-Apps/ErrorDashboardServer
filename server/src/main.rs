@@ -14,8 +14,7 @@ use log::{ error, info };
 use std::sync::Arc;
 
 use crate::middlewares::auth_middleware::JwtMiddleware;
-use crate::routes::user_routes;
-use crate::routes::auth_routes;
+use crate::routes::{auth_routes, namespace_routes, user_routes};
 use config::Config;
 
 #[actix_web::main]
@@ -71,6 +70,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::default())
             .configure(|cfg| user_routes::configure(cfg, &jwt_middleware))
             .configure(auth_routes::configure)
+            .configure(namespace_routes::configure)
     })
     .bind(("127.0.0.1", config_for_server.api_port))?
     .run()

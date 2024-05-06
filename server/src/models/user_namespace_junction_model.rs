@@ -1,37 +1,47 @@
-use chrono::NaiveDateTime;
-use sea_orm::{entity::prelude::*, prelude::async_trait::async_trait};
+use sea_orm::{entity::prelude::*, ActiveValue};
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::namespace_model::Entity as NamespaceEntityEntity;
+use crate::models::namespace_model::Entity as NamespaceEntity;
 use crate::models::user_model::Entity as UserEntity;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "user_namespace_junction")]
 pub struct Model {
-    #[sea_orm(primary_key)]
+    #[sea_orm(primary_key, column_type = "Uuid")]
     pub id: Uuid,
     pub namespace_id: Uuid,
     pub user_id: Uuid,
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+#[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    #[sea_orm(belongs_to = "crate::models::namespace::Entity", from_foreign_key = "namespace_id", to_primary_key = "id")]
     NamespaceEntity,
-    #[sea_orm(belongs_to = "crate::models::user::Entity", from_foreign_key = "user_id", to_primary_key = "id")]
     UserEntity,
 }
 
-impl Related<NamespaceEntity> for Entity {
-    fn to() -> RelationDef {
-        Relation::NamespaceEntity.def()
+impl RelationTrait for Relation {
+    fn def(&self) -> RelationDef {
+        match self {
+            Self::NamespaceEntity => Entity::belongs_to(NamespaceEntity)
+                .from(<Entity as sea_orm::EntityTrait>::Column::NamespaceId)
+                .to(<NamespaceEntity as sea_orm::EntityTrait>::Column::Id)
+                .into(),
+            Self::UserEntity => Entity::belongs_to(UserEntity)
+                .from(<Entity as sea_orm::EntityTrait>::Column::UserId)
+                .to(<UserEntity as sea_orm::EntityTrait>::Column::Id)
+                .into(),
+        }
     }
 }
 
-impl Related<UserEntity> for Entity {
+
+impl Related<NamespaceEntity> for Entity {
     fn to() -> RelationDef {
-        Relation::UserEntity.def()
+        Entity::belongs_to(NamespaceEntity)
+            .from(Column::NamespaceId)
+            .to(<NamespaceEntity as sea_orm::EntityTrait>::Column::Id).into()
     }
 }
 
@@ -39,8 +49,9 @@ impl Related<UserEntity> for Entity {
 impl ActiveModelBehavior for ActiveModel {
     fn new() -> Self {
         Self {
-            ..ActiveModelTrait::default()
+            id: ActiveValue::Set(Uuid::new_v4()),
+            namespace_id: ActiveValue::Set(Uuid::new_v4()),
+            user_id: ActiveValue::Set(Uuid::new_v4()),
         }
     }
 }
-

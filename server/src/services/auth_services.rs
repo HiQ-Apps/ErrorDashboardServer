@@ -8,8 +8,8 @@ use uuid::Uuid;
 use shared_types::user_dtos::{ShortUserDTO, UserLoginServiceDTO};
 
 use crate::config::Config;
-use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
-use crate::models::refresh_token_model::{Entity as RefreshTokenEntity, Model as RefreshTokenModel};
+use crate::models::user_model::{UserEntity, Model as UserModel};
+use crate::models::refresh_token_model::{RefreshTokenEntity, Model as RefreshTokenModel};
 use crate::shared::utils::errors::{ServerError, HttpError};
 use crate::shared::utils::jwt::{create_access_token, create_refresh_token, refresh_access_token_util};
 
@@ -24,7 +24,11 @@ impl AuthService {
     }
 
 
-    pub async fn login(&self, user_email: String, user_password: String) -> Result<UserLoginServiceDTO, ServerError> {
+    pub async fn login(
+        &self,
+        user_email: String,
+        user_password: String
+    ) -> Result<UserLoginServiceDTO, ServerError> {
         let issuer = &self.configs.jwt_issuer;
         let audience = &self.configs.jwt_audience;
 
@@ -39,7 +43,7 @@ impl AuthService {
                 let is_valid = verify(&user_password, &user.password).map_err(ServerError::from)?;
                 if is_valid {
                     let access_token = create_access_token(user.clone(), &self.configs)?;
-                    let refresh_token_dto = create_refresh_token(user.id.to_string(), &self.configs)?;
+                    let refresh_token_dto = create_refresh_token(user.id.to_string(),&self.configs)?;
 
                     let refresh_token_model = RefreshTokenModel {
                         user_id: user.id,
@@ -77,10 +81,15 @@ impl AuthService {
     }
 
 
-    pub async fn register(&self, user_name: String, user_email: String, user_pass: String) -> Result<Uuid, ServerError> {
+    pub async fn register(
+        &self, 
+        user_name: String,
+        user_email: String,
+        user_pass: String
+    ) -> Result<Uuid, ServerError> {
         let hash_cost = self.configs.hash_cost.parse().unwrap();
         let uid = Uuid::new_v4();
-        let now = Utc::now().naive_local();
+        let now = Utc::now();
         let hashed_pass = hash(user_pass, hash_cost).unwrap();
 
         let user = UserModel {
