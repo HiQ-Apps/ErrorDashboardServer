@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Serialize, Deserialize};
 use serde_json::Value as JsonValue;
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RefreshTokenDTO {
@@ -14,7 +15,7 @@ pub struct RefreshTokenDTO {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Claims {
-    pub sub: String,
+    pub sub: Uuid,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub iat: DateTime<Utc>,
     #[serde(with = "chrono::serde::ts_seconds")]
