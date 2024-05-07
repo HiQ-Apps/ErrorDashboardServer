@@ -58,7 +58,6 @@ impl ActiveModelBehavior for ActiveModel {
             password: ActiveValue::Set("".to_string()),
             created_at: ActiveValue::Set(Utc::now()),
             updated_at: ActiveValue::Unchanged(None),
-            ..Default::default()
         }
     }
 }

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use sea_orm::entity::prelude::*;
+use sea_orm::{entity::prelude::*, ActiveValue};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -16,11 +16,11 @@ pub struct Model {
     pub active: bool,
     pub service_name: String,
     pub environment_type: String,
-    pub client_id: String,
-    pub client_secret: String,
+    pub client_id: Uuid,
+    pub client_secret: Uuid,
     pub error_records: Option<String>,
     pub created_at: DateTime<Utc>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -57,7 +57,15 @@ impl Related<UserNamespaceJunctionEntity> for Entity {
 impl ActiveModelBehavior for ActiveModel {
     fn new() -> Self {
         Self {
-            ..ActiveModelTrait::default()
+            id: ActiveValue::Set(Uuid::new_v4()),
+            active: ActiveValue::Set(false),
+            service_name: ActiveValue::Set("".to_string()),
+            environment_type: ActiveValue::Set("".to_string()),
+            client_id: ActiveValue::Set(Uuid::new_v4()),
+            client_secret: ActiveValue::Set(Uuid::new_v4()),
+            error_records: ActiveValue::Unchanged(None),
+            created_at: ActiveValue::Set(Utc::now()),
+            updated_at: ActiveValue::Set(Utc::now()),
         }
     }
 }

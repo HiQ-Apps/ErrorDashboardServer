@@ -1,5 +1,6 @@
 use std::fmt::{Formatter, Result, Display};
 use std::error::Error;
+use actix_web::dev::Server;
 use anyhow::Error as AnyhowError;
 use sea_orm::error::{DbErr, SqlErr};
 use serde_json::Error as JsonError;
@@ -42,14 +43,25 @@ pub enum ServerError {
     UuidError(UuidError),
     WebError(HttpError),
 
+    // Service Initalization errors
+    ServiceInitError(String, Box<dyn Error>),
+
     // Query errors
     UserNotFound,
+    UserExists,
     NamespaceNotFound,
+    NamespaceExists,
+    UserNamespaceJunctionNotFound,
+    UserNamespaceJunctionExists,
+
+    // Typing errors
+    MissingUserID,
 
     // Request errors
     InvalidHeader,
     InvalidToken,
     MissingHeader,
+    PermissionDenied
 }
 
 impl Display for ServerError {
@@ -68,12 +80,25 @@ impl Display for ServerError {
 
             // Query errors
             ServerError::UserNotFound => write!(f, "User not found"),
+            ServerError::UserExists => write!(f, "User already exists"),
             ServerError::NamespaceNotFound => write!(f, "Namespace not found"),
+            ServerError::NamespaceExists => write!(f, "Namespace already exists"),
+            ServerError::UserNamespaceJunctionNotFound => write!(f, "Namespace not found"),
+            ServerError::UserNamespaceJunctionExists => write!(f, "User and Namespace relationship already exists"),
+
+            // Service Initalization errors
+            ServerError::ServiceInitError(description, source) => {
+                write!(f, "{} failed to initialize: {}", description, source)
+            },
+
+            // Typing errors
+            ServerError::MissingUserID => write!(f, "User ID is missing"),
 
             // Request errors
             ServerError::InvalidHeader => write!(f, "The provided header is invalid or not in the expected format"),
             ServerError::InvalidToken => write!(f, "The provided token is invalid"),
             ServerError::MissingHeader => write!(f, "The required header is missing from the request"),
+            ServerError::PermissionDenied => write!(f, "Permission Denied")
         }
     }
 }
@@ -85,20 +110,34 @@ impl ActixResponseError for ServerError {
         match self {
             // 3rd part error responses
             ServerError::WebError(http_err) => HttpResponse::build(http_err.status).json(http_err.message.clone()),
+
             ServerError::PoolError(_) | ServerError::DBError(_) | ServerError::AnyhowError(_) | ServerError::BcryptError(_) | ServerError::JsonError(_)
             | ServerError::UuidError(_) | ServerError::ActixError(_)
              => {HttpResponse::InternalServerError().json("Internal Server Error")},
+             
             ServerError::JwtError(_) => HttpResponse::Unauthorized().json("Invalid JWT"),
 
             // Query error responses
             ServerError::UserNotFound => HttpResponse::Unauthorized().json("User not found"),
+            ServerError::UserExists => HttpResponse::Conflict().json("User already exists"),
             ServerError::NamespaceNotFound => HttpResponse::NotFound().json("Namespace not found"),
+            ServerError::NamespaceExists => HttpResponse::Conflict().json("Namespace already exists"),
+            ServerError::UserNamespaceJunctionNotFound => HttpResponse::NotFound().json("Namespace not found"),
+            ServerError::UserNamespaceJunctionExists => HttpResponse::Conflict().json("User and Namespace relationship already exists"),
+
+            // Service Initalization error responses
+            ServerError::ServiceInitError(..) => HttpResponse::InternalServerError().json("Internal Server Error"),
+
+            // Typing error responses
+            ServerError::MissingUserID => HttpResponse::BadRequest().json("Missing user ID"),
 
             // Request error responses
             ServerError::MissingHeader => HttpResponse::BadRequest().json("Missing Authorization header"),
             ServerError::InvalidHeader => HttpResponse::BadRequest().json("Invalid Authorization header format"),
-            ServerError::InvalidToken => HttpResponse::Unauthorized().json("Invalid Bearer token")
+            ServerError::InvalidToken => HttpResponse::Unauthorized().json("Invalid Bearer token"),
+            ServerError::PermissionDenied => HttpResponse::Forbidden().json("Permission Denied")
         }
+
     }
     
     fn status_code(&self) -> StatusCode {
@@ -163,3 +202,4 @@ impl From<HttpError> for ServerError {
         ServerError::WebError(err)
     }
 }
+

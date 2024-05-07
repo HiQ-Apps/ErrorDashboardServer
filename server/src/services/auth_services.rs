@@ -8,8 +8,8 @@ use uuid::Uuid;
 use shared_types::user_dtos::{ShortUserDTO, UserLoginServiceDTO};
 
 use crate::config::Config;
-use crate::models::user_model::{UserEntity, Model as UserModel};
-use crate::models::refresh_token_model::{RefreshTokenEntity, Model as RefreshTokenModel};
+use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
+use crate::models::refresh_token_model::{Entity as RefreshTokenEntity, Model as RefreshTokenModel};
 use crate::shared::utils::errors::{ServerError, HttpError};
 use crate::shared::utils::jwt::{create_access_token, create_refresh_token, refresh_access_token_util};
 
@@ -43,10 +43,10 @@ impl AuthService {
                 let is_valid = verify(&user_password, &user.password).map_err(ServerError::from)?;
                 if is_valid {
                     let access_token = create_access_token(user.clone(), &self.configs)?;
-                    let refresh_token_dto = create_refresh_token(user.id.to_string(),&self.configs)?;
+                    let refresh_token_dto = create_refresh_token(user.id, &self.configs)?;
 
                     let refresh_token_model = RefreshTokenModel {
-                        user_id: user.id,
+                        user_id: Some(user.id),
                         token: refresh_token_dto.refresh_token.clone(),
                         issued_at: refresh_token_dto.issued_at,
                         expires_at: refresh_token_dto.expires_at,
@@ -141,7 +141,12 @@ impl AuthService {
         let active_token_model = token_model.clone().into_active_model();
         RefreshTokenEntity::update(active_token_model).exec(&*self.db).await?;
         
-        let new_refresh_token_dto = create_refresh_token(token_model.user_id.to_string(), &self.configs)?;
+        let user_id_uuid = match token_model.user_id {
+            Some(uuid) => uuid,
+            None => return Err(ServerError::MissingUserID),
+        };
+
+        let new_refresh_token_dto = create_refresh_token(user_id_uuid, &self.configs)?;
         let new_refresh_token_model = RefreshTokenModel {
                         user_id: token_model.user_id,
                         token: new_refresh_token_dto.refresh_token.clone(),

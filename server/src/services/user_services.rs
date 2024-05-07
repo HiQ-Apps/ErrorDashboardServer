@@ -6,6 +6,7 @@ use crate::config::Config;
 use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
 use crate::shared::utils::errors::ServerError;
 
+
 pub struct UserService {
     pub db: Arc<DatabaseConnection>,
     pub configs: Arc<Config>,

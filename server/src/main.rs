@@ -15,6 +15,7 @@ use std::sync::Arc;
 
 use crate::middlewares::auth_middleware::JwtMiddleware;
 use crate::routes::{auth_routes, namespace_routes, user_routes};
+use crate::services::init_services;
 use config::Config;
 
 #[actix_web::main]
@@ -62,11 +63,30 @@ async fn main() -> std::io::Result<()> {
             "#);
     println!("Listening on {}:{}...", config_for_server.db_host, config_for_server.api_port);
 
+    let (namespace_service, user_service, auth_service) = match init_services(db_pool.clone(), config.clone()) {
+        Ok(services) => services,
+        Err(e) => {
+            error!("Failed to initialize services: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    let namespace_service = Arc::new(namespace_service);
+    let user_service = Arc::new(user_service);
+    let auth_service = Arc::new(auth_service);
 
     HttpServer::new(move || {
         App::new()
+            // DB Pool and Configs
             .app_data(web::Data::new(Arc::clone(&db_pool)))
             .app_data(web::Data::new(Arc::clone(&config)))
+
+            // Pass service as app_data to handlers and routes to make accessable
+            .app_data(web::Data::new(namespace_service.clone()))
+            .app_data(web::Data::new(user_service.clone()))
+            .app_data(web::Data::new(auth_service.clone()))
+            // .app_data(web::Data::new(error_service))
+
             .wrap(middleware::Logger::default())
             .configure(|cfg| user_routes::configure(cfg, &jwt_middleware))
             .configure(auth_routes::configure)

@@ -20,8 +20,7 @@ pub async fn validate_jwt(headers: &HeaderMap, secret_key: &str, validation: &Va
 
         let token_data : TokenData<Claims> = decode(token_str, &decoding_key, validation).map_err(ServerError::from)?;
 
-        let uid = token_data.claims.sub.parse::<Uuid>()
-            .map_err(ServerError::UuidError)?;
+        let uid = token_data.claims.sub;
 
         let found_user = UserEntity::find_by_id(uid)
             .one(db).await
@@ -50,7 +49,7 @@ pub fn create_access_token(user: UserModel, configs: &Config) -> Result<String, 
     let jwt_iss = configs.jwt_issuer.clone();
     let jwt_aud = configs.jwt_audience.clone();
 
-    let user_id = user.id.to_string();
+    let user_id = user.id;
     let user_data = match to_value(&user) {
         Ok(json) => Some(json),
         Err(err) => return Err(ServerError::JsonError(err))
@@ -75,7 +74,7 @@ pub fn create_access_token(user: UserModel, configs: &Config) -> Result<String, 
     }
 }
 
-pub fn create_refresh_token(user_id: String, configs: &Config) -> Result<RefreshTokenDTO, ServerError> {
+pub fn create_refresh_token(user_id: Uuid, configs: &Config) -> Result<RefreshTokenDTO, ServerError> {
     let jwt_iss = configs.jwt_issuer.clone();
     let jwt_aud = configs.jwt_audience.clone();
     let secret_key = &configs.secret_key;
@@ -113,12 +112,7 @@ pub async fn refresh_access_token_util(refresh_token: RefreshTokenModel, db: &Da
         &refresh_token.token,&DecodingKey::from_secret(secret_key),&Validation::default(),)
         .map_err(ServerError::from)?;
 
-    let user_id = decoded_token.claims.sub;
-    
-    let uuid = match Uuid::parse_str(&user_id) {
-        Ok(uuid) => uuid,
-        Err(err) => return Err(ServerError::UuidError(err)),
-    };
+    let uuid = decoded_token.claims.sub;
     
     let users = UserEntity::find_by_id(uuid).all(db).await?;
     
