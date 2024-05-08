@@ -1,6 +1,6 @@
 use actix_web::HttpResponse;
 use chrono::Utc;
-use sea_orm::{entity::prelude::*, ActiveValue, Set, EntityTrait, IntoActiveModel};
+use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -160,15 +160,13 @@ impl NamespaceService {
         if delete_namespace_result.rows_affected == 0 {
             return Err(ServerError::from(QueryError::NamespaceNotFound));
         }
-
-        // Delete junction too
+        
         let delete_junction_result = UserNamespaceJunctionEntity::delete(namespace_junc_active_model)
             .exec(&*self.db)
             .await
             .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
 
         if delete_junction_result.rows_affected == 0 {
-            // Log this as it's unusual if we've just deleted the namespace but not the junction
             return Err(ServerError::from(QueryError::UserNamespaceJunctionNotFound));
         }
 

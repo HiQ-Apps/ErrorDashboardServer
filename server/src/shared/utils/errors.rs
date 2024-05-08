@@ -22,6 +22,9 @@ pub enum ServerError {
 
     #[error("Service initialization error: {0} - {1:?}")]
     ServiceInitError(String, Box<dyn StdError>),
+
+    #[error("Authentication error: {0}")]
+    AuthenticationError(String),
 }
 
 // Implementation for actix ResponseError
@@ -78,6 +81,9 @@ pub enum QueryError {
 
     #[error("User already exists")]
     UserExists,
+
+    #[error("Password incorrect")]
+    PasswordIncorrect,
 
     #[error("Namespace not found")]
     NamespaceNotFound,
