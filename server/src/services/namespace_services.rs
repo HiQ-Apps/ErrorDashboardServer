@@ -1,16 +1,14 @@
-use actix_web::{http::StatusCode, HttpResponse};
-use bcrypt::{verify, hash};
+use actix_web::HttpResponse;
 use chrono::Utc;
-use sea_orm::{entity::prelude::*, Set, EntityTrait, IntoActiveModel};
+use sea_orm::{entity::prelude::*, ActiveValue, Set, EntityTrait, IntoActiveModel};
 use std::sync::Arc;
 use uuid::Uuid;
 
 use shared_types::namespace_dtos::{NamespaceDto, UpdateNamespaceDto};
 use crate::config::Config;
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
-use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
 use crate::models::user_namespace_junction_model::{Entity as UserNamespaceJunctionEntity, Model as UserNamespaceJunctionModel};
-use crate::shared::utils::errors::{ServerError, HttpError};
+use crate::shared::utils::errors::{ExternalError, QueryError, ServerError, RequestError};
 
 
 pub struct NamespaceService {
@@ -25,6 +23,7 @@ impl NamespaceService {
 
     pub async fn create_namespace(
         &self,
+        user_id: Uuid,
         namespace_service_name: String,
         environment_type: String
     ) -> Result<Uuid, ServerError> {
@@ -45,43 +44,55 @@ impl NamespaceService {
             updated_at: now,
         }.into_active_model();
 
-        NamespaceEntity::insert(namespace).exec(&*self.db).await?;
+        let namespace_query = NamespaceEntity::insert(namespace).exec(&*self.db).await;
         
-        Ok(uid)
+        let user_namespace_junction = UserNamespaceJunctionModel {
+            id: Uuid::new_v4(),
+            user_id,
+            namespace_id: uid,
+        }.into_active_model();
+        
+        UserNamespaceJunctionEntity::insert(user_namespace_junction).exec(&*self.db).await;
+
+        match namespace_query {
+            Ok(_) => Ok(uid),
+            Err(err) => Err(ServerError::from(ExternalError::DB(err)))
+        }
     }
 
     pub async fn get_namespace_by_id(&self, uid: Uuid) -> Result<NamespaceModel, ServerError> {
         let result = NamespaceEntity::find().filter(<NamespaceEntity as sea_orm::EntityTrait>::Column::Id.eq(uid)).one(&*self.db).await;
         
         match result {
-            Ok(Some(namespace)) =>
-                Ok(namespace),
-            Ok(None) =>
-                Err(ServerError::NamespaceNotFound),
-            Err(err) => {
-                Err(ServerError::DBError(err))
-            }
+            Ok(Some(namespace)) => Ok(namespace),
+            Ok(None) => Err(ServerError::QueryError(QueryError::NamespaceNotFound)),
+            Err(err) => Err(ServerError::from(ExternalError::DB(err))),
         }
     }
     
     pub async fn get_namespaces_by_user_id(&self, user_id: Uuid) -> Result<Vec<NamespaceModel>, ServerError> {
-        let junctions = UserNamespaceJunctionEntity::find()
+        let junction_result = UserNamespaceJunctionEntity::find()
             .filter(<UserNamespaceJunctionEntity as sea_orm::EntityTrait>::Column::UserId.eq(user_id))
             .all(&*self.db)
-            .await
-            .map_err(|err| ServerError::DBError(err))?;
+            .await;
 
-        if junctions.is_empty() {
-            Ok(vec![])
-        } else {
-            let namespace_ids: Vec<Uuid> = junctions.iter().map(|junc| junc.namespace_id).collect();
-            let namespaces = NamespaceEntity::find()
-                .filter(<UserNamespaceJunctionEntity as sea_orm::EntityTrait>::Column::Id.is_in(namespace_ids))
-                .all(&*self.db)
-                .await
-                .map_err(|err| ServerError::DBError(err))?;
-
-            Ok(namespaces)
+        match junction_result {
+            Ok(junctions) => {
+                if junctions.is_empty() {
+                    Ok(vec![])
+                } else {
+                    let namespace_ids: Vec<Uuid> = junctions.iter().map(|junc| junc.namespace_id).collect();
+                    let namespaces = NamespaceEntity::find()
+                        .filter(<NamespaceEntity as sea_orm::EntityTrait>::Column::Id.is_in(namespace_ids))
+                        .all(&*self.db)
+                        .await
+                        .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+                    Ok(namespaces)
+                }
+            },
+            Err(err) => {
+                Err(ServerError::from(ExternalError::DB(err)))
+            }
         }
     }
     
@@ -89,43 +100,42 @@ impl NamespaceService {
         let namespace_junc_result = UserNamespaceJunctionEntity::find()
             .filter(<UserNamespaceJunctionEntity as sea_orm::EntityTrait>::Column::Id.eq(update_namespace_object.id))
             .one(&*self.db)
-            .await?;
+            .await;
 
-        let namespace_junc = namespace_junc_result.ok_or(ServerError::NamespaceNotFound)?;
+        let namespace_junc = match namespace_junc_result {
+            Ok(Some(junction)) => junction,
+            Ok(None) => return Err(ServerError::QueryError(QueryError::UserNamespaceJunctionNotFound)),
+            Err(err) => return Err(ServerError::from(ExternalError::DB(err))),
+        };
 
         if namespace_junc.user_id != current_user_id {
-            return Err(ServerError::PermissionDenied);
-        }
+            return Err(ServerError::RequestError(RequestError::PermissionDenied));
+        };
 
         let namespace_result = NamespaceEntity::find()
             .filter(<NamespaceEntity as sea_orm::EntityTrait>::Column::Id.eq(namespace_junc.namespace_id))
             .one(&*self.db)
-            .await?;
+            .await;
 
-        let mut namespace = namespace_result.ok_or(ServerError::NamespaceNotFound)?.into_active_model();
+        let mut namespace = match namespace_result {
+            Ok(Some(namespace)) => namespace.into_active_model(),
+            Ok(None) => return Err(ServerError::QueryError(QueryError::NamespaceNotFound)),
+            Err(err) => return Err(ServerError::from(ExternalError::DB(err))),
+        };
 
         if let Some(active) = update_namespace_object.active {
-            namespace.active = Set(active);
-        }
+            namespace.active = ActiveValue::Set(active);
+        };
+
         if let Some(name) = update_namespace_object.service_name {
-            namespace.service_name = Set(name);
-        }
-        if let Some(env_type) = update_namespace_object.environment_type {
-            namespace.environment_type = Set(env_type);
-        }
-        if let Some(client_id) = update_namespace_object.client_id {
-            namespace.client_id = Set(client_id);
-        }
-        if let Some(client_secret) = update_namespace_object.client_secret {
-            namespace.client_secret = Set(client_secret);
-        }
+            namespace.service_name = ActiveValue::Set(name);
+        };
 
-        namespace.updated_at = Set(Utc::now());
+        namespace.update(&*self.db).await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
 
-        let updated_namespace = namespace.update(&*self.db).await.map_err(|err| ServerError::DBError(err))?;
-
-        Ok(HttpResponse::Ok().json(updated_namespace))
+        Ok(HttpResponse::Ok().finish())
     }
+
     
     pub async fn delete_namespace(&self, user_id: Uuid, namespace_id: Uuid) -> Result<HttpResponse, ServerError> {
         let found_namespace_junc = UserNamespaceJunctionEntity::find()
@@ -133,11 +143,11 @@ impl NamespaceService {
             .filter(<UserNamespaceJunctionEntity as sea_orm::EntityTrait>::Column::NamespaceId.eq(namespace_id))
             .one(&*self.db)
             .await
-            .map_err(ServerError::DBError)?;
+            .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
 
         let namespace_junc = match found_namespace_junc {
             Some(junction) => junction,
-            None => return Err(ServerError::PermissionDenied),
+            None => return Err(ServerError::from(RequestError::PermissionDenied)),
         };
         
         let namespace_junc_active_model = namespace_junc.into_active_model();
@@ -145,21 +155,21 @@ impl NamespaceService {
         let delete_namespace_result = NamespaceEntity::delete_by_id(namespace_id)
             .exec(&*self.db)
             .await
-            .map_err(ServerError::DBError)?;
+            .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
 
         if delete_namespace_result.rows_affected == 0 {
-            return Err(ServerError::NamespaceNotFound);
+            return Err(ServerError::from(QueryError::NamespaceNotFound));
         }
 
         // Delete junction too
         let delete_junction_result = UserNamespaceJunctionEntity::delete(namespace_junc_active_model)
             .exec(&*self.db)
             .await
-            .map_err(ServerError::DBError)?;
+            .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
 
         if delete_junction_result.rows_affected == 0 {
             // Log this as it's unusual if we've just deleted the namespace but not the junction
-            return Err(ServerError::NamespaceNotFound);
+            return Err(ServerError::from(QueryError::UserNamespaceJunctionNotFound));
         }
 
         Ok(HttpResponse::Ok().finish())

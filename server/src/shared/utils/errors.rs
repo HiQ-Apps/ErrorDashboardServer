@@ -1,205 +1,129 @@
-use std::fmt::{Formatter, Result, Display};
-use std::error::Error;
-use actix_web::dev::Server;
+use actix_web::{Error as ActixError, HttpResponse, http::StatusCode, error::HttpError, error::ResponseError};
 use anyhow::Error as AnyhowError;
-use sea_orm::error::{DbErr, SqlErr};
-use serde_json::Error as JsonError;
-use actix_web::{Error as ActixError, ResponseError as ActixResponseError, HttpResponse};
-use actix_web::http::StatusCode;
 use bcrypt::BcryptError;
 use jsonwebtoken::errors::Error as JwtError;
+use sea_orm::error::{DbErr, SqlErr};
+use serde_json::Error as JsonError;
+use std::error::Error as StdError;
+use thiserror::Error;
 use uuid::Error as UuidError;
 
-#[derive(Debug)]
-pub struct HttpError {
-    pub status: StatusCode,
-    pub message: String,
-}
-
-impl Display for HttpError {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "HttpError: {} - {}", self.status, self.message)
-    }
-}
-
-impl Error for HttpError {}
-
-impl From<HttpError> for HttpResponse {
-    fn from(err: HttpError) -> HttpResponse {
-        HttpResponse::build(err.status).json(err.message)
-    }
-}
-
-#[derive(Debug)]
+// Define External Errors grouped under ServerError
+#[derive(Debug, Error)]
 pub enum ServerError {
-    // 3rd party errors
-    ActixError(ActixError),
-    AnyhowError(AnyhowError),
-    BcryptError(BcryptError),
-    DBError(DbErr),
-    JsonError(JsonError),
-    JwtError(JwtError),
-    PoolError(SqlErr),
-    UuidError(UuidError),
-    WebError(HttpError),
+    #[error("External error: {0}")]
+    ExternalError(ExternalError),
 
-    // Service Initalization errors
-    ServiceInitError(String, Box<dyn Error>),
+    #[error("Query error: {0}")]
+    QueryError(QueryError),
 
-    // Query errors
+    #[error("Request error: {0}")]
+    RequestError(RequestError),
+
+    #[error("Service initialization error: {0} - {1:?}")]
+    ServiceInitError(String, Box<dyn StdError>),
+}
+
+// Implementation for actix ResponseError
+impl ResponseError for ServerError {
+    fn error_response(&self) -> HttpResponse {
+        let status = match *self {
+            ServerError::QueryError(ref err) => match err {
+                QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound=> StatusCode::NOT_FOUND,
+                QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists=> StatusCode::CONFLICT,
+                _ => StatusCode::BAD_REQUEST,
+            },
+            ServerError::RequestError(_) => StatusCode::BAD_REQUEST,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+
+        HttpResponse::build(status).json(format!("{}", self))
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum ExternalError {
+    #[error("Actix error: {0}")]
+    Actix(ActixError),
+
+    #[error("Anyhow error: {0}")]
+    Anyhow(AnyhowError),
+
+    #[error("Database error: {0}")]
+    DB(DbErr),
+
+    #[error("JWT error: {0}")]
+    Jwt(JwtError),
+
+    #[error("UUID error: {0}")]
+    Uuid(UuidError),
+
+    #[error("Bcrypt error: {0}")]
+    Bcrypt(BcryptError),
+
+    #[error("JSON error: {0}")]
+    Json(JsonError),
+
+    #[error("SQL pool error: {0}")]
+    Pool(SqlErr),
+
+    #[error("HTTP error: {0}")]
+    Web(HttpError),
+}
+
+#[derive(Debug, Error)]
+pub enum QueryError {
+    #[error("User not found")]
     UserNotFound,
-    UserExists,
-    NamespaceNotFound,
-    NamespaceExists,
-    UserNamespaceJunctionNotFound,
-    UserNamespaceJunctionExists,
 
-    // Typing errors
+    #[error("User already exists")]
+    UserExists,
+
+    #[error("Namespace not found")]
+    NamespaceNotFound,
+
+    #[error("Namespace already exists")]
+    NamespaceExists,
+
+    #[error("User-Namespace junction not found")]
+    UserNamespaceJunctionNotFound,
+
+    #[error("User-Namespace junction already exists")]
+    UserNamespaceJunctionExists,
+}
+
+#[derive(Debug, Error)]
+pub enum RequestError {
+    #[error("Missing user ID")]
     MissingUserID,
 
-    // Request errors
+    #[error("Invalid header")]
     InvalidHeader,
+
+    #[error("Invalid token")]
     InvalidToken,
+
+    #[error("Missing header")]
     MissingHeader,
-    PermissionDenied
+
+    #[error("Permission denied")]
+    PermissionDenied,
 }
 
-impl Display for ServerError {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        match self {
-            // 3rd party errors
-            ServerError::ActixError(err) => write!(f, "ActixError: {}", err),
-            ServerError::AnyhowError(err) => write!(f, "AnyhowError: {}", err),
-            ServerError::BcryptError(err) => write!(f, "BcryptError: {}", err),
-            ServerError::DBError(err) => write!(f, "DBError: {}", err),
-            ServerError::JsonError(err) => write!(f, "JsonError: {}", err),
-            ServerError::JwtError(err) => write!(f, "JwtError: {}", err),
-            ServerError::PoolError(err) => write!(f, "PoolError: {}", err),
-            ServerError::UuidError(err) => write!(f, "UuidError: {}", err),
-            ServerError::WebError(err) => write!(f, "WebError: {}", err),
-
-            // Query errors
-            ServerError::UserNotFound => write!(f, "User not found"),
-            ServerError::UserExists => write!(f, "User already exists"),
-            ServerError::NamespaceNotFound => write!(f, "Namespace not found"),
-            ServerError::NamespaceExists => write!(f, "Namespace already exists"),
-            ServerError::UserNamespaceJunctionNotFound => write!(f, "Namespace not found"),
-            ServerError::UserNamespaceJunctionExists => write!(f, "User and Namespace relationship already exists"),
-
-            // Service Initalization errors
-            ServerError::ServiceInitError(description, source) => {
-                write!(f, "{} failed to initialize: {}", description, source)
-            },
-
-            // Typing errors
-            ServerError::MissingUserID => write!(f, "User ID is missing"),
-
-            // Request errors
-            ServerError::InvalidHeader => write!(f, "The provided header is invalid or not in the expected format"),
-            ServerError::InvalidToken => write!(f, "The provided token is invalid"),
-            ServerError::MissingHeader => write!(f, "The required header is missing from the request"),
-            ServerError::PermissionDenied => write!(f, "Permission Denied")
-        }
+impl From<ExternalError> for ServerError {
+    fn from(err: ExternalError) -> Self {
+        ServerError::ExternalError(err)
     }
 }
 
-impl Error for ServerError {}
-
-impl ActixResponseError for ServerError {
-    fn error_response(&self) -> HttpResponse {
-        match self {
-            // 3rd part error responses
-            ServerError::WebError(http_err) => HttpResponse::build(http_err.status).json(http_err.message.clone()),
-
-            ServerError::PoolError(_) | ServerError::DBError(_) | ServerError::AnyhowError(_) | ServerError::BcryptError(_) | ServerError::JsonError(_)
-            | ServerError::UuidError(_) | ServerError::ActixError(_)
-             => {HttpResponse::InternalServerError().json("Internal Server Error")},
-             
-            ServerError::JwtError(_) => HttpResponse::Unauthorized().json("Invalid JWT"),
-
-            // Query error responses
-            ServerError::UserNotFound => HttpResponse::Unauthorized().json("User not found"),
-            ServerError::UserExists => HttpResponse::Conflict().json("User already exists"),
-            ServerError::NamespaceNotFound => HttpResponse::NotFound().json("Namespace not found"),
-            ServerError::NamespaceExists => HttpResponse::Conflict().json("Namespace already exists"),
-            ServerError::UserNamespaceJunctionNotFound => HttpResponse::NotFound().json("Namespace not found"),
-            ServerError::UserNamespaceJunctionExists => HttpResponse::Conflict().json("User and Namespace relationship already exists"),
-
-            // Service Initalization error responses
-            ServerError::ServiceInitError(..) => HttpResponse::InternalServerError().json("Internal Server Error"),
-
-            // Typing error responses
-            ServerError::MissingUserID => HttpResponse::BadRequest().json("Missing user ID"),
-
-            // Request error responses
-            ServerError::MissingHeader => HttpResponse::BadRequest().json("Missing Authorization header"),
-            ServerError::InvalidHeader => HttpResponse::BadRequest().json("Invalid Authorization header format"),
-            ServerError::InvalidToken => HttpResponse::Unauthorized().json("Invalid Bearer token"),
-            ServerError::PermissionDenied => HttpResponse::Forbidden().json("Permission Denied")
-        }
-
-    }
-    
-    fn status_code(&self) -> StatusCode {
-        match self {
-            ServerError::WebError(http_err) => http_err.status,
-            ServerError::JwtError(_) => StatusCode::UNAUTHORIZED,
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
-        }
+impl From<QueryError> for ServerError {
+    fn from(err: QueryError) -> Self {
+        ServerError::QueryError(err)
     }
 }
 
-impl From<ActixError> for ServerError {
-    fn from(err: ActixError) -> ServerError {
-        ServerError::ActixError(err)
+impl From<RequestError> for ServerError {
+    fn from(err: RequestError) -> Self {
+        ServerError::RequestError(err)
     }
 }
-
-impl From<AnyhowError> for ServerError {
-    fn from(err: AnyhowError) -> ServerError {
-        ServerError::AnyhowError(err)
-    }
-}
-
-impl From<BcryptError> for ServerError {
-    fn from(err: BcryptError) -> ServerError {
-        ServerError::BcryptError(err)
-    }
-}
-
-impl From<DbErr> for ServerError {
-    fn from(err: DbErr) -> ServerError {
-        ServerError::DBError(err)
-    }
-}
-
-impl From<JsonError> for ServerError {
-    fn from(err: JsonError) -> ServerError {
-        ServerError::JsonError(err)
-    }
-}
-
-impl From<JwtError> for ServerError {
-    fn from(err: JwtError) -> ServerError {
-        ServerError::JwtError(err)
-    }
-}
-
-impl From<SqlErr> for ServerError {
-    fn from(err: SqlErr) -> ServerError {
-        ServerError::PoolError(err)
-    }
-}
-
-impl From<UuidError> for ServerError {
-    fn from(err: UuidError) -> ServerError {
-        ServerError::UuidError(err)
-    }
-}
-
-impl From<HttpError> for ServerError {
-    fn from(err: HttpError) -> ServerError {
-        ServerError::WebError(err)
-    }
-}
-
