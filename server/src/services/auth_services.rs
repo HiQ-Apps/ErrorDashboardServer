@@ -1,4 +1,3 @@
-use actix_web::http::StatusCode;
 use bcrypt::{verify, hash};
 use chrono::Utc;
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel};
@@ -8,9 +7,9 @@ use uuid::Uuid;
 use shared_types::user_dtos::{ShortUserDTO, UserLoginServiceDTO};
 
 use crate::config::Config;
-use crate::models::user_model::{UserEntity, Model as UserModel};
-use crate::models::refresh_token_model::{RefreshTokenEntity, Model as RefreshTokenModel};
-use crate::shared::utils::errors::{ServerError, HttpError};
+use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
+use crate::models::refresh_token_model::{Entity as RefreshTokenEntity, Model as RefreshTokenModel};
+use crate::shared::utils::errors::{ExternalError, QueryError, ServerError, RequestError};
 use crate::shared::utils::jwt::{create_access_token, create_refresh_token, refresh_access_token_util};
 
 pub struct AuthService {
@@ -36,17 +35,18 @@ impl AuthService {
             .filter(<UserEntity as sea_orm::EntityTrait>::Column::Email
             .eq(user_email))
             .one(&*self.db)
-            .await.map_err(ServerError::DBError)?;
+            .await
+            .map_err(|err|ServerError::from(ExternalError::DB(err)))?;
 
         match found_user {
             Some(user) => {
-                let is_valid = verify(&user_password, &user.password).map_err(ServerError::from)?;
+                let is_valid = verify(&user_password, &user.password).map_err(|err| ServerError::from(ExternalError::Bcrypt(err)))?;
                 if is_valid {
                     let access_token = create_access_token(user.clone(), &self.configs)?;
-                    let refresh_token_dto = create_refresh_token(user.id.to_string(),&self.configs)?;
+                    let refresh_token_dto = create_refresh_token(user.id, &self.configs)?;
 
                     let refresh_token_model = RefreshTokenModel {
-                        user_id: user.id,
+                        user_id: Some(user.id),
                         token: refresh_token_dto.refresh_token.clone(),
                         issued_at: refresh_token_dto.issued_at,
                         expires_at: refresh_token_dto.expires_at,
@@ -58,7 +58,8 @@ impl AuthService {
 
                     RefreshTokenEntity::insert(refresh_token_model)
                         .exec(&*self.db)
-                        .await?;
+                        .await
+                        .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
 
                     let user_response = UserLoginServiceDTO { 
                         user: ShortUserDTO {
@@ -73,10 +74,10 @@ impl AuthService {
                     Ok(user_response)
                 
                 } else {
-                    Err(ServerError::WebError(HttpError { status: StatusCode::BAD_REQUEST, message: "Invalid password".to_string() }))
+                    Err(ServerError::QueryError(QueryError::PasswordIncorrect))
                 }
             },
-            None => Err(ServerError::WebError(HttpError { status: StatusCode::NOT_FOUND, message: "User not found".to_string() }))
+            None => Err(ServerError::QueryError(QueryError::UserNotFound))
         }
     }
 
@@ -101,7 +102,8 @@ impl AuthService {
             updated_at: None
         }.into_active_model();
 
-        UserEntity::insert(user).exec(&*self.db).await?;
+        UserEntity::insert(user).exec(&*self.db).await
+            .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
         
         Ok(uid)
     }
@@ -109,7 +111,7 @@ impl AuthService {
 
     pub async fn refresh_access_token(&self, refresh_token: String) -> Result<String, ServerError> {
         let refresh_token_model: RefreshTokenModel = serde_json::from_str(&refresh_token)
-            .map_err(ServerError::JsonError)?;
+            .map_err(|err| ServerError::ExternalError(ExternalError::Json(err)))?;
 
         match refresh_access_token_util(refresh_token_model, &self.db, &self.configs).await {
             Ok(token) => Ok(token),
@@ -123,9 +125,8 @@ impl AuthService {
             .filter(<RefreshTokenEntity as sea_orm::EntityTrait>::Column::Token.eq(token))
             .one(&*self.db)
             .await
-            .map_err(ServerError::DBError)
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))
     }
-
 
     pub async fn process_token_refresh(&self, token: &str) -> Result<String, ServerError> {
         let issuer = &self.configs.jwt_issuer;
@@ -134,14 +135,23 @@ impl AuthService {
         let mut token_model = self
             .find_by_token(token)
             .await?
-            .ok_or(ServerError::InvalidToken)?;
+            .ok_or(ServerError::RequestError(RequestError::InvalidToken))?;
 
         token_model.revoked = true;
         
         let active_token_model = token_model.clone().into_active_model();
-        RefreshTokenEntity::update(active_token_model).exec(&*self.db).await?;
+
+        RefreshTokenEntity::update(active_token_model)
+            .exec(&*self.db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
         
-        let new_refresh_token_dto = create_refresh_token(token_model.user_id.to_string(), &self.configs)?;
+        let user_id_uuid = match token_model.user_id {
+            Some(uuid) => uuid,
+            None => return Err(ServerError::RequestError(RequestError::MissingUserID)),
+        };
+
+        let new_refresh_token_dto = create_refresh_token(user_id_uuid, &self.configs)?;
         let new_refresh_token_model = RefreshTokenModel {
                         user_id: token_model.user_id,
                         token: new_refresh_token_dto.refresh_token.clone(),
@@ -155,7 +165,8 @@ impl AuthService {
 
         RefreshTokenEntity::insert(new_refresh_token_model)
             .exec(&*self.db)
-            .await?;
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
         
         Ok(new_refresh_token_dto.refresh_token)
     }
