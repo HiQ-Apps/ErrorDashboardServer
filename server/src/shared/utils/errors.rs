@@ -1,14 +1,15 @@
-use actix_web::{Error as ActixError, HttpResponse, http::StatusCode, error::HttpError, error::ResponseError};
+use actix_web::{Error as ActixError, HttpResponse, http::StatusCode, error::ResponseError};
 use anyhow::Error as AnyhowError;
 use bcrypt::BcryptError;
 use jsonwebtoken::errors::Error as JwtError;
 use sea_orm::error::{DbErr, SqlErr};
+use sea_orm::TransactionError;
 use serde_json::Error as JsonError;
 use std::error::Error as StdError;
 use thiserror::Error;
 use uuid::Error as UuidError;
 
-// Define External Errors grouped under ServerError
+// Group enum'd errors into a single enum
 #[derive(Debug, Error)]
 pub enum ServerError {
     #[error("External error: {0}")]
@@ -23,26 +24,28 @@ pub enum ServerError {
     #[error("Service initialization error: {0} - {1:?}")]
     ServiceInitError(String, Box<dyn StdError>),
 
-    #[error("Authentication error: {0}")]
-    AuthenticationError(String),
+    #[error("HTTP error: {0} - {1}")]
+    HttpError(StatusCode, String),
 }
 
-// Implementation for actix ResponseError
 impl ResponseError for ServerError {
     fn error_response(&self) -> HttpResponse {
-        let status = match *self {
-            ServerError::QueryError(ref err) => match err {
-                QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound=> StatusCode::NOT_FOUND,
-                QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists=> StatusCode::CONFLICT,
-                _ => StatusCode::BAD_REQUEST,
+        match self {
+            ServerError::QueryError(ref err) => {
+                let status = match err {
+                    QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound => StatusCode::NOT_FOUND,
+                    QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists => StatusCode::CONFLICT,
+                    _ => StatusCode::BAD_REQUEST,
+                };
+                HttpResponse::build(status).json(format!("{}", self))
             },
-            ServerError::RequestError(_) => StatusCode::BAD_REQUEST,
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
-        };
-
-        HttpResponse::build(status).json(format!("{}", self))
+            ServerError::RequestError(_) => HttpResponse::build(StatusCode::BAD_REQUEST).json(format!("{}", self)),
+            ServerError::HttpError(status, message) => HttpResponse::build(*status).json(message),
+            _ => HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR).json(format!("{}", self)),
+        }
     }
 }
+
 
 #[derive(Debug, Error)]
 pub enum ExternalError {
@@ -70,8 +73,8 @@ pub enum ExternalError {
     #[error("SQL pool error: {0}")]
     Pool(SqlErr),
 
-    #[error("HTTP error: {0}")]
-    Web(HttpError),
+    #[error("Transaction error: {0}")]
+    Transaction(TransactionError<DbErr>),
 }
 
 #[derive(Debug, Error)]
@@ -133,3 +136,59 @@ impl From<RequestError> for ServerError {
         ServerError::RequestError(err)
     }
 }
+
+// External Error implementations
+impl From<ActixError> for ExternalError {
+    fn from(error: ActixError) -> Self {
+        ExternalError::Actix(error)
+    }
+}
+
+impl From<AnyhowError> for ExternalError {
+    fn from(error: AnyhowError) -> Self {
+        ExternalError::Anyhow(error)
+    }
+}
+
+impl From<DbErr> for ExternalError {
+    fn from(error: DbErr) -> Self {
+        ExternalError::DB(error)
+    }
+}
+
+impl From<JwtError> for ExternalError {
+    fn from(error: JwtError) -> Self {
+        ExternalError::Jwt(error)
+    }
+}   
+
+impl From<UuidError> for ExternalError {
+    fn from(error: UuidError) -> Self {
+        ExternalError::Uuid(error)
+    }
+}
+
+impl From<BcryptError> for ExternalError {
+    fn from(error: BcryptError) -> Self {
+        ExternalError::Bcrypt(error)
+    }
+}
+
+impl From<JsonError> for ExternalError {
+    fn from(error: JsonError) -> Self {
+        ExternalError::Json(error)
+    }
+}
+
+impl From<SqlErr> for ExternalError {
+    fn from(error: SqlErr) -> Self {
+        ExternalError::Pool(error)
+    }
+}
+
+impl From<TransactionError<DbErr>> for ExternalError {
+    fn from(error: TransactionError<DbErr>) -> Self {
+        ExternalError::Transaction(error)
+    }
+}
+

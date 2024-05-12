@@ -1,5 +1,4 @@
 use actix_service::Service;
-use actix_web::http::StatusCode;
 use actix_web::dev::{ServiceRequest, ServiceResponse, Transform};
 use futures::future::{ok, Ready};
 use futures::Future;
@@ -11,7 +10,7 @@ use std::sync::Arc;
 use std::task::{Poll, Context};
 
 use crate::config::Config;
-use crate::shared::utils::errors::{ServerError, HttpError};
+use crate::shared::utils::errors::ServerError;
 use crate::shared::utils::jwt::validate_jwt;
 
 #[derive(Clone)]
@@ -84,14 +83,9 @@ where
             validation.validate_exp = true;
             validation.validate_nbf = false;
 
-            if validate_jwt(&headers, &secret_key, &validation, &db_pool).await.is_ok() {
-                Ok(res)
-            } else {
-                let error = ServerError::WebError(HttpError {
-                    status: StatusCode::UNAUTHORIZED,
-                    message: "Unauthorized".to_string(),
-                });
-                Err(E::from(error))
+            match validate_jwt(&headers, &secret_key, &validation, &db_pool).await {
+                Ok(()) => Ok(res),
+                Err(err) => Err(E::from(err)),
             }
         })
         }

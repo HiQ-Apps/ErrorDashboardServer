@@ -21,6 +21,9 @@ pub struct Model {
     pub resolved: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+
+    #[sea_orm(belongs_to = NamespaceEntity, from = "Column::NamespaceId", to = NamespaceModel::Column::Id)]
+    pub namespace_id: Uuid,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -44,6 +47,22 @@ impl Related<NamespaceEntity> for Entity {
 }
 
 impl ActiveModel {
+    pub fn new(namespace_id: Uuid, namespace: Model) -> Self {
+        Self {
+            id: ActiveValue::Set(Uuid::new_v4()),
+            namespace_id: ActiveValue::Set(namespace_id),  
+            status_code: ActiveValue::Set(namespace.status_code),
+            user_affected: ActiveValue::Set(namespace.user_affected),
+            path: ActiveValue::Set(namespace.path),
+            line: ActiveValue::Set(namespace.line),
+            message: ActiveValue::Set(namespace.message),
+            stack_trace: ActiveValue::Set(namespace.stack_trace),
+            resolved: ActiveValue::Set(false),
+            created_at: ActiveValue::Set(Utc::now()),
+            updated_at: ActiveValue::Set(Utc::now()),
+        }
+    }
+
     pub fn update_values(&mut self, new_values: Model) {
         self.status_code = ActiveValue::Set(new_values.status_code);
         self.user_affected = ActiveValue::Set(new_values.user_affected);
@@ -52,25 +71,9 @@ impl ActiveModel {
         self.message = ActiveValue::Set(new_values.message);
         self.stack_trace = ActiveValue::Set(new_values.stack_trace);
         self.resolved = ActiveValue::Set(new_values.resolved);
-        self.created_at = ActiveValue::Set(new_values.created_at);
         self.updated_at = ActiveValue::Set(new_values.updated_at);
     }
 }
 
 #[async_trait]
-impl ActiveModelBehavior for ActiveModel {
-    fn new() -> Self {
-        Self {
-            id: ActiveValue::Set(Uuid::new_v4()),
-            status_code: ActiveValue::Set(0),
-            user_affected: ActiveValue::Set("".to_string()),
-            path: ActiveValue::Set("".to_string()),
-            line: ActiveValue::Set(0),
-            message: ActiveValue::Set("".to_string()),
-            stack_trace: ActiveValue::Set("".to_string()),
-            resolved: ActiveValue::Set(false),
-            created_at: ActiveValue::Set(Utc::now()),
-            updated_at: ActiveValue::Set(Utc::now())
-        }
-    }
-}
+impl ActiveModelBehavior for ActiveModel {}

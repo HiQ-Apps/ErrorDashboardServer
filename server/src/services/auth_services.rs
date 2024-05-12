@@ -1,4 +1,3 @@
-use actix_web::http::StatusCode;
 use bcrypt::{verify, hash};
 use chrono::Utc;
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel};

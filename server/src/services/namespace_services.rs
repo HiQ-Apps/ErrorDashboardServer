@@ -1,6 +1,5 @@
-use actix_web::HttpResponse;
 use chrono::Utc;
-use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel};
+use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel, DatabaseConnection, TransactionError, TransactionTrait};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -27,38 +26,45 @@ impl NamespaceService {
         namespace_service_name: String,
         environment_type: String
     ) -> Result<Uuid, ServerError> {
-        let uid = Uuid::new_v4();
-        let new_client_secret = Uuid::new_v4();
-        let new_client_id = Uuid::new_v4();
-        let now = Utc::now();
+        let transaction_result = self.db.transaction(|transaction| {
+            Box::pin(async move {
+                let uid = Uuid::new_v4();
+                let new_client_secret = Uuid::new_v4();
+                let new_client_id = Uuid::new_v4();
+                let now = Utc::now();
 
-        let namespace = NamespaceModel {
-            id: uid,
-            active: false,
-            service_name: namespace_service_name,
-            environment_type,
-            client_id: new_client_secret,
-            client_secret: new_client_id,
-            error_records: None,
-            created_at: now,
-            updated_at: now,
-        }.into_active_model();
+                let namespace = NamespaceModel {
+                    id: uid,
+                    active: true,
+                    service_name: namespace_service_name,
+                    environment_type,
+                    client_id: new_client_id,
+                    client_secret: new_client_secret,
+                    created_at: now,
+                    updated_at: now,
+                }.into_active_model();
+                
+                NamespaceEntity::insert(namespace).exec(transaction)
+                    .await?;
 
-        let namespace_query = NamespaceEntity::insert(namespace).exec(&*self.db).await;
-        
-        let user_namespace_junction = UserNamespaceJunctionModel {
-            id: Uuid::new_v4(),
-            user_id,
-            namespace_id: uid,
-        }.into_active_model();
-        
-        UserNamespaceJunctionEntity::insert(user_namespace_junction).exec(&*self.db).await;
+                let user_namespace_junction = UserNamespaceJunctionModel {
+                    id: Uuid::new_v4(),
+                    user_id,
+                    namespace_id: uid,
+                }.into_active_model();
 
-        match namespace_query {
-            Ok(_) => Ok(uid),
-            Err(err) => Err(ServerError::from(ExternalError::DB(err)))
-        }
+                UserNamespaceJunctionEntity::insert(user_namespace_junction).exec(transaction)
+                    .await?;
+
+                Ok(uid)
+            })
+        }).await;
+
+        transaction_result.map_err(|err| ServerError::from(ExternalError::from(err)))
+
     }
+
+
 
     pub async fn get_namespace_by_id(&self, uid: Uuid) -> Result<NamespaceModel, ServerError> {
         let result = NamespaceEntity::find().filter(<NamespaceEntity as sea_orm::EntityTrait>::Column::Id.eq(uid)).one(&*self.db).await;
@@ -96,7 +102,7 @@ impl NamespaceService {
         }
     }
     
-    pub async fn update_namespace(&self, update_namespace_object: UpdateNamespaceDto, current_user_id: Uuid) -> Result<HttpResponse, ServerError> {
+    pub async fn update_namespace(&self, update_namespace_object: UpdateNamespaceDto, current_user_id: Uuid) -> Result<NamespaceDto, ServerError> {
         let namespace_junc_result = UserNamespaceJunctionEntity::find()
             .filter(<UserNamespaceJunctionEntity as sea_orm::EntityTrait>::Column::Id.eq(update_namespace_object.id))
             .one(&*self.db)
@@ -131,13 +137,22 @@ impl NamespaceService {
             namespace.service_name = ActiveValue::Set(name);
         };
 
-        namespace.update(&*self.db).await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+        let updated_namespace = namespace.update(&*self.db).await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
 
-        Ok(HttpResponse::Ok().finish())
-    }
+        let updated_namespace_dto = NamespaceDto {
+            id: updated_namespace.id,
+            active: updated_namespace.active,
+            service_name: updated_namespace.service_name,
+            environment_type: updated_namespace.environment_type,
+            client_id: updated_namespace.client_id,
+            client_secret: updated_namespace.client_secret,
+            created_at: updated_namespace.created_at,
+            updated_at: updated_namespace.updated_at,
+        };
+        Ok(updated_namespace_dto)
+        }
 
-    
-    pub async fn delete_namespace(&self, user_id: Uuid, namespace_id: Uuid) -> Result<HttpResponse, ServerError> {
+    pub async fn delete_namespace(&self, user_id: Uuid, namespace_id: Uuid) -> Result<Uuid, ServerError> {
         let found_namespace_junc = UserNamespaceJunctionEntity::find()
             .filter(<UserNamespaceJunctionEntity as sea_orm::EntityTrait>::Column::UserId.eq(user_id))
             .filter(<UserNamespaceJunctionEntity as sea_orm::EntityTrait>::Column::NamespaceId.eq(namespace_id))
@@ -160,7 +175,7 @@ impl NamespaceService {
         if delete_namespace_result.rows_affected == 0 {
             return Err(ServerError::from(QueryError::NamespaceNotFound));
         }
-        
+
         let delete_junction_result = UserNamespaceJunctionEntity::delete(namespace_junc_active_model)
             .exec(&*self.db)
             .await
@@ -170,6 +185,6 @@ impl NamespaceService {
             return Err(ServerError::from(QueryError::UserNamespaceJunctionNotFound));
         }
 
-        Ok(HttpResponse::Ok().finish())
+        Ok(namespace_id)
     }
 }

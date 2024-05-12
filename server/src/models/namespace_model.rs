@@ -18,7 +18,6 @@ pub struct Model {
     pub environment_type: String,
     pub client_id: Uuid,
     pub client_secret: Uuid,
-    pub error_records: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -63,7 +62,6 @@ impl ActiveModelBehavior for ActiveModel {
             environment_type: ActiveValue::Set("".to_string()),
             client_id: ActiveValue::Set(Uuid::new_v4()),
             client_secret: ActiveValue::Set(Uuid::new_v4()),
-            error_records: ActiveValue::Unchanged(None),
             created_at: ActiveValue::Set(Utc::now()),
             updated_at: ActiveValue::Set(Utc::now()),
         }
