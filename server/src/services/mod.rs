@@ -16,13 +16,13 @@ use crate::shared::utils::errors::ServerError;
 
 pub fn init_services(db_pool: Arc<DatabaseConnection>, config: Arc<Config>) -> Result<(namespace_services::NamespaceService, user_services::UserService, auth_services::AuthService), Box<dyn Error>> {
     let namespace_service = namespace_services::NamespaceService::new(Arc::clone(&db_pool), Arc::clone(&config))
-        .map_err(|e| Box::new(ServerError::ServiceInitError("namespace_service".to_string(), Box::new(e))) as Box<dyn Error>)?;
+        .map_err(|_| ServerError::ServiceInitError("Namespace service failed to initialize".to_string()))?;
 
     let user_service = user_services::UserService::new(Arc::clone(&db_pool), Arc::clone(&config))
-        .map_err(|e| Box::new(ServerError::ServiceInitError("user_service".to_string(), Box::new(e))) as Box<dyn Error>)?;
+        .map_err(|_| ServerError::ServiceInitError("User services failed to initialize".to_string()))?;
 
     let auth_service = auth_services::AuthService::new(Arc::clone(&db_pool), Arc::clone(&config))
-        .map_err(|e| Box::new(ServerError::ServiceInitError("auth_service".to_string(), Box::new(e))) as Box<dyn Error>)?;
+        .map_err(|_| ServerError::ServiceInitError("Auth services failed to initialize".to_string()))?;
 
     Ok((namespace_service, user_service, auth_service))
 }

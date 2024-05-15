@@ -5,7 +5,6 @@ use jsonwebtoken::errors::Error as JwtError;
 use sea_orm::error::{DbErr, SqlErr};
 use sea_orm::TransactionError;
 use serde_json::Error as JsonError;
-use std::error::Error as StdError;
 use thiserror::Error;
 use uuid::Error as UuidError;
 
@@ -21,11 +20,12 @@ pub enum ServerError {
     #[error("Request error: {0}")]
     RequestError(RequestError),
 
-    #[error("Service initialization error: {0} - {1:?}")]
-    ServiceInitError(String, Box<dyn StdError>),
+    #[error("Service initialization error: {0}")]
+    ServiceInitError(String),
 
     #[error("HTTP error: {0} - {1}")]
     HttpError(StatusCode, String),
+
 }
 
 impl ResponseError for ServerError {
@@ -186,9 +186,11 @@ impl From<SqlErr> for ExternalError {
     }
 }
 
-impl From<TransactionError<DbErr>> for ExternalError {
+impl From<TransactionError<DbErr>> for ServerError {
     fn from(error: TransactionError<DbErr>) -> Self {
-        ExternalError::Transaction(error)
+        match error {
+            TransactionError::Connection(err) => ServerError::ExternalError(ExternalError::DB(err)),
+            TransactionError::Transaction(err) => ServerError::ExternalError(ExternalError::DB(err)),
+        }
     }
 }
-

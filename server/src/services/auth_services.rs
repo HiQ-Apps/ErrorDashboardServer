@@ -1,6 +1,6 @@
 use bcrypt::{verify, hash};
 use chrono::Utc;
-use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel};
+use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, TransactionTrait};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -22,7 +22,6 @@ impl AuthService {
         Ok(Self { db, configs })
     }
 
-
     pub async fn login(
         &self,
         user_email: String,
@@ -30,6 +29,9 @@ impl AuthService {
     ) -> Result<UserLoginServiceDTO, ServerError> {
         let issuer = &self.configs.jwt_issuer;
         let audience = &self.configs.jwt_audience;
+        let db = &*self.db;
+        let transaction = db.begin().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
 
         let found_user: Option<UserModel> = UserEntity::find()
             .filter(<UserEntity as sea_orm::EntityTrait>::Column::Email
@@ -56,10 +58,13 @@ impl AuthService {
                         id: Uuid::new_v4(),
                     }.into_active_model();
 
-                    RefreshTokenEntity::insert(refresh_token_model)
+                    if let Err(err) = RefreshTokenEntity::insert(refresh_token_model)
                         .exec(&*self.db)
-                        .await
-                        .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+                        .await{
+                            transaction.rollback().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+                            return Err(ServerError::from(ExternalError::from(err)));
+                        }
+                        
 
                     let user_response = UserLoginServiceDTO { 
                         user: ShortUserDTO {
