@@ -186,8 +186,11 @@ impl From<SqlErr> for ExternalError {
     }
 }
 
-impl From<TransactionError<DbErr>> for ExternalError {
+impl From<TransactionError<DbErr>> for ServerError {
     fn from(error: TransactionError<DbErr>) -> Self {
-        ExternalError::Transaction(error)
+        match error {
+            TransactionError::Connection(err) => ServerError::ExternalError(ExternalError::DB(err)),
+            TransactionError::Transaction(err) => ServerError::ExternalError(ExternalError::DB(err)),
+        }
     }
 }
