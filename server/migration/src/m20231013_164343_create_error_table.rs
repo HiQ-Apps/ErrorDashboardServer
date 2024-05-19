@@ -7,12 +7,12 @@ use super::m20231013_200027_create_namespace_table::Namespaces;
 pub enum Errors {
     Table,
     Id,
+    NamespaceId,
     StatusCode,
     UserAffected,
     Path,
     Line,
     Message,
-    Namespace,
     StackTrace,
     Resolved,
     CreatedAt,
@@ -36,11 +36,11 @@ impl MigrationTrait for Migration {
                         .col(ColumnDef::new(Errors::Path).string().not_null())
                         .col(ColumnDef::new(Errors::Line).integer().not_null())
                         .col(ColumnDef::new(Errors::Message).string().not_null())
-                        .col(ColumnDef::new(Errors::Namespace).uuid().not_null())
+                        .col(ColumnDef::new(Errors::NamespaceId).uuid().not_null())
                         .foreign_key(
                             ForeignKey::create()
                                 .name("fk_error_namespace")
-                                .from(Errors::Table, Errors::Namespace)
+                                .from(Errors::Table, Errors::NamespaceId)
                                 .to(Namespaces::Table, Namespaces::Id)
                                 .on_delete(ForeignKeyAction::Cascade)
                                 .on_update(ForeignKeyAction::Cascade),

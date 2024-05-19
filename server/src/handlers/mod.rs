@@ -6,3 +6,6 @@ pub use auth_handlers::*;
 
 pub mod namespace_handlers;
 pub use namespace_handlers::*;
+
+pub mod error_handlers;
+pub use error_handlers::*;

@@ -9,7 +9,7 @@ use crate::models::user_namespace_junction_model::Entity as UserNamespaceJunctio
 
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
-#[sea_orm(table_name = "namespace")]
+#[sea_orm(table_name = "namespaces")]
 pub struct Model {
     #[sea_orm(primary_key, column_type = "Uuid")]
     pub id: Uuid,

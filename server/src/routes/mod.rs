@@ -6,3 +6,6 @@ pub use auth_routes::*;
 
 pub mod namespace_routes;
 pub use namespace_routes::*;
+
+pub mod error_routes;
+pub use error_routes::*;

@@ -4,11 +4,11 @@ use sea_orm_migration::prelude::*;
 pub enum Namespaces {
     Table,
     Id,
+    Active,
     ClientId,
     ClientSecret,
     EnvironmentType,
     ServiceName,
-    Status,
     CreatedAt,
     UpdatedAt,
 }
@@ -26,11 +26,11 @@ impl MigrationTrait for Migration {
                     .table(Namespaces::Table)
                     .if_not_exists()
                     .col(ColumnDef::new(Namespaces::Id).uuid().not_null().primary_key())
+                    .col(ColumnDef::new(Namespaces::Active).boolean().not_null().unique_key())
                     .col(ColumnDef::new(Namespaces::ClientId).uuid().not_null().unique_key())
                     .col(ColumnDef::new(Namespaces::ClientSecret).uuid().not_null().unique_key())
                     .col(ColumnDef::new(Namespaces::EnvironmentType).string().not_null())
                     .col(ColumnDef::new(Namespaces::ServiceName).string().not_null())
-                    .col(ColumnDef::new(Namespaces::Status).string().not_null())
                     .col(ColumnDef::new(Namespaces::CreatedAt).date_time().not_null())
                     .col(ColumnDef::new(Namespaces::UpdatedAt).date_time().not_null())
                     .to_owned(),

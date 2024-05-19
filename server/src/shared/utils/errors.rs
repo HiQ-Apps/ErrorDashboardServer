@@ -1,4 +1,5 @@
 use actix_web::{Error as ActixError, HttpResponse, http::StatusCode, error::ResponseError};
+use actix_web_actors::ws::ProtocolError;
 use anyhow::Error as AnyhowError;
 use bcrypt::BcryptError;
 use jsonwebtoken::errors::Error as JwtError;
@@ -6,6 +7,7 @@ use sea_orm::error::{DbErr, SqlErr};
 use sea_orm::TransactionError;
 use serde_json::Error as JsonError;
 use thiserror::Error;
+use tokio_tungstenite::tungstenite::Error as TungsteniteError;
 use uuid::Error as UuidError;
 
 // Group enum'd errors into a single enum
@@ -35,11 +37,22 @@ impl ResponseError for ServerError {
                 let status = match err {
                     QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound => StatusCode::NOT_FOUND,
                     QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists => StatusCode::CONFLICT,
+                    QueryError::PasswordIncorrect => StatusCode::UNAUTHORIZED,
                     _ => StatusCode::BAD_REQUEST,
                 };
                 HttpResponse::build(status).json(format!("{}", self))
             },
-            ServerError::RequestError(_) => HttpResponse::build(StatusCode::BAD_REQUEST).json(format!("{}", self)),
+            ServerError::RequestError(ref err) => {
+                let status = match err {
+                    RequestError::MissingUserID => StatusCode::BAD_REQUEST,
+                    RequestError::InvalidHeader => StatusCode::BAD_REQUEST,
+                    RequestError::InvalidToken => StatusCode::UNAUTHORIZED,
+                    RequestError::MissingHeader => StatusCode::BAD_REQUEST,
+                    RequestError::PermissionDenied => StatusCode::FORBIDDEN,
+                    RequestError::InvalidQueryParameter => StatusCode::BAD_REQUEST,
+                };
+                HttpResponse::build(status).json(format!("{}", self))
+            },
             ServerError::HttpError(status, message) => HttpResponse::build(*status).json(message),
             _ => HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR).json(format!("{}", self)),
         }
@@ -75,6 +88,12 @@ pub enum ExternalError {
 
     #[error("Transaction error: {0}")]
     Transaction(TransactionError<DbErr>),
+
+    #[error("Protocol error: {0}")]
+    Protocol(ProtocolError),
+
+    #[error("Tungstenite error: {0}")]
+    Tungstenite(TungsteniteError),
 }
 
 #[derive(Debug, Error)]
@@ -117,6 +136,9 @@ pub enum RequestError {
 
     #[error("Permission denied")]
     PermissionDenied,
+
+    #[error("Invalid query parameter")]
+    InvalidQueryParameter,
 }
 
 impl From<ExternalError> for ServerError {
@@ -183,6 +205,12 @@ impl From<JsonError> for ExternalError {
 impl From<SqlErr> for ExternalError {
     fn from(error: SqlErr) -> Self {
         ExternalError::Pool(error)
+    }
+}
+
+impl From<TungsteniteError> for ExternalError {
+    fn from(error: TungsteniteError) -> Self {
+        ExternalError::Tungstenite(error)
     }
 }
 

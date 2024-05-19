@@ -11,5 +11,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/user/{id}", web::get().to(NamespaceHandler::get_namespaces_by_user_id))
             .route("/{id}", web::post().to(NamespaceHandler::update_namespace))
             .route("/{id}", web::delete().to(NamespaceHandler::delete_namespace))
+            .route("/{id}/error/ws", web::get().to(|| async { "Not implemented" }))
     );
 }

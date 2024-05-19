@@ -10,11 +10,13 @@ pub struct ErrorDto {
     pub path: String,
     pub line: i32,
     pub message: String,
+    pub stack_trace: String,
     pub namespace_id: Uuid,
     pub resolved: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateErrorDto {
@@ -22,6 +24,7 @@ pub struct CreateErrorDto {
     pub user_affected: String,
     pub path: String,
     pub line: i32,
+    pub stack_trace: String,
     pub message: String,
     pub namespace_id: Uuid,
 }
@@ -34,6 +37,7 @@ pub struct UpdateErrorDto {
     pub path: Option<String>,
     pub line: Option<i32>,
     pub message: Option<String>,
+    pub stack_trace: String,
     pub namespace_id: Option<Uuid>,
     pub resolved: Option<bool>,
     pub updated_at: DateTime<Utc>,

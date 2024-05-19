@@ -1,11 +1,13 @@
 use chrono::Utc;
-use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel, DatabaseConnection, TransactionError, TransactionTrait};
+use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel, DatabaseConnection, QuerySelect, TransactionTrait};
+use shared_types::error_dtos::ErrorDto;
 use std::sync::Arc;
 use uuid::Uuid;
 
 use shared_types::namespace_dtos::{NamespaceDto, UpdateNamespaceDto};
 use crate::config::Config;
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
+use crate::models::error_model::{Entity as ErrorEntity, Model as ErrorModel};
 use crate::models::user_namespace_junction_model::{Entity as UserNamespaceJunctionEntity, Model as UserNamespaceJunctionModel};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError, RequestError};
 
@@ -104,7 +106,7 @@ impl NamespaceService {
         }
     }
     
-    pub async fn update_namespace(&self, update_namespace_object: UpdateNamespaceDto, current_user_id: Uuid) -> Result<NamespaceDto, ServerError> {
+    pub async fn update_namespace(&self, update_namespace_object: UpdateNamespaceDto) -> Result<NamespaceDto, ServerError> {
         let db: &DatabaseConnection = &*self.db;
         let transaction = db.begin().await.map_err(ExternalError::from)?;
         let now = Utc::now();
@@ -126,7 +128,7 @@ impl NamespaceService {
             },
         };
 
-        if namespace_junc.user_id != current_user_id {
+        if namespace_junc.user_id != update_namespace_object.user_id {
             transaction.rollback().await.map_err(ExternalError::from)?;
             return Err(ServerError::RequestError(RequestError::PermissionDenied));
         };
@@ -241,14 +243,37 @@ impl NamespaceService {
             return Err(ServerError::from(ExternalError::from(err)));
         };
 
-        if let Err(err) = namespace_junc.delete(&transaction).await {
-            transaction.rollback().await.map_err(ExternalError::from)?;
-            return Err(ServerError::from(ExternalError::from(err)));
-        };
-
         transaction.commit().await.map_err(ExternalError::from)?;
 
         Ok(())
     }
 
+    pub async fn get_errors_by_namespace_with_pagination(&self, namespace_id: Uuid, page: u64, limit: u64) -> Result<Vec<ErrorDto>, ServerError> {
+        let db: &DatabaseConnection = &*self.db;
+        let offset = (page - 1) * limit;
+
+        let errors = ErrorEntity::find()
+            .filter(<ErrorEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
+            .offset(offset)
+            .limit(limit)
+            .all(db)
+            .await
+            .map_err(ExternalError::from)?;
+
+        let errors = errors.iter().map(|error| ErrorDto {
+            id: error.id,
+            status_code: error.status_code,
+            user_affected: error.user_affected.clone(),
+            path: error.path.clone(),
+            line: error.line,
+            message: error.message.clone(),
+            stack_trace: error.stack_trace.clone(),
+            resolved: error.resolved,
+            namespace_id: error.namespace_id,
+            created_at: error.created_at,
+            updated_at: error.updated_at,
+        }).collect();
+        
+        Ok(errors)
+    }
 }

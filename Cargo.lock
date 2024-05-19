@@ -27,6 +27,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "actix"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb72882332b6d6282f428b77ba0358cb2687e61a6f6df6a6d3871e8a177c2d4f"
+dependencies = [
+ "actix-rt",
+ "bitflags 2.5.0",
+ "bytes",
+ "crossbeam-channel",
+ "futures-core",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+ "log",
+ "once_cell",
+ "parking_lot 0.12.2",
+ "pin-project-lite",
+ "smallvec",
+ "tokio",
+ "tokio-util 0.7.11",
+]
+
+[[package]]
 name = "actix-codec"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -192,6 +215,24 @@ dependencies = [
  "socket2 0.5.7",
  "time",
  "url",
+]
+
+[[package]]
+name = "actix-web-actors"
+version = "4.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "420b001bb709d8510c3e2659dae046e54509ff9528018d09c78381e765a1f9fa"
+dependencies = [
+ "actix 0.13.3",
+ "actix-codec",
+ "actix-http",
+ "actix-web",
+ "bytes",
+ "bytestring",
+ "futures-core",
+ "pin-project-lite",
+ "tokio",
+ "tokio-util 0.7.11",
 ]
 
 [[package]]
@@ -3352,10 +3393,11 @@ dependencies = [
 name = "server"
 version = "0.1.0"
 dependencies = [
- "actix",
+ "actix 0.11.1",
  "actix-rt",
  "actix-service",
  "actix-web",
+ "actix-web-actors",
  "anyhow",
  "async-trait",
  "bcrypt",
@@ -3372,7 +3414,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-postgres",
- "tungstenite",
+ "tokio-tungstenite",
  "uuid",
 ]
 
@@ -4033,6 +4075,18 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
+]
+
+[[package]]
+name = "tokio-tungstenite"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c83b561d025642014097b66e6c1bb422783339e0909e4429cde4749d1990bc38"
+dependencies = [
+ "futures-util",
+ "log",
+ "tokio",
+ "tungstenite",
 ]
 
 [[package]]
