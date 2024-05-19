@@ -17,7 +17,6 @@ pub struct UpdateNamespaceDto {
     pub environment_type: Option<String>,
     pub client_id: Option<Uuid>,
     pub client_secret: Option<Uuid>,
-    pub updated_at: DateTime<Utc>,
     pub user_id: Uuid
 }
 

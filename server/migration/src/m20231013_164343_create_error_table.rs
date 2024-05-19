@@ -1,6 +1,5 @@
 use sea_orm_migration::prelude::*;
 
-
 use super::m20231013_200027_create_namespace_table::Namespaces;
 
 #[derive(DeriveIden)]
@@ -47,8 +46,8 @@ impl MigrationTrait for Migration {
                         )
                         .col(ColumnDef::new(Errors::StackTrace).string().not_null())
                         .col(ColumnDef::new(Errors::Resolved).boolean().not_null())
-                        .col(ColumnDef::new(Errors::CreatedAt).date_time().not_null())
-                        .col(ColumnDef::new(Errors::UpdatedAt).date_time().not_null())
+                        .col(ColumnDef::new(Errors::CreatedAt).timestamp_with_time_zone().not_null())
+                        .col(ColumnDef::new(Errors::UpdatedAt).timestamp_with_time_zone().not_null())
                         .to_owned(),
             )
             .await

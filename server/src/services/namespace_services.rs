@@ -3,6 +3,7 @@ use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel, Dat
 use shared_types::error_dtos::ErrorDto;
 use std::sync::Arc;
 use uuid::Uuid;
+use log::info;
 
 use shared_types::namespace_dtos::{NamespaceDto, UpdateNamespaceDto};
 use crate::config::Config;
@@ -112,13 +113,17 @@ impl NamespaceService {
         let now = Utc::now();
 
         let namespace_junc_result = UserNamespaceJunctionEntity::find()
-            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::Id.eq(update_namespace_object.id))
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(update_namespace_object.id))
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::UserId.eq(update_namespace_object.user_id))
             .one(&transaction)
             .await;
+    
+        println!("Found result {:?}", namespace_junc_result);
 
         let namespace_junc = match namespace_junc_result {
             Ok(Some(junction)) => junction,
             Ok(None) => {
+                info!("UserNamespaceJunction not found. Rolling back transaction.");
                 transaction.rollback().await.map_err(|err| ServerError::from(ExternalError::from(err)))?;
                 return Err(ServerError::QueryError(QueryError::UserNamespaceJunctionNotFound));
             },
@@ -197,6 +202,8 @@ impl NamespaceService {
     pub async fn delete_namespace(&self, namespace_id: Uuid, user_id: Uuid) -> Result<(), ServerError> {
         let db: &DatabaseConnection = &*self.db;
         let transaction = db.begin().await.map_err(ExternalError::from)?;
+        
+        println!("Delete service hit");
 
         let namespace_junc_result = UserNamespaceJunctionEntity::find()
             .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
@@ -248,9 +255,8 @@ impl NamespaceService {
         Ok(())
     }
 
-    pub async fn get_errors_by_namespace_with_pagination(&self, namespace_id: Uuid, page: u64, limit: u64) -> Result<Vec<ErrorDto>, ServerError> {
+    pub async fn get_errors_by_namespace_with_pagination(&self, namespace_id: Uuid, offset: u64, limit: u64) -> Result<Vec<ErrorDto>, ServerError> {
         let db: &DatabaseConnection = &*self.db;
-        let offset = (page - 1) * limit;
 
         let errors = ErrorEntity::find()
             .filter(<ErrorEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
@@ -259,6 +265,8 @@ impl NamespaceService {
             .all(db)
             .await
             .map_err(ExternalError::from)?;
+
+        println!("{:?}", errors);
 
         let errors = errors.iter().map(|error| ErrorDto {
             id: error.id,

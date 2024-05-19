@@ -31,8 +31,8 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Namespaces::ClientSecret).uuid().not_null().unique_key())
                     .col(ColumnDef::new(Namespaces::EnvironmentType).string().not_null())
                     .col(ColumnDef::new(Namespaces::ServiceName).string().not_null())
-                    .col(ColumnDef::new(Namespaces::CreatedAt).date_time().not_null())
-                    .col(ColumnDef::new(Namespaces::UpdatedAt).date_time().not_null())
+                    .col(ColumnDef::new(Namespaces::CreatedAt).timestamp_with_time_zone().not_null())
+                    .col(ColumnDef::new(Namespaces::UpdatedAt).timestamp_with_time_zone().not_null())
                     .to_owned(),
             )
             .await

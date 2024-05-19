@@ -37,8 +37,8 @@ impl MigrationTrait for Migration {
                             .on_update(ForeignKeyAction::Cascade),
                     )
                     .col(ColumnDef::new(RefreshTokens::Token).string().not_null())
-                    .col(ColumnDef::new(RefreshTokens::IssuedAt).timestamp().not_null())
-                    .col(ColumnDef::new(RefreshTokens::ExpiresAt).timestamp())
+                    .col(ColumnDef::new(RefreshTokens::IssuedAt).timestamp_with_time_zone().not_null())
+                    .col(ColumnDef::new(RefreshTokens::ExpiresAt).timestamp_with_time_zone())
                     .col(ColumnDef::new(RefreshTokens::Issuer).string().not_null())
                     .col(ColumnDef::new(RefreshTokens::Audience).string().not_null())
                     .col(ColumnDef::new(RefreshTokens::Revoked).boolean().not_null().default(false))
