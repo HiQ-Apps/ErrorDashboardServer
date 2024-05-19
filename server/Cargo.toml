@@ -26,6 +26,7 @@ sea-orm = { version = "0.12.2", features = ["sqlx-postgres", "runtime-tokio-nati
 serde = { version = "1.0.183", features = ["derive"] }
 serde_json = "1.0"
 uuid = { version = "1.4.1", features = ["v4", "serde"] }
-tungstenite = "0.21.0"
 async-trait = "0.1.80"
 thiserror = "1.0.60"
+actix-web-actors = "4.3.0"
+tokio-tungstenite = "0.21.0"

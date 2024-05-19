@@ -1,18 +1,17 @@
 use sea_orm_migration::prelude::*;
 
-
 use super::m20231013_200027_create_namespace_table::Namespaces;
 
 #[derive(DeriveIden)]
 pub enum Errors {
     Table,
     Id,
+    NamespaceId,
     StatusCode,
     UserAffected,
     Path,
     Line,
     Message,
-    Namespace,
     StackTrace,
     Resolved,
     CreatedAt,
@@ -36,19 +35,19 @@ impl MigrationTrait for Migration {
                         .col(ColumnDef::new(Errors::Path).string().not_null())
                         .col(ColumnDef::new(Errors::Line).integer().not_null())
                         .col(ColumnDef::new(Errors::Message).string().not_null())
-                        .col(ColumnDef::new(Errors::Namespace).uuid().not_null())
+                        .col(ColumnDef::new(Errors::NamespaceId).uuid().not_null())
                         .foreign_key(
                             ForeignKey::create()
                                 .name("fk_error_namespace")
-                                .from(Errors::Table, Errors::Namespace)
+                                .from(Errors::Table, Errors::NamespaceId)
                                 .to(Namespaces::Table, Namespaces::Id)
                                 .on_delete(ForeignKeyAction::Cascade)
                                 .on_update(ForeignKeyAction::Cascade),
                         )
                         .col(ColumnDef::new(Errors::StackTrace).string().not_null())
                         .col(ColumnDef::new(Errors::Resolved).boolean().not_null())
-                        .col(ColumnDef::new(Errors::CreatedAt).date_time().not_null())
-                        .col(ColumnDef::new(Errors::UpdatedAt).date_time().not_null())
+                        .col(ColumnDef::new(Errors::CreatedAt).timestamp_with_time_zone().not_null())
+                        .col(ColumnDef::new(Errors::UpdatedAt).timestamp_with_time_zone().not_null())
                         .to_owned(),
             )
             .await

@@ -9,7 +9,7 @@ use crate::models::user_model::Entity as UserEntity;
 
 // DeriveEntityModel generates the ActiveModel, Model and ActiveModelTrait
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
-#[sea_orm(table_name = "refresh_token")]
+#[sea_orm(table_name = "refresh_tokens")]
 pub struct Model {
     #[sea_orm(primary_key, column_type = "Uuid")]
     pub id: Uuid,

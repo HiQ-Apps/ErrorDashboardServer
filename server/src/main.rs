@@ -11,10 +11,11 @@ mod shared {
 
 use actix_web::{middleware, web, App, HttpServer};
 use log::{ error, info };
+use serde_json::error;
 use std::sync::Arc;
 
 use crate::middlewares::auth_middleware::JwtMiddleware;
-use crate::routes::{auth_routes, namespace_routes, user_routes};
+use crate::routes::{auth_routes, error_routes, namespace_routes, user_routes};
 use crate::services::init_services;
 use config::Config;
 
@@ -63,7 +64,7 @@ async fn main() -> std::io::Result<()> {
             "#);
     println!("Listening on {}:{}...", config_for_server.db_host, config_for_server.api_port);
 
-    let (namespace_service, user_service, auth_service) = match init_services(db_pool.clone(), config.clone()) {
+    let (namespace_service, user_service, auth_service, error_service ) = match init_services(db_pool.clone(), config.clone()) {
         Ok(services) => services,
         Err(e) => {
             error!("Failed to initialize services: {}", e);
@@ -74,6 +75,7 @@ async fn main() -> std::io::Result<()> {
     let namespace_service = Arc::new(namespace_service);
     let user_service = Arc::new(user_service);
     let auth_service = Arc::new(auth_service);
+    let error_service = Arc::new(error_service);
 
     HttpServer::new(move || {
         App::new()
@@ -85,12 +87,13 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(namespace_service.clone()))
             .app_data(web::Data::new(user_service.clone()))
             .app_data(web::Data::new(auth_service.clone()))
-            // .app_data(web::Data::new(error_service))
+            .app_data(web::Data::new(error_service.clone()))
 
             .wrap(middleware::Logger::default())
             .configure(|cfg| user_routes::configure(cfg, &jwt_middleware))
             .configure(auth_routes::configure)
             .configure(namespace_routes::configure)
+            .configure(error_routes::configure)
     })
     .bind(("127.0.0.1", config_for_server.api_port))?
     .run()
