@@ -94,6 +94,7 @@ pub enum ExternalError {
 
     #[error("Tungstenite error: {0}")]
     Tungstenite(TungsteniteError),
+
 }
 
 #[derive(Debug, Error)]
@@ -211,6 +212,12 @@ impl From<SqlErr> for ExternalError {
 impl From<TungsteniteError> for ExternalError {
     fn from(error: TungsteniteError) -> Self {
         ExternalError::Tungstenite(error)
+    }
+}
+
+impl From<ProtocolError> for ExternalError {
+    fn from(error: ProtocolError) -> Self {
+        ExternalError::Protocol(error)
     }
 }
 

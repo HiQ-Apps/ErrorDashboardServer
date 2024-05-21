@@ -9,3 +9,6 @@ pub use namespace_handlers::*;
 
 pub mod error_handlers;
 pub use error_handlers::*;
+
+pub mod ws_handlers;
+pub use ws_handlers::*;

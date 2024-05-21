@@ -1,18 +1,21 @@
-use actix_web::{web, HttpResponse, Result};
+use actix::Addr;
+use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web_actors::ws;
 use serde::{Serialize, Deserialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
+use crate::managers::namespace_manager::NamespaceServer;
+use crate::handlers::ws_handlers::WsNamespaceSession;
 use shared_types::namespace_dtos::{CreateNamespaceDto, UpdateNamespaceDto};
 use shared_types::extra_dtos::PaginationParams;
 use crate::services::namespace_services::NamespaceService;
-use crate::shared::utils::errors::ServerError;
+use crate::shared::utils::errors::{ServerError, ExternalError};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserId {
     pub user_id: Uuid
 }
-
 
 pub struct NamespaceHandler;
 
@@ -81,11 +84,25 @@ impl NamespaceHandler {
         let offset = pagination.offset;
         let limit = pagination.limit;
 
-        println!("{}, {}", offset, limit);
-
         match namespace_services.get_errors_by_namespace_with_pagination(*namespace_id, offset, limit).await {
             Ok(errors) => Ok(HttpResponse::Ok().json(errors)),
             Err(err) => Err(err)
         }
+    }
+
+    pub async fn ws_index(
+        req: HttpRequest,
+        stream: web::Payload,
+        namespace_id: web::Path<Uuid>,
+        manager_addr: web::Data<Addr<NamespaceServer>>,
+    ) -> Result<HttpResponse, ServerError> {
+        let namespace_id = namespace_id.into_inner();
+        let manager_addr = manager_addr.get_ref().clone();
+
+        let session = WsNamespaceSession {
+            namespace_id,
+            addr: manager_addr.clone(),
+        };
+        ws::start(session, &req, stream).map_err(|err| ServerError::ExternalError(ExternalError::Actix(err)))
     }
 }

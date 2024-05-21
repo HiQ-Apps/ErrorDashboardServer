@@ -9,7 +9,6 @@ edition = "2021"
 shared_types = { path = "../shared_types" }
 
 actix-web = "4"
-actix = "0.11.0"
 actix-rt = "2.2"
 actix-service = "2.0.2"
 anyhow = "1.0.75"
@@ -30,3 +29,5 @@ async-trait = "0.1.80"
 thiserror = "1.0.60"
 actix-web-actors = "4.3.0"
 tokio-tungstenite = "0.21.0"
+futures-util = "0.3.30"
+actix = "0.13.3"
