@@ -5,18 +5,20 @@ mod middlewares;
 mod models;
 mod routes;
 mod services;
+mod managers;
 mod shared {
     pub mod utils;
 }
 
+use actix::{Actor, Addr};
 use actix_web::{middleware, web, App, HttpServer};
 use log::{ error, info };
-use serde_json::error;
 use std::sync::Arc;
 
 use crate::middlewares::auth_middleware::JwtMiddleware;
 use crate::routes::{auth_routes, error_routes, namespace_routes, user_routes};
 use crate::services::init_services;
+use crate::managers::namespace_manager::NamespaceServer;
 use config::Config;
 
 #[actix_web::main]
@@ -77,17 +79,21 @@ async fn main() -> std::io::Result<()> {
     let auth_service = Arc::new(auth_service);
     let error_service = Arc::new(error_service);
 
+    let namespace_manager = NamespaceServer::new().start();
+
     HttpServer::new(move || {
         App::new()
             // DB Pool and Configs
             .app_data(web::Data::new(Arc::clone(&db_pool)))
             .app_data(web::Data::new(Arc::clone(&config)))
-
+            
             // Pass service as app_data to handlers and routes to make accessable
             .app_data(web::Data::new(namespace_service.clone()))
             .app_data(web::Data::new(user_service.clone()))
             .app_data(web::Data::new(auth_service.clone()))
             .app_data(web::Data::new(error_service.clone()))
+            
+            .app_data(web::Data::new(namespace_manager.clone()))
 
             .wrap(middleware::Logger::default())
             .configure(|cfg| user_routes::configure(cfg, &jwt_middleware))

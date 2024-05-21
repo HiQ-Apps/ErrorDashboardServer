@@ -2,7 +2,6 @@ use actix_web::web;
 
 use crate::handlers::namespace_handlers::NamespaceHandler;
 
-
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/namespace")
@@ -12,6 +11,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/{id}", web::put().to(NamespaceHandler::update_namespace))
             .route("/{namespace_id}", web::delete().to(NamespaceHandler::delete_namespace))
             .route("/{namespace_id}/errors", web::get().to(NamespaceHandler::get_errors_by_namespace_with_pagination))
-            .route("/{id}/error/ws", web::get().to(|| async { "Not implemented" }))
+            .route("/{id}/error/ws", web::get().to(NamespaceHandler::ws_index))
     );
 }
