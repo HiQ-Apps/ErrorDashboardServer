@@ -8,7 +8,7 @@ use log::info;
 use shared_types::namespace_dtos::{NamespaceDto, UpdateNamespaceDto};
 use crate::config::Config;
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
-use crate::models::error_model::{Entity as ErrorEntity, Model as ErrorModel};
+use crate::models::error_model::Entity as ErrorEntity;
 use crate::models::user_namespace_junction_model::{Entity as UserNamespaceJunctionEntity, Model as UserNamespaceJunctionModel};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError, RequestError};
 

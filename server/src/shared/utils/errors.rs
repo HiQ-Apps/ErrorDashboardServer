@@ -7,7 +7,6 @@ use sea_orm::error::{DbErr, SqlErr};
 use sea_orm::TransactionError;
 use serde_json::Error as JsonError;
 use thiserror::Error;
-use tokio_tungstenite::tungstenite::Error as TungsteniteError;
 use uuid::Error as UuidError;
 
 // Group enum'd errors into a single enum
@@ -91,10 +90,6 @@ pub enum ExternalError {
 
     #[error("Protocol error: {0}")]
     Protocol(ProtocolError),
-
-    #[error("Tungstenite error: {0}")]
-    Tungstenite(TungsteniteError),
-
 }
 
 #[derive(Debug, Error)]
@@ -206,12 +201,6 @@ impl From<JsonError> for ExternalError {
 impl From<SqlErr> for ExternalError {
     fn from(error: SqlErr) -> Self {
         ExternalError::Pool(error)
-    }
-}
-
-impl From<TungsteniteError> for ExternalError {
-    fn from(error: TungsteniteError) -> Self {
-        ExternalError::Tungstenite(error)
     }
 }
 

@@ -10,7 +10,7 @@ mod shared {
     pub mod utils;
 }
 
-use actix::{Actor, Addr};
+use actix::Actor;
 use actix_web::{middleware, web, App, HttpServer};
 use log::{ error, info };
 use std::sync::Arc;

@@ -1,9 +1,6 @@
-use actix::{Addr, Actor, StreamHandler};
+use actix::Addr;
 use actix_web::{web, HttpResponse, Result};
-use actix_web_actors::ws;
-use sea_orm::DatabaseConnection;
 use std::sync::Arc;
-use uuid::Uuid;
 
 use crate::managers::namespace_manager::NamespaceServer;
 use crate::handlers::ws_handlers::NewError;

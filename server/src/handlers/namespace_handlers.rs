@@ -5,10 +5,10 @@ use serde::{Serialize, Deserialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
+use shared_types::extra_dtos::PaginationParams;
+use shared_types::namespace_dtos::{CreateNamespaceDto, UpdateNamespaceDto};
 use crate::managers::namespace_manager::NamespaceServer;
 use crate::handlers::ws_handlers::WsNamespaceSession;
-use shared_types::namespace_dtos::{CreateNamespaceDto, UpdateNamespaceDto};
-use shared_types::extra_dtos::PaginationParams;
 use crate::services::namespace_services::NamespaceService;
 use crate::shared::utils::errors::{ServerError, ExternalError};
 
