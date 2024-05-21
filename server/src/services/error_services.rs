@@ -56,5 +56,4 @@ impl ErrorService {
             updated_at: create_error.updated_at,
         })
     }
-
 }
