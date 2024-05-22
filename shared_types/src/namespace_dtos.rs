@@ -6,7 +6,6 @@ use uuid::Uuid;
 pub struct CreateNamespaceDto {
     pub service_name: String,
     pub environment_type: String,
-    pub user_id: Uuid
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -17,7 +16,6 @@ pub struct UpdateNamespaceDto {
     pub environment_type: Option<String>,
     pub client_id: Option<Uuid>,
     pub client_secret: Option<Uuid>,
-    pub user_id: Uuid
 }
 
 #[derive(Serialize, Deserialize, Debug)]

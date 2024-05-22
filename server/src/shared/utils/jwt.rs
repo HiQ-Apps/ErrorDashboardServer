@@ -35,17 +35,21 @@ pub async fn validate_jwt(headers: &HeaderMap, secret_key: &str, validation: &Va
     }
 }
 
-pub async fn extract_user_id_from_jwt(headers: &HeaderMap, secret_key: &str) -> Result<Uuid, ServerError> {
+pub fn extract_user_id_from_jwt(headers: &HeaderMap, secret_key: &str) -> Result<Uuid, ServerError> {
     if let Some(token_header) = headers.get("Authorization") {
         let token_str = token_header.to_str().unwrap_or("");
 
         let decoding_key = DecodingKey::from_secret(secret_key.as_ref());
 
-        let token_data : TokenData<Claims> = decode(token_str, &decoding_key, &Validation::default()).map_err(|err| ServerError::from(ExternalError::Jwt(err)))?;
+        let token_data: TokenData<Claims> = decode(token_str, &decoding_key, &Validation::default())
+            .map_err(|err| ServerError::ExternalError(ExternalError::Jwt(err)))?;
 
         Ok(token_data.claims.sub)
     } else {
-        Err(ServerError::HttpError(StatusCode::UNAUTHORIZED, "No Authorization header found.".to_string()))
+        Err(ServerError::HttpError(
+            actix_web::http::StatusCode::UNAUTHORIZED,
+            "No Authorization header found.".to_string(),
+        ))
     }
 }
 

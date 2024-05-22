@@ -32,13 +32,5 @@ pub struct CreateErrorDto {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UpdateErrorDto {
     pub id: Uuid,
-    pub status_code: Option<i16>,
-    pub user_affected: Option<String>,
-    pub path: Option<String>,
-    pub line: Option<i32>,
-    pub message: Option<String>,
-    pub stack_trace: String,
-    pub namespace_id: Option<Uuid>,
     pub resolved: Option<bool>,
-    pub updated_at: DateTime<Utc>,
 }

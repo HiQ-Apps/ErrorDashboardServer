@@ -74,14 +74,13 @@ where
         Box::pin(async move {
             let res = fut.await?;
 
-            let required_claims: Vec<&str> = vec!["exp", "nbf"];
+            let required_claims: Vec<&str> = vec!["exp"];
             let mut validation = Validation::new(Algorithm::HS256);
             validation.leeway = 60;
             validation.set_audience(&[&jwt_audience]);
             validation.set_issuer(&[jwt_issuer]);
             validation.set_required_spec_claims(&required_claims);
             validation.validate_exp = true;
-            validation.validate_nbf = false;
 
             match validate_jwt(&headers, &secret_key, &validation, &db_pool).await {
                 Ok(()) => Ok(res),

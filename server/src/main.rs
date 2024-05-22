@@ -10,7 +10,7 @@ mod shared {
     pub mod utils;
 }
 
-use actix::{Actor, Addr};
+use actix::Actor;
 use actix_web::{middleware, web, App, HttpServer};
 use log::{ error, info };
 use std::sync::Arc;
@@ -93,13 +93,14 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(auth_service.clone()))
             .app_data(web::Data::new(error_service.clone()))
             
+            // Namespace websocket manager
             .app_data(web::Data::new(namespace_manager.clone()))
 
             .wrap(middleware::Logger::default())
-            .configure(|cfg| user_routes::configure(cfg, &jwt_middleware))
             .configure(auth_routes::configure)
-            .configure(namespace_routes::configure)
-            .configure(error_routes::configure)
+            .configure(|cfg| user_routes::configure(cfg, &jwt_middleware))
+            .configure(|cfg| namespace_routes::configure(cfg, &jwt_middleware))
+            .configure(|cfg| error_routes::configure(cfg, &jwt_middleware))
     })
     .bind(("127.0.0.1", config_for_server.api_port))?
     .run()
