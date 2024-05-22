@@ -34,9 +34,6 @@ impl Actor for WsNamespaceSession {
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsNamespaceSession {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         match msg {
-            Ok(ws::Message::Text(text)) => {
-                println!("Received text message: {}", text);
-            }
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
             Ok(ws::Message::Pong(_)) => (),
             Ok(ws::Message::Binary(_)) => (),

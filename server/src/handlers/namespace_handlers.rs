@@ -5,6 +5,8 @@ use serde::{Serialize, Deserialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
+use crate::config::Config;
+use crate::shared::utils::jwt::extract_user_id_from_jwt;
 use shared_types::extra_dtos::PaginationParams;
 use shared_types::namespace_dtos::{CreateNamespaceDto, UpdateNamespaceDto};
 use crate::managers::namespace_manager::NamespaceServer;
@@ -22,10 +24,16 @@ pub struct NamespaceHandler;
 impl NamespaceHandler {
 
     pub async fn create_namespace(
+        req: HttpRequest,
+        config: web::Data<Arc<Config>>,
         namespace_services: web::Data<Arc<NamespaceService>>,
         new_namespace: web::Json<CreateNamespaceDto>,
     ) -> Result<HttpResponse, ServerError> {
-        let CreateNamespaceDto { service_name, environment_type, user_id } = new_namespace.into_inner();
+        let headers = req.headers();
+        let secret_key = config.secret_key.clone();
+        let user_id = extract_user_id_from_jwt(headers, &secret_key)?;
+
+        let CreateNamespaceDto { service_name, environment_type } = new_namespace.into_inner();
         match namespace_services.create_namespace(user_id, service_name, environment_type).await {
             Ok(id) => Ok(HttpResponse::Ok().json(id)),
             Err(err) => Err(err)
@@ -53,24 +61,34 @@ impl NamespaceHandler {
     }
     
     pub async fn update_namespace(
+        req: HttpRequest,
+        config: web::Data<Arc<Config>>,
         namespace_services: web::Data<Arc<NamespaceService>>,
         update_namespace_json: web::Json<UpdateNamespaceDto>,
     ) -> Result<HttpResponse, ServerError> {
-        println!("{:?}", update_namespace_json);
+
+        let secret_key = &config.secret_key;
+        let headers = req.headers();
+        let user_id = extract_user_id_from_jwt(headers, secret_key)?;
+
         let update_namespace_dto = update_namespace_json.into_inner();
-        println!("{:?}", update_namespace_dto);
-        match namespace_services.update_namespace(update_namespace_dto).await {
+        match namespace_services.update_namespace(user_id, update_namespace_dto).await {
             Ok(updated_namespace) => Ok(HttpResponse::Ok().json(updated_namespace)),
             Err(err) => Err(err)
         }
     }
 
     pub async fn delete_namespace(
+        req: HttpRequest,
+        config: web::Data<Arc<Config>>,
         namespace_services: web::Data<Arc<NamespaceService>>,
         namespace_id: web::Path<Uuid>,
-        user_id: web::Json<UserId>
     ) -> Result<HttpResponse, ServerError> {
-        match namespace_services.delete_namespace(*namespace_id, user_id.user_id).await {
+        let secret_key = &config.secret_key;
+        let headers = req.headers();
+        let user_id = extract_user_id_from_jwt(headers, secret_key)?;
+
+        match namespace_services.delete_namespace(*namespace_id, user_id).await {
             Ok(id) => Ok(HttpResponse::Ok().json(id)),
             Err(err) => Err(err)
         }

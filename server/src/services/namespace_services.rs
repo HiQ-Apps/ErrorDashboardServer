@@ -107,18 +107,19 @@ impl NamespaceService {
         }
     }
     
-    pub async fn update_namespace(&self, update_namespace_object: UpdateNamespaceDto) -> Result<NamespaceDto, ServerError> {
+    pub async fn update_namespace(
+        &self,
+        user_id: Uuid,
+        update_namespace_object: UpdateNamespaceDto) -> Result<NamespaceDto, ServerError> {
         let db: &DatabaseConnection = &*self.db;
         let transaction = db.begin().await.map_err(ExternalError::from)?;
         let now = Utc::now();
 
         let namespace_junc_result = UserNamespaceJunctionEntity::find()
             .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(update_namespace_object.id))
-            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::UserId.eq(update_namespace_object.user_id))
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::UserId.eq(user_id))
             .one(&transaction)
             .await;
-    
-        println!("Found result {:?}", namespace_junc_result);
 
         let namespace_junc = match namespace_junc_result {
             Ok(Some(junction)) => junction,
@@ -133,7 +134,7 @@ impl NamespaceService {
             },
         };
 
-        if namespace_junc.user_id != update_namespace_object.user_id {
+        if namespace_junc.user_id != user_id {
             transaction.rollback().await.map_err(ExternalError::from)?;
             return Err(ServerError::RequestError(RequestError::PermissionDenied));
         };

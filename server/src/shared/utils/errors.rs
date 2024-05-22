@@ -114,6 +114,9 @@ pub enum QueryError {
 
     #[error("User-Namespace junction already exists")]
     UserNamespaceJunctionExists,
+
+    #[error("Error not found")]
+    ErrorNotFound,
 }
 
 #[derive(Debug, Error)]

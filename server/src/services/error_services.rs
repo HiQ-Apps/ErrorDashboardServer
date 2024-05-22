@@ -1,12 +1,12 @@
 use chrono::Utc;
-use sea_orm::{EntityTrait, IntoActiveModel, DatabaseConnection};
+use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, DatabaseConnection};
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
-use shared_types::error_dtos::{CreateErrorDto, ErrorDto};
+use shared_types::error_dtos::{CreateErrorDto, ErrorDto, UpdateErrorDto};
 use crate::models::error_model::{Entity as ErrorEntity, Model as ErrorModel};
-use crate::shared::utils::errors::{ExternalError, QueryError, ServerError, RequestError};
+use crate::shared::utils::errors::{ExternalError, QueryError, ServerError};
 
 pub struct ErrorService {
     pub db: Arc<DatabaseConnection>,
@@ -54,6 +54,38 @@ impl ErrorService {
             resolved: create_error.resolved,
             created_at: create_error.created_at,
             updated_at: create_error.updated_at,
+        })
+    }
+
+    pub async fn update_error(
+        &self,
+        error: UpdateErrorDto,
+    ) -> Result<UpdateErrorDto, ServerError> {
+        let now = Utc::now();
+
+        let found_error = ErrorEntity::find()
+            .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::Id.eq(error.id))
+            .one(&*self.db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
+            .ok_or(ServerError::QueryError(QueryError::ErrorNotFound))?;
+
+        let mut update_error = found_error.clone();
+
+        if let Some(resolved) = error.resolved {
+            update_error.resolved = resolved;
+        }
+
+        update_error.updated_at = now;
+
+        ErrorEntity::update(update_error.clone().into_active_model())
+            .exec(&*self.db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+        Ok(UpdateErrorDto {
+            id: update_error.id,
+            resolved: Some(update_error.resolved),
         })
     }
 }

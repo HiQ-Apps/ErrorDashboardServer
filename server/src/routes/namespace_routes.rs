@@ -1,10 +1,12 @@
 use actix_web::web;
 
 use crate::handlers::namespace_handlers::NamespaceHandler;
+use crate::middlewares::auth_middleware::JwtMiddleware;
 
-pub fn configure(cfg: &mut web::ServiceConfig) {
+pub fn configure(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
     cfg.service(
         web::scope("/namespace")
+            .wrap(jwt_middleware.clone())
             .route("/", web::post().to(NamespaceHandler::create_namespace))
             .route("/{id}", web::get().to(NamespaceHandler::get_namespace_by_id))
             .route("/user/{id}", web::get().to(NamespaceHandler::get_namespaces_by_user_id))
