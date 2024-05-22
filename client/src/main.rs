@@ -10,7 +10,6 @@ mod components {
 mod globals;
 mod hooks;
 mod routes;
-mod validations;
 mod views;
 
 use crate::app::App;

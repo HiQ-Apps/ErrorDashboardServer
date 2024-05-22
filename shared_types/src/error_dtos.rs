@@ -1,8 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_valid::Validate;
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct ErrorDto {
     pub id: Uuid,
     pub status_code: i16,
@@ -18,7 +19,7 @@ pub struct ErrorDto {
 }
 
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct CreateErrorDto {
     pub status_code: i16,
     pub user_affected: String,
@@ -29,7 +30,7 @@ pub struct CreateErrorDto {
     pub namespace_id: Uuid,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct UpdateErrorDto {
     pub id: Uuid,
     pub resolved: Option<bool>,
