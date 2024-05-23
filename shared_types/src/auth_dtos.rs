@@ -4,7 +4,7 @@ use serde_json::Value as JsonValue;
 use serde_valid::Validate;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug, Validate)]
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 pub struct RefreshTokenDTO {
     pub refresh_token: String,
     pub issued_at: DateTime<Utc>,
@@ -14,7 +14,7 @@ pub struct RefreshTokenDTO {
     pub revoked: bool
 }
 
-#[derive(Serialize, Deserialize, Debug, Validate)]
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 pub struct Claims {
     pub sub: Uuid,
     #[serde(with = "chrono::serde::ts_seconds")]

@@ -19,7 +19,7 @@ pub struct ErrorDto {
 }
 
 
-#[derive(Debug, Serialize, Deserialize, Validate)]
+#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct CreateErrorDto {
     pub status_code: i16,
     pub user_affected: String,

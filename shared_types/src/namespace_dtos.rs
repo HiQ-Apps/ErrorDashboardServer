@@ -3,13 +3,13 @@ use serde::{Serialize, Deserialize};
 use serde_valid::Validate;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug, Validate)]
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 pub struct CreateNamespaceDto {
     pub service_name: String,
     pub environment_type: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Validate)]
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 pub struct UpdateNamespaceDto {
     pub id: Uuid,
     pub active: Option<bool>,
@@ -19,7 +19,7 @@ pub struct UpdateNamespaceDto {
     pub client_secret: Option<Uuid>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Validate)]
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 pub struct NamespaceDto {
     pub id: Uuid,
     pub active: bool,
