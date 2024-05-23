@@ -6,6 +6,7 @@ use jsonwebtoken::errors::Error as JwtError;
 use sea_orm::error::{DbErr, SqlErr};
 use sea_orm::TransactionError;
 use serde_json::Error as JsonError;
+use serde_valid::Error as ValidationError;
 use thiserror::Error;
 use uuid::Error as UuidError;
 
@@ -90,6 +91,9 @@ pub enum ExternalError {
 
     #[error("Protocol error: {0}")]
     Protocol(ProtocolError),
+
+    #[error("Validation error: {0}")]
+    Validation(ValidationError<JsonError>),
 }
 
 #[derive(Debug, Error)]

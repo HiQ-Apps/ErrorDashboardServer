@@ -6,7 +6,7 @@ use std::rc::Rc;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
-type MutationHandler<U> = Box<dyn Fn(String, Option<U>)>;
+type MutationHandler<U> = Rc<dyn Fn(String, Option<U>)>;
 
 #[hook]
 pub fn use_mutation<T, U>(
@@ -25,7 +25,7 @@ where
 
     let method = Rc::new(method);
 
-    let mutation_handler: MutationHandler<U> = Box::new({
+    let mutation_handler: MutationHandler<U> = Rc::new({
         let loading_handler = loading_handler.clone();
         let error_handler = error_handler.clone();
         let method = method.clone();
@@ -47,12 +47,12 @@ where
                 let request_builder_result = RequestBuilder::new(&url)
                     .method(method.as_ref().clone())
                     .headers(headers)
-                    .body(request_body);
+                    .body(request_body.unwrap_or_default());
 
                 match request_builder_result {
                     Ok(request) => match request.send().await {
                         Ok(response) => {
-                            println!("{:?}", response)
+                            println!("{:?}", response);
                         }
                         Err(err) => {
                             error_handler.set(Rc::new(Some(format!("Send Error: {:?}", err))));
@@ -67,5 +67,6 @@ where
             });
         }
     });
+
     (loading_handler, error_handler, mutation_handler)
 }

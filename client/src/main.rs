@@ -7,10 +7,10 @@ mod components {
         pub mod button;
     }
 }
+mod forms;
 mod globals;
 mod hooks;
 mod routes;
-mod validations;
 mod views;
 
 use crate::app::App;
