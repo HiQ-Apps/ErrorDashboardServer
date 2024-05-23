@@ -22,7 +22,7 @@ fn create_namespace_form() -> Html {
         Callback::from(move |e: SubmitEvent| {
             e.prevent_default();
             let request = CreateNamespaceDto {
-                service_name: (*environment_type).clone(),
+                service_name: (*service_name).clone(),
                 environment_type: (*environment_type).clone(),
             };
 
@@ -44,10 +44,10 @@ fn create_namespace_form() -> Html {
                 <div>
                     <label for="service_name">{"Service Name:"}</label>
                     <input
-                        id="username"
+                        id="service_name"
                         type="text"
-                        value={(*username).clone()}
-                        oninput={Callback::from(move |e: InputEvent| username.set(e.target_unchecked_into::<web_sys::HtmlInputElement>().value()))}
+                        value={(*service_name).clone()}
+                        oninput={Callback::from(move |e: InputEvent| service_name.set(e.target_unchecked_into::<web_sys::HtmlInputElement>().value()))}
                     />
                 </div>
                 <div>

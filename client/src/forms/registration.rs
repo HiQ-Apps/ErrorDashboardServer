@@ -5,8 +5,8 @@ use yew::prelude::*;
 use shared_types::user_dtos::{ShortUserDTO, UserCreateDTO};
 use crate::hooks::use_mutation::use_mutation;
 
-#[function_component(Registration)]
-fn registration() -> Html {
+#[function_component(RegistrationForm)]
+fn registration_form() -> Html {
     let username = use_state(|| "".to_string());
     let password = use_state(|| "".to_string());
     let email = use_state(|| "".to_string());

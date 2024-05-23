@@ -5,8 +5,8 @@ use yew::prelude::*;
 use crate::hooks::use_mutation::use_mutation;
 use shared_types::user_dtos::{UserLoginDTO, UserLoginResponseDTO};
 
-#[function_component(Login)]
-fn login() -> Html {
+#[function_component(LoginForm)]
+fn login_form() -> Html {
     let email = use_state(|| "".to_string());
     let password = use_state(|| "".to_string());
     let validation_error = use_state(|| None);
