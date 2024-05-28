@@ -25,3 +25,10 @@ pub struct Claims {
     pub aud: String,
     pub data: Option<JsonValue>
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+pub struct RefreshTokenServiceDTO {
+    pub refresh_token: String,
+    pub access_token: String
+}
+

@@ -6,7 +6,6 @@ use shared_types::user_dtos::{UserLoginDTO, UserCreateDTO, UserResponseDTO};
 use crate::services::AuthService;
 use crate::shared::utils::errors::{ServerError, RequestError};
 
-
 pub struct AuthHandler;
 
 impl AuthHandler {
@@ -36,8 +35,21 @@ impl AuthHandler {
         auth_services: web::Data<Arc<AuthService>>,
         new_user: web::Json<UserCreateDTO>
     ) -> Result<HttpResponse, ServerError> {
-        match auth_services.register(new_user.username.clone(), new_user.email.clone(), new_user.password.clone()).await {
-            Ok(id) => Ok(HttpResponse::Ok().json(id)),
+        let UserCreateDTO { username, email, password } = new_user.into_inner();
+
+
+        match auth_services.register(username, email, password).await {
+            Ok(user_service_response) => {
+                let refresh_token = user_service_response.refresh_token.refresh_token.clone();
+                let user_response = UserResponseDTO::from(user_service_response);
+
+                let cookie = Cookie::build("refresh_token", refresh_token)
+                    .http_only(true)
+                    .secure(false)
+                    .same_site(SameSite::Strict)
+                    .finish();
+                Ok(HttpResponse::Ok().cookie(cookie).json(user_response))
+            },
             Err(err) => Err(err)    
         }
     }
@@ -57,17 +69,17 @@ impl AuthHandler {
 
                 match auth_services.find_by_token(token).await {
                     Ok(Some(token_model)) => {
-                        let new_refresh_token = auth_services.process_token_refresh(&token_model.token).await?;
+                        let refresh_token_response = auth_services.process_token_refresh(&token_model.token).await?;
                         
-                        let cookie = Cookie::build("refresh_token", new_refresh_token)
+                        let refresh_token_dto = refresh_token_response.refresh_token.clone();
+
+                        let cookie = Cookie::build("refresh_token", refresh_token_dto.refresh_token)
                             .http_only(true)
                             .secure(false)
                             .same_site(SameSite::Strict)
                             .finish();
 
-                        let access_token = auth_services.refresh_access_token(token.to_string()).await?;
-
-                        Ok(HttpResponse::Ok().cookie(cookie).json(access_token))
+                        Ok(HttpResponse::Ok().cookie(cookie).json(refresh_token_response))
                     },
                     Ok(None) => Err(ServerError::RequestError(RequestError::InvalidToken)),
                     Err(e) => Err(e),
