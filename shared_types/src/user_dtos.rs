@@ -33,14 +33,14 @@ pub struct UserLoginServiceDTO {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
-pub struct UserLoginResponseDTO {
+pub struct UserResponseDTO {
     pub user: ShortUserDTO,
     pub access_token: String,
 }
 
-impl From<UserLoginServiceDTO> for UserLoginResponseDTO {
+impl From<UserLoginServiceDTO> for UserResponseDTO {
     fn from(service_dto: UserLoginServiceDTO) -> Self {
-        UserLoginResponseDTO {
+        UserResponseDTO {
             user: service_dto.user,
             access_token: service_dto.access_token,
         }

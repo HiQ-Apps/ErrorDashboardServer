@@ -1,6 +1,5 @@
 {
     "rust-analyzer.linkedProjects": [
-        ".\\client\\Cargo.toml",
         ".\\server\\Cargo.toml",
         ".\\shared_types\\Cargo.toml"
     ],
