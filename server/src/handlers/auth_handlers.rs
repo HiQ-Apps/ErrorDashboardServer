@@ -2,7 +2,7 @@ use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{web, HttpResponse, HttpRequest, Result};
 use std::sync::Arc;
 
-use shared_types::user_dtos::{UserLoginDTO, UserCreateDTO, UserLoginResponseDTO};
+use shared_types::user_dtos::{UserLoginDTO, UserCreateDTO, UserResponseDTO};
 use crate::services::AuthService;
 use crate::shared::utils::errors::{ServerError, RequestError};
 
@@ -19,7 +19,7 @@ impl AuthHandler {
         match auth_services.login(email, password).await {
             Ok(user_service_response) => {
                 let refresh_token = user_service_response.refresh_token.refresh_token.clone();
-                let user_response = UserLoginResponseDTO::from(user_service_response);
+                let user_response = UserResponseDTO::from(user_service_response);
 
                 let cookie = Cookie::build("refresh_token", refresh_token)
                     .http_only(true)
