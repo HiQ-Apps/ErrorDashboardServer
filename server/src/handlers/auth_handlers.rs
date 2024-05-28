@@ -76,6 +76,4 @@ impl AuthHandler {
             None => Err(ServerError::RequestError(RequestError::MissingHeader))
         }
     }
-
-
 }
