@@ -3,9 +3,9 @@ use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel, Dat
 use shared_types::error_dtos::ErrorDto;
 use std::sync::Arc;
 use uuid::Uuid;
-use log::info;
+use log::{info, log};
 
-use shared_types::namespace_dtos::{NamespaceDto, UpdateNamespaceDto};
+use shared_types::namespace_dtos::{NamespaceDto, UpdateNamespaceDto, ShortNamespaceDto};
 use crate::config::Config;
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
 use crate::models::error_model::Entity as ErrorEntity;
@@ -81,7 +81,7 @@ impl NamespaceService {
         }
     }
     
-    pub async fn get_namespaces_by_user_id(&self, user_id: Uuid) -> Result<Vec<NamespaceModel>, ServerError> {
+    pub async fn get_namespaces_by_user_id(&self, user_id: Uuid, offset: u64, limit: u64) -> Result<Vec<ShortNamespaceDto>, ServerError> {
         let junction_result = UserNamespaceJunctionEntity::find()
             .filter(<UserNamespaceJunctionEntity as sea_orm::EntityTrait>::Column::UserId.eq(user_id))
             .all(&*self.db)
@@ -95,10 +95,20 @@ impl NamespaceService {
                     let namespace_ids: Vec<Uuid> = junctions.iter().map(|junc| junc.namespace_id).collect();
                     let namespaces = NamespaceEntity::find()
                         .filter(<NamespaceEntity as sea_orm::EntityTrait>::Column::Id.is_in(namespace_ids))
+                        .offset(offset)
+                        .limit(limit)
                         .all(&*self.db)
                         .await
                         .map_err(ExternalError::from)?;
-                    Ok(namespaces)
+
+                    let short_namespaces = namespaces.into_iter().map(|namespace| ShortNamespaceDto {
+                        id: namespace.id,
+                        active: namespace.active,
+                        service_name: namespace.service_name,
+                        environment_type: namespace.environment_type,
+                    }).collect();
+
+                    Ok(short_namespaces)
                 }
             },
             Err(err) => {
@@ -266,8 +276,6 @@ impl NamespaceService {
             .all(db)
             .await
             .map_err(ExternalError::from)?;
-
-        println!("{:?}", errors);
 
         let errors = errors.iter().map(|error| ErrorDto {
             id: error.id,

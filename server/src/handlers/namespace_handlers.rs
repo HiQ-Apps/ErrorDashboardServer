@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::config::Config;
 use crate::shared::utils::jwt::extract_user_id_from_jwt;
 use shared_types::extra_dtos::PaginationParams;
-use shared_types::namespace_dtos::{CreateNamespaceDto, UpdateNamespaceDto};
+use shared_types::namespace_dtos::{CreateNamespaceDto, UpdateNamespaceDto, ShortNamespaceDto};
 use crate::managers::namespace_manager::NamespaceServer;
 use crate::handlers::ws_handlers::WsNamespaceSession;
 use crate::services::namespace_services::NamespaceService;
@@ -52,9 +52,12 @@ impl NamespaceHandler {
 
     pub async fn get_namespaces_by_user_id(
         namespace_services: web::Data<Arc<NamespaceService>>,
-        user_id: web::Path<Uuid>
+        user_id: web::Path<Uuid>,
+        pagination: web::Query<PaginationParams>,
     ) -> Result<HttpResponse, ServerError> {
-        match namespace_services.get_namespaces_by_user_id(*user_id).await {
+        let offset = pagination.offset;
+        let limit = pagination.limit;
+        match namespace_services.get_namespaces_by_user_id(*user_id, offset, limit).await {
             Ok(namespaces) => Ok(HttpResponse::Ok().json(namespaces)),
             Err(err) => Err(err)
         }
