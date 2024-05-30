@@ -30,3 +30,12 @@ pub struct NamespaceDto {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>
 }
+
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+pub struct ShortNamespaceDto {
+    pub id: Uuid,
+    pub active: bool,
+    pub service_name: String,
+    pub environment_type: String,
+}

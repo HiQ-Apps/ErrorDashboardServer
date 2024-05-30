@@ -11,6 +11,7 @@ mod shared {
 }
 
 use actix::Actor;
+use actix_cors::Cors;
 use actix_web::{middleware, web, App, HttpServer};
 use log::{ error, info };
 use std::sync::Arc;
@@ -95,6 +96,14 @@ async fn main() -> std::io::Result<()> {
             
             // Namespace websocket manager
             .app_data(web::Data::new(namespace_manager.clone()))
+
+            .wrap(
+                Cors::default()
+                    .allow_any_origin()
+                    .allow_any_method()
+                    .allow_any_header()
+                    .supports_credentials()
+            )
 
             .wrap(middleware::Logger::default())
             .configure(auth_routes::configure)
