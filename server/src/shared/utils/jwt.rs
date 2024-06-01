@@ -1,4 +1,4 @@
-use actix_web::http::{StatusCode, header::HeaderMap};
+use actix_web::http::header::HeaderMap;
 use chrono::{Duration, Utc, DateTime};
 use jsonwebtoken::{Header, Validation, TokenData, encode, decode, EncodingKey, DecodingKey};
 use sea_orm::{EntityTrait, DatabaseConnection};

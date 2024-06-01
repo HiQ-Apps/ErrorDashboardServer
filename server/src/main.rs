@@ -110,7 +110,8 @@ async fn main() -> std::io::Result<()> {
             )
 
             .wrap(middleware::Logger::default())
-            .configure(auth_routes::configure)
+            .configure(auth_routes::configure_without_auth)
+            .configure(|cfg| auth_routes::configure_with_auth(cfg, &jwt_middleware))
             .configure(|cfg| user_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| namespace_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| error_routes::configure(cfg, &jwt_middleware))

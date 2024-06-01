@@ -69,8 +69,6 @@ where
 
         let mut found_token: Option<String> = None;
 
-        println!("Headers: {:?}", headers);
-
         if let Some(auth_header) = headers.get("Authorization") {
             if let Ok(auth_str) = auth_header.to_str() {
                     found_token = Some(auth_str.to_string());
@@ -79,13 +77,11 @@ where
 
         if found_token.is_none() {
             if let Ok(cookies) = cookies_result {
-                println!("Triggered cookie: {:?}", cookies);
                 if let Some(cookie) = cookies.iter().find(|c| c.name() == "access_token") {
                     found_token = Some(cookie.value().to_string());
                 }
             }
         }
-        println!("Found token: {:?}", found_token);
 
         let fut = self.service.call(req);
 

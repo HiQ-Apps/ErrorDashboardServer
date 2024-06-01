@@ -2,7 +2,6 @@
 use actix_web::cookie::time::Duration;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{web, HttpResponse, HttpRequest, Result};
-use chrono::Utc;
 use std::sync::Arc;
 
 use shared_types::user_dtos::{UserCreateDTO, UserLoginDTO, UserLoginServiceDTO, UserResponseDTO};
@@ -122,6 +121,18 @@ impl AuthHandler {
                 }
             },
             None => Err(ServerError::RequestError(RequestError::MissingHeader))
+        }
+    }
+
+    pub async fn verify_user(
+        auth_services: web::Data<Arc<AuthService>>,
+        user: web::Json<UserLoginDTO>,
+    ) -> Result<HttpResponse, ServerError> {
+        let UserLoginDTO { email, password } = user.into_inner();
+
+        match auth_services.verify_user(email, password).await {
+            Ok(()) => Ok(HttpResponse::Ok().finish()),
+            Err(err) => Err(err),
         }
     }
 }

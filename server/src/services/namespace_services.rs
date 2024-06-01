@@ -5,7 +5,7 @@ use uuid::Uuid;
 use log::info;
 
 use shared_types::namespace_dtos::{NamespaceDto, UpdateNamespaceDto, ShortNamespaceDto};
-use shared_types::error_dtos::{ShortErrorDto, ErrorDto};
+use shared_types::error_dtos::ShortErrorDto;
 use crate::config::Config;
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
 use crate::models::error_model::Entity as ErrorEntity;
