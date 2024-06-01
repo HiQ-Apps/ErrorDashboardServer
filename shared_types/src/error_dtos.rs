@@ -4,6 +4,16 @@ use serde_valid::Validate;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+pub struct ShortErrorDto {
+    pub id: Uuid,
+    pub status_code: i16,
+    pub message: String,
+    pub resolved: bool,
+    pub namespace_id: Uuid,
+}
+
+
+#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct ErrorDto {
     pub id: Uuid,
     pub status_code: i16,

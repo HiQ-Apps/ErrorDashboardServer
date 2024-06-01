@@ -159,6 +159,29 @@ impl AuthService {
         Ok(user_response)
     }
 
+    pub async fn verify_user(&self, user_email: String, user_pass: String) -> Result<(), ServerError> {
+        let db = &*self.db;
+
+        let found_user: Option<UserModel> = UserEntity::find()
+            .filter(<UserEntity as sea_orm::EntityTrait>::Column::Email
+            .eq(user_email))
+            .one(db)
+            .await
+            .map_err(|err|ServerError::from(ExternalError::DB(err)))?;
+
+        match found_user {
+            Some(user) => {
+                let is_valid = verify(&user_pass, &user.password).map_err(|err| ServerError::from(ExternalError::Bcrypt(err)))?;
+                if is_valid {
+                    Ok(())
+                } else {
+                    Err(ServerError::QueryError(QueryError::PasswordIncorrect))
+                }
+            },
+            None => Err(ServerError::QueryError(QueryError::UserNotFound))
+        }
+    }
+
 
     pub async fn find_by_token(&self, token: &str) -> Result<Option<RefreshTokenModel>, ServerError> {
         RefreshTokenEntity::find()

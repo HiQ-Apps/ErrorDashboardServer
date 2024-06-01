@@ -1,11 +1,11 @@
 use chrono::Utc;
 use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel, DatabaseConnection, QuerySelect, TransactionTrait};
-use shared_types::error_dtos::ErrorDto;
 use std::sync::Arc;
 use uuid::Uuid;
-use log::{info, log};
+use log::info;
 
 use shared_types::namespace_dtos::{NamespaceDto, UpdateNamespaceDto, ShortNamespaceDto};
+use shared_types::error_dtos::ShortErrorDto;
 use crate::config::Config;
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
 use crate::models::error_model::Entity as ErrorEntity;
@@ -266,7 +266,7 @@ impl NamespaceService {
         Ok(())
     }
 
-    pub async fn get_errors_by_namespace_with_pagination(&self, namespace_id: Uuid, offset: u64, limit: u64) -> Result<Vec<ErrorDto>, ServerError> {
+    pub async fn get_errors_by_namespace_with_pagination(&self, namespace_id: Uuid, offset: u64, limit: u64) -> Result<Vec<ShortErrorDto>, ServerError> {
         let db: &DatabaseConnection = &*self.db;
 
         let errors = ErrorEntity::find()
@@ -277,18 +277,12 @@ impl NamespaceService {
             .await
             .map_err(ExternalError::from)?;
 
-        let errors = errors.iter().map(|error| ErrorDto {
+        let errors: Vec<ShortErrorDto> = errors.into_iter().map(|error| ShortErrorDto {
             id: error.id,
             status_code: error.status_code,
-            user_affected: error.user_affected.clone(),
-            path: error.path.clone(),
-            line: error.line,
             message: error.message.clone(),
-            stack_trace: error.stack_trace.clone(),
             resolved: error.resolved,
             namespace_id: error.namespace_id,
-            created_at: error.created_at,
-            updated_at: error.updated_at,
         }).collect();
         
         Ok(errors)

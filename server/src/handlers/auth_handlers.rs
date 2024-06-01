@@ -1,8 +1,10 @@
+
+use actix_web::cookie::time::Duration;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{web, HttpResponse, HttpRequest, Result};
 use std::sync::Arc;
 
-use shared_types::user_dtos::{UserLoginDTO, UserCreateDTO, UserResponseDTO};
+use shared_types::user_dtos::{UserCreateDTO, UserLoginDTO, UserLoginServiceDTO, UserResponseDTO};
 use crate::services::AuthService;
 use crate::shared::utils::errors::{ServerError, RequestError};
 
@@ -17,15 +19,34 @@ impl AuthHandler {
 
         match auth_services.login(email, password).await {
             Ok(user_service_response) => {
-                let refresh_token = user_service_response.refresh_token.refresh_token.clone();
-                let user_response = UserResponseDTO::from(user_service_response);
+                let UserLoginServiceDTO { user, access_token, refresh_token } = user_service_response;
+                let refresh_token_value = refresh_token.refresh_token.clone();
 
-                let cookie = Cookie::build("refresh_token", refresh_token)
+                let user_response = UserResponseDTO {
+                    user,
+                    access_token: access_token.clone(),
+                };
+
+                let refresh_token_cookie = Cookie::build("refresh_token", refresh_token_value)
                     .http_only(true)
+                    .path("/")
                     .secure(false)
-                    .same_site(SameSite::Strict)
+                    .same_site(SameSite::Lax)
+                    .max_age(Duration::days(1))
                     .finish();
-                Ok(HttpResponse::Ok().cookie(cookie).json(user_response))
+
+                let access_token_cookie = Cookie::build("access_token", access_token)
+                    .http_only(true)
+                    .path("/")
+                    .secure(false)
+                    .same_site(SameSite::Lax)
+                    .max_age(Duration::days(1))
+                    .finish();
+
+                Ok(HttpResponse::Ok()
+                    .cookie(refresh_token_cookie)
+                    .cookie(access_token_cookie)
+                    .json(user_response))
             },
             Err(err) => Err(err),
         }
@@ -37,20 +58,34 @@ impl AuthHandler {
     ) -> Result<HttpResponse, ServerError> {
         let UserCreateDTO { username, email, password } = new_user.into_inner();
 
-
         match auth_services.register(username, email, password).await {
             Ok(user_service_response) => {
-                let refresh_token = user_service_response.refresh_token.refresh_token.clone();
-                let user_response = UserResponseDTO::from(user_service_response);
+                let UserLoginServiceDTO { user, access_token, refresh_token } = user_service_response;
+                let refresh_token_value = refresh_token.refresh_token.clone();
 
-                let cookie = Cookie::build("refresh_token", refresh_token)
+                let user_response = UserResponseDTO {
+                    user,
+                    access_token: access_token.clone(),
+                };
+
+                let refresh_token_cookie = Cookie::build("refresh_token", refresh_token_value)
                     .http_only(true)
                     .secure(false)
                     .same_site(SameSite::Strict)
                     .finish();
-                Ok(HttpResponse::Ok().cookie(cookie).json(user_response))
+
+                let access_token_cookie = Cookie::build("access_token", access_token)
+                    .http_only(true)
+                    .secure(false)
+                    .same_site(SameSite::Strict)
+                    .finish();
+
+                Ok(HttpResponse::Ok()
+                    .cookie(refresh_token_cookie)
+                    .cookie(access_token_cookie)
+                    .json(user_response))
             },
-            Err(err) => Err(err)    
+            Err(err) => Err(err), 
         }
     }
 
@@ -86,6 +121,18 @@ impl AuthHandler {
                 }
             },
             None => Err(ServerError::RequestError(RequestError::MissingHeader))
+        }
+    }
+
+    pub async fn verify_user(
+        auth_services: web::Data<Arc<AuthService>>,
+        user: web::Json<UserLoginDTO>,
+    ) -> Result<HttpResponse, ServerError> {
+        let UserLoginDTO { email, password } = user.into_inner();
+
+        match auth_services.verify_user(email, password).await {
+            Ok(()) => Ok(HttpResponse::Ok().finish()),
+            Err(err) => Err(err),
         }
     }
 }

@@ -1,9 +1,9 @@
 use actix_web::web;
 
 use crate::handlers::auth_handlers::AuthHandler;
+use crate::middlewares::auth_middleware::JwtMiddleware;
 
-
-pub fn configure(cfg: &mut web::ServiceConfig) {
+pub fn configure_without_auth(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/auth")
             .route("/login", web::post().to(AuthHandler::login))
@@ -11,3 +11,12 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/refresh", web::get().to(AuthHandler::refresh_access_token))
     );
 }
+
+pub fn configure_with_auth(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
+    cfg.service(
+        web::scope("/auth")
+            .wrap(jwt_middleware.clone())
+            .route("/verify", web::post().to(AuthHandler::verify_user))
+    );
+}
+

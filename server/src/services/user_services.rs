@@ -38,7 +38,6 @@ impl UserService {
         }
     }
 
-    // Delete junctions as well
     pub async fn delete_user(&self, uid: Uuid) -> Result<Uuid, ServerError> {
         let delete_query = UserEntity::delete_by_id(uid)
             .exec(&*self.db)

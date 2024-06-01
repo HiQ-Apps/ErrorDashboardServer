@@ -4,7 +4,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
-use shared_types::error_dtos::{CreateErrorDto, ErrorDto, UpdateErrorDto};
+use shared_types::error_dtos::{CreateErrorDto, ErrorDto, ShortErrorDto, UpdateErrorDto};
 use crate::models::error_model::{Entity as ErrorEntity, Model as ErrorModel};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError};
 
@@ -21,7 +21,7 @@ impl ErrorService {
     pub async fn create_error(
         &self,
         error: CreateErrorDto,
-    ) -> Result<ErrorDto, ServerError> {
+    ) -> Result<ShortErrorDto, ServerError> {
         let now = Utc::now();
         let create_error = ErrorModel {
             id: Uuid::new_v4(),
@@ -42,18 +42,38 @@ impl ErrorService {
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
         
-        Ok(ErrorDto {
+        Ok(ShortErrorDto {
             id: create_error.id,
             status_code: create_error.status_code,
-            user_affected: create_error.user_affected,
-            path: create_error.path,
-            line: create_error.line,
             message: create_error.message,
-            stack_trace: create_error.stack_trace,
-            namespace_id: create_error.namespace_id,
             resolved: create_error.resolved,
-            created_at: create_error.created_at,
-            updated_at: create_error.updated_at,
+            namespace_id: create_error.namespace_id,
+        })
+    }
+
+    pub async fn get_error_by_id(
+        &self,
+        id: Uuid,
+    ) -> Result<ErrorDto, ServerError> {
+        let found_error = ErrorEntity::find()
+            .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::Id.eq(id))
+            .one(&*self.db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
+            .ok_or(ServerError::QueryError(QueryError::ErrorNotFound))?;
+
+        Ok(ErrorDto {
+            id: found_error.id,
+            status_code: found_error.status_code,
+            user_affected: found_error.user_affected,
+            path: found_error.path,
+            line: found_error.line,
+            message: found_error.message,
+            stack_trace: found_error.stack_trace,
+            namespace_id: found_error.namespace_id,
+            resolved: found_error.resolved,
+            created_at: found_error.created_at,
+            updated_at: found_error.updated_at,
         })
     }
 

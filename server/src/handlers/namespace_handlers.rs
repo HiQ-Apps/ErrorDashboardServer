@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::config::Config;
 use crate::shared::utils::jwt::extract_user_id_from_jwt;
 use shared_types::extra_dtos::PaginationParams;
-use shared_types::namespace_dtos::{CreateNamespaceDto, UpdateNamespaceDto, ShortNamespaceDto};
+use shared_types::namespace_dtos::{CreateNamespaceDto, UpdateNamespaceDto};
 use crate::managers::namespace_manager::NamespaceServer;
 use crate::handlers::ws_handlers::WsNamespaceSession;
 use crate::services::namespace_services::NamespaceService;
