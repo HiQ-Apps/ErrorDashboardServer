@@ -1,5 +1,6 @@
 use actix_service::Service;
 use actix_web::dev::{ServiceRequest, ServiceResponse, Transform};
+use actix_web::http::StatusCode;
 use futures::future::{ok, Ready};
 use futures::Future;
 use jsonwebtoken::{Validation, Algorithm};
@@ -64,6 +65,28 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let headers = req.headers().clone();
+        let cookies_result = req.cookies().map(|cookies| cookies.iter().cloned().collect::<Vec<_>>());
+
+        let mut found_token: Option<String> = None;
+
+        println!("Headers: {:?}", headers);
+
+        if let Some(auth_header) = headers.get("Authorization") {
+            if let Ok(auth_str) = auth_header.to_str() {
+                    found_token = Some(auth_str.to_string());
+                }
+            }
+
+        if found_token.is_none() {
+            if let Ok(cookies) = cookies_result {
+                println!("Triggered cookie: {:?}", cookies);
+                if let Some(cookie) = cookies.iter().find(|c| c.name() == "access_token") {
+                    found_token = Some(cookie.value().to_string());
+                }
+            }
+        }
+        println!("Found token: {:?}", found_token);
+
         let fut = self.service.call(req);
 
         let secret_key = self.config.secret_key.clone();
@@ -82,11 +105,14 @@ where
             validation.set_required_spec_claims(&required_claims);
             validation.validate_exp = true;
 
-            match validate_jwt(&headers, &secret_key, &validation, &db_pool).await {
-                Ok(()) => Ok(res),
-                Err(err) => Err(E::from(err)),
+            if let Some(token) = found_token {
+                match validate_jwt(&token, &secret_key, &validation, &db_pool).await {
+                    Ok(()) => Ok(res),
+                    Err(err) => Err(E::from(err)),
+                }
+            } else {
+                Err(E::from(ServerError::HttpError(StatusCode::UNAUTHORIZED, "No Authorization header or access_token cookie found.".to_string())))
             }
         })
-        }
-
+    }
 }

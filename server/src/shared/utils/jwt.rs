@@ -12,26 +12,20 @@ use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
 use crate::models::refresh_token_model::Model as RefreshTokenModel;
 use crate::shared::utils::errors::{ServerError, QueryError, ExternalError};
 
-pub async fn validate_jwt(headers: &HeaderMap, secret_key: &str, validation: &Validation, db: &DatabaseConnection) -> Result<(), ServerError> {
-    if let Some(token_header) = headers.get("Authorization") {
-        let token_str = token_header.to_str().unwrap_or("");
+pub async fn validate_jwt(token: &str, secret_key: &str, validation: &Validation, db: &DatabaseConnection) -> Result<(), ServerError> {
+    let decoding_key = DecodingKey::from_secret(secret_key.as_ref());
 
-        let decoding_key = DecodingKey::from_secret(secret_key.as_ref());
+    let token_data: TokenData<Claims> = decode(token, &decoding_key, validation).map_err(|err| ServerError::from(ExternalError::Jwt(err)))?;
 
-        let token_data : TokenData<Claims> = decode(token_str, &decoding_key, validation).map_err(|err| ServerError::from(ExternalError::Jwt(err)))?;
+    let uid = token_data.claims.sub;
 
-        let uid = token_data.claims.sub;
+    let found_user = UserEntity::find_by_id(uid)
+        .one(db).await
+        .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
 
-        let found_user = UserEntity::find_by_id(uid)
-            .one(db).await
-            .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
-
-        match found_user {
-            Some(_user) => Ok(()),
-            None => Err(ServerError::from(QueryError::UserNotFound)),
-        }
-    } else {
-        Err(ServerError::HttpError(StatusCode::UNAUTHORIZED, "No Authorization header found.".to_string()))
+    match found_user {
+        Some(_user) => Ok(()),
+        None => Err(ServerError::from(QueryError::UserNotFound)),
     }
 }
 

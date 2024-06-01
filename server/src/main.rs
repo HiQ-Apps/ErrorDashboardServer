@@ -12,9 +12,10 @@ mod shared {
 
 use actix::Actor;
 use actix_cors::Cors;
-use actix_web::{middleware, web, App, HttpServer};
+use actix_web::{middleware, web, App, HttpServer, http};
 use log::{ error, info };
 use std::sync::Arc;
+use std::env;
 
 use crate::middlewares::auth_middleware::JwtMiddleware;
 use crate::routes::{auth_routes, error_routes, namespace_routes, user_routes};
@@ -24,6 +25,8 @@ use config::Config;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    env::set_var("RUST_BACKTRACE", "1");
+
     let config = match Config::from_env() {
         Ok(conf) => {
             env_logger::init();
@@ -99,9 +102,10 @@ async fn main() -> std::io::Result<()> {
 
             .wrap(
                 Cors::default()
-                    .allow_any_origin()
-                    .allow_any_method()
-                    .allow_any_header()
+                    .allowed_origin("http://localhost:3000")
+                    .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+                    .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT, http::header::CONTENT_TYPE])
+                    .max_age(3600)
                     .supports_credentials()
             )
 
