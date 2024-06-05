@@ -159,12 +159,12 @@ impl AuthService {
         Ok(user_response)
     }
 
-    pub async fn verify_user(&self, user_email: String, user_pass: String) -> Result<(), ServerError> {
+    pub async fn verify_user(&self, user_id: Uuid, user_pass: String) -> Result<(), ServerError> {
         let db = &*self.db;
 
         let found_user: Option<UserModel> = UserEntity::find()
-            .filter(<UserEntity as sea_orm::EntityTrait>::Column::Email
-            .eq(user_email))
+            .filter(<UserEntity as sea_orm::EntityTrait>::Column::Id
+            .eq(user_id))
             .one(db)
             .await
             .map_err(|err|ServerError::from(ExternalError::DB(err)))?;

@@ -32,3 +32,7 @@ pub struct RefreshTokenServiceDTO {
     pub access_token: String
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+pub struct VerifyUserDTO {
+    pub password: String
+}

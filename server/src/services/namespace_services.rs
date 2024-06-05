@@ -222,6 +222,8 @@ impl NamespaceService {
             .one(&transaction)
             .await;
 
+        println!("Namespace junction result: {:?}", namespace_junc_result);
+
         let namespace_junc = match namespace_junc_result {
             Ok(Some(junction)) => junction,
             Ok(None) => {
