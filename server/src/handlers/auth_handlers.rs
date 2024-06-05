@@ -2,8 +2,11 @@
 use actix_web::cookie::time::Duration;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{web, HttpResponse, HttpRequest, Result};
+use shared_types::auth_dtos::VerifyUserDTO;
 use std::sync::Arc;
 
+use crate::config::Config;
+use crate::shared::utils::jwt::extract_user_id_from_jwt;
 use shared_types::user_dtos::{UserCreateDTO, UserLoginDTO, UserLoginServiceDTO, UserResponseDTO};
 use crate::services::AuthService;
 use crate::shared::utils::errors::{ServerError, RequestError};
@@ -125,12 +128,18 @@ impl AuthHandler {
     }
 
     pub async fn verify_user(
+        req: HttpRequest,
+        config: web::Data<Arc<Config>>,
         auth_services: web::Data<Arc<AuthService>>,
-        user: web::Json<UserLoginDTO>,
+        password: web::Json<VerifyUserDTO>,
     ) -> Result<HttpResponse, ServerError> {
-        let UserLoginDTO { email, password } = user.into_inner();
+        let headers = req.headers();
+        let secret_key = config.secret_key.clone();
+        let user_id = extract_user_id_from_jwt(headers, &secret_key)?;
 
-        match auth_services.verify_user(email, password).await {
+        let VerifyUserDTO { password } = password.into_inner();
+
+        match auth_services.verify_user(user_id, password).await {
             Ok(()) => Ok(HttpResponse::Ok().finish()),
             Err(err) => Err(err),
         }
