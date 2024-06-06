@@ -190,14 +190,13 @@ impl AuthService {
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))
     }
-
+    
     pub async fn process_token_refresh(&self, token: &str) -> Result<UserLoginServiceDTO, ServerError> {
         let db = &*self.db;
         let configs = &*self.configs;
         let issuer = &configs.jwt_issuer;
         let audience = &configs.jwt_audience;
 
-        // Find the token model and mark it as revoked
         let mut token_model = self
             .find_by_token(token)
             .await?
@@ -207,15 +206,11 @@ impl AuthService {
         let active_token_model = token_model.clone().into_active_model();
 
         RefreshTokenEntity::update(active_token_model)
-            .exec(&*self.db)
+            .exec(db)
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
-        // Generate a new refresh token
-        let user_id_uuid = match token_model.user_id {
-            Some(uuid) => uuid,
-            None => return Err(ServerError::RequestError(RequestError::MissingUserID)),
-        };
+        let user_id_uuid = token_model.user_id.ok_or(ServerError::RequestError(RequestError::MissingUserID))?;
 
         let new_refresh_token_dto = create_refresh_token(user_id_uuid, configs)?;
         let new_refresh_token_model = RefreshTokenModel {
@@ -232,19 +227,18 @@ impl AuthService {
         let active_refresh_token_model = new_refresh_token_model.clone().into_active_model();
 
         RefreshTokenEntity::insert(active_refresh_token_model)
-            .exec(&*self.db)
+            .exec(db)
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
         let refreshed_access_token = refresh_access_token_util(new_refresh_token_model, db, configs).await?;
 
         let found_user = UserEntity::find()
-            .filter(<UserEntity as sea_orm::EntityTrait>::Column::Id.eq(user_id_uuid))
-            .one(&*self.db)
+            .filter(<UserEntity as EntityTrait>::Column::Id.eq(user_id_uuid))
+            .one(db)
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
             .ok_or(ServerError::QueryError(QueryError::UserNotFound))?;
-
 
         let user_response = UserLoginServiceDTO {
             user: ShortUserDTO {
@@ -257,5 +251,6 @@ impl AuthService {
         };
 
         Ok(user_response)
+        
     }
 }

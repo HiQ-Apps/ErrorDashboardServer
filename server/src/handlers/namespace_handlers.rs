@@ -6,7 +6,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
-use crate::shared::utils::jwt::extract_user_id_from_jwt;
+use crate::shared::utils::jwt::extract_user_id_from_jwt_header;
 use shared_types::extra_dtos::PaginationParams;
 use shared_types::namespace_dtos::{CreateNamespaceDto, UpdateNamespaceDto};
 use crate::managers::namespace_manager::NamespaceServer;
@@ -31,7 +31,7 @@ impl NamespaceHandler {
     ) -> Result<HttpResponse, ServerError> {
         let headers = req.headers();
         let secret_key = config.secret_key.clone();
-        let user_id = extract_user_id_from_jwt(headers, &secret_key)?;
+        let user_id = extract_user_id_from_jwt_header(headers, &secret_key)?;
 
         let CreateNamespaceDto { service_name, environment_type } = new_namespace.into_inner();
         match namespace_services.create_namespace(user_id, service_name, environment_type).await {
@@ -72,7 +72,7 @@ impl NamespaceHandler {
 
         let secret_key = &config.secret_key;
         let headers = req.headers();
-        let user_id = extract_user_id_from_jwt(headers, secret_key)?;
+        let user_id = extract_user_id_from_jwt_header(headers, secret_key)?;
 
         let update_namespace_dto = update_namespace_json.into_inner();
         match namespace_services.update_namespace(user_id, update_namespace_dto).await {
@@ -89,7 +89,7 @@ impl NamespaceHandler {
     ) -> Result<HttpResponse, ServerError> {
         let secret_key = &config.secret_key;
         let headers = req.headers();
-        let user_id = extract_user_id_from_jwt(headers, secret_key)?;
+        let user_id = extract_user_id_from_jwt_header(headers, secret_key)?;
 
         match namespace_services.delete_namespace(*namespace_id, user_id).await {
             Ok(id) => Ok(HttpResponse::Ok().json(id)),

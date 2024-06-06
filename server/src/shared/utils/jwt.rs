@@ -1,3 +1,4 @@
+use actix_web::cookie::Cookie;
 use actix_web::http::header::HeaderMap;
 use chrono::{Duration, Utc, DateTime};
 use jsonwebtoken::{Header, Validation, TokenData, encode, decode, EncodingKey, DecodingKey};
@@ -10,7 +11,7 @@ use shared_types::auth_dtos::{RefreshTokenDTO, Claims};
 use crate::config::Config;
 use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
 use crate::models::refresh_token_model::Model as RefreshTokenModel;
-use crate::shared::utils::errors::{ServerError, QueryError, ExternalError};
+use crate::shared::utils::errors::{ServerError, QueryError, ExternalError, RequestError};
 
 pub async fn validate_jwt(token: &str, secret_key: &str, validation: &Validation, db: &DatabaseConnection) -> Result<(), ServerError> {
     let decoding_key = DecodingKey::from_secret(secret_key.as_ref());
@@ -29,7 +30,7 @@ pub async fn validate_jwt(token: &str, secret_key: &str, validation: &Validation
     }
 }
 
-pub fn extract_user_id_from_jwt(headers: &HeaderMap, secret_key: &str) -> Result<Uuid, ServerError> {
+pub fn extract_user_id_from_jwt_header(headers: &HeaderMap, secret_key: &str) -> Result<Uuid, ServerError> {
     if let Some(token_header) = headers.get("Authorization") {
         let token_str = token_header.to_str().unwrap_or("");
 
@@ -40,11 +41,19 @@ pub fn extract_user_id_from_jwt(headers: &HeaderMap, secret_key: &str) -> Result
 
         Ok(token_data.claims.sub)
     } else {
-        Err(ServerError::HttpError(
-            actix_web::http::StatusCode::UNAUTHORIZED,
-            "No Authorization header found.".to_string(),
-        ))
+        Err(ServerError::from(RequestError::InvalidToken))
     }
+}
+
+pub fn extract_user_id_from_jwt_cookie(cookies: &Cookie, secret_key: &str) -> Result<Uuid, ServerError> {
+    let token_str = cookies.value();
+
+    let decoding_key = DecodingKey::from_secret(secret_key.as_ref());
+
+    let token_data: TokenData<Claims> = decode(token_str, &decoding_key, &Validation::default())
+        .map_err(|err| ServerError::from(ExternalError::Jwt(err)))?;
+
+    Ok(token_data.claims.sub)
 }
 
 pub fn create_access_token(user: UserModel, configs: &Config) -> Result<String, ServerError> {

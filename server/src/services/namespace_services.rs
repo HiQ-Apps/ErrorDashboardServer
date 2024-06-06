@@ -214,15 +214,12 @@ impl NamespaceService {
         let db: &DatabaseConnection = &*self.db;
         let transaction = db.begin().await.map_err(ExternalError::from)?;
         
-        println!("Delete service hit");
 
         let namespace_junc_result = UserNamespaceJunctionEntity::find()
             .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
             .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::UserId.eq(user_id))
             .one(&transaction)
             .await;
-
-        println!("Namespace junction result: {:?}", namespace_junc_result);
 
         let namespace_junc = match namespace_junc_result {
             Ok(Some(junction)) => junction,

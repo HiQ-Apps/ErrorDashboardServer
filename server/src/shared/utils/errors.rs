@@ -44,6 +44,8 @@ impl ResponseError for ServerError {
             },
             ServerError::RequestError(ref err) => {
                 let status = match err {
+                    RequestError::InvalidCookies => StatusCode::UNAUTHORIZED,
+                    RequestError::MissingCookie => StatusCode::UNAUTHORIZED,
                     RequestError::MissingUserID => StatusCode::BAD_REQUEST,
                     RequestError::InvalidHeader => StatusCode::BAD_REQUEST,
                     RequestError::InvalidToken => StatusCode::UNAUTHORIZED,
@@ -142,6 +144,12 @@ pub enum RequestError {
 
     #[error("Invalid query parameter")]
     InvalidQueryParameter,
+
+    #[error("Missing cookie")]
+    MissingCookie,
+
+    #[error("Invalid cookies")]
+    InvalidCookies,
 }
 
 impl From<ExternalError> for ServerError {
