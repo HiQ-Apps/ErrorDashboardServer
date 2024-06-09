@@ -74,12 +74,14 @@ impl AuthHandler {
                 let refresh_token_cookie = Cookie::build("refresh_token", refresh_token_value)
                     .http_only(true)
                     .secure(false)
+                    .path("/")
                     .same_site(SameSite::Strict)
                     .finish();
 
                 let access_token_cookie = Cookie::build("access_token", access_token)
                     .http_only(true)
                     .secure(false)
+                    .path("/")
                     .same_site(SameSite::Strict)
                     .finish();
 
@@ -94,55 +96,57 @@ impl AuthHandler {
 
 
     pub async fn refresh_access_token(
-    req: HttpRequest,
-    auth_services: web::Data<Arc<AuthService>>,
-    user_services: web::Data<Arc<UserService>>,
-    config: web::Data<Arc<Config>>,
-) -> Result<HttpResponse, ServerError> {
-    let cookies = req.cookies().map_err(|_| ServerError::RequestError(RequestError::InvalidCookies))?;
-    let refresh_token_cookie = cookies.iter().find(|cookie| cookie.name() == "refresh_token");
+        req: HttpRequest,
+        auth_services: web::Data<Arc<AuthService>>,
+        user_services: web::Data<Arc<UserService>>,
+        config: web::Data<Arc<Config>>,
+    ) -> Result<HttpResponse, ServerError> {
+        let cookies = req.cookies().map_err(|_| ServerError::RequestError(RequestError::InvalidCookies))?;
+        let refresh_token_cookie = cookies.iter().find(|cookie| cookie.name() == "refresh_token");
 
-    match refresh_token_cookie {
-        Some(refresh_token_cookie) => {
-            let refresh_token = refresh_token_cookie.value();
+        match refresh_token_cookie {
+            Some(refresh_token_cookie) => {
+                let refresh_token = refresh_token_cookie.value();
 
-            let token_model = auth_services.find_by_token(refresh_token).await?;
-            match token_model {
-                Some(token_model) => {
-                    let refresh_token_response = auth_services.process_token_refresh(&token_model.token).await?;
-                    let new_access_token = refresh_token_response.access_token.clone();
+                let token_model = auth_services.find_by_token(refresh_token).await?;
+                match token_model {
+                    Some(token_model) => {
+                        let refresh_token_response = auth_services.process_token_refresh(&token_model.token).await?;
+                        let new_access_token = refresh_token_response.access_token.clone();
 
-                    let new_access_token_cookie = Cookie::build("access_token", new_access_token.clone())
-                        .http_only(true)
-                        .secure(false)
-                        .same_site(SameSite::Strict)
-                        .finish();
+                        let new_access_token_cookie = Cookie::build("access_token", new_access_token.clone())
+                            .http_only(true)
+                            .secure(false)
+                            .path("/")
+                            .same_site(SameSite::Strict)
+                            .finish();
 
-                    let new_refresh_token_cookie = Cookie::build("refresh_token", refresh_token_response.refresh_token.refresh_token.clone())
-                        .http_only(true)
-                        .secure(false)
-                        .same_site(SameSite::Strict)
-                        .finish();
+                        let new_refresh_token_cookie = Cookie::build("refresh_token", refresh_token_response.refresh_token.refresh_token.clone())
+                            .http_only(true)
+                            .secure(false)
+                            .path("/")
+                            .same_site(SameSite::Strict)
+                            .finish();
 
-                    let user_id = extract_user_id_from_jwt_cookie(&refresh_token_cookie, &config.secret_key)?;
-                    let user = user_services.get_user(user_id).await?;
+                        let user_id = extract_user_id_from_jwt_cookie(&refresh_token_cookie, &config.secret_key)?;
+                        let user = user_services.get_user(user_id).await?;
 
-                    let user_response = UserResponseDTO {
-                        user,
-                        access_token: new_access_token,
-                    };
+                        let user_response = UserResponseDTO {
+                            user,
+                            access_token: new_access_token,
+                        };
 
-                    Ok(HttpResponse::Ok()
-                        .cookie(new_access_token_cookie)
-                        .cookie(new_refresh_token_cookie)
-                        .json(user_response))
-                },
-                None => Err(ServerError::RequestError(RequestError::InvalidToken)),
-            }
-        },
-        None => Err(ServerError::RequestError(RequestError::MissingCookie)),
+                        Ok(HttpResponse::Ok()
+                            .cookie(new_access_token_cookie)
+                            .cookie(new_refresh_token_cookie)
+                            .json(user_response))
+                    },
+                    None => Err(ServerError::RequestError(RequestError::InvalidToken)),
+                }
+            },
+            None => Err(ServerError::RequestError(RequestError::MissingCookie)),
+        }
     }
-}
 
     pub async fn verify_user(
         req: HttpRequest,
