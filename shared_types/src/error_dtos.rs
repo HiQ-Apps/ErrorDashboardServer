@@ -45,3 +45,9 @@ pub struct UpdateErrorDto {
     pub id: Uuid,
     pub resolved: Option<bool>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct AggregateErrorDto {
+    pub count: u64,
+    pub time: DateTime<Utc>,
+}

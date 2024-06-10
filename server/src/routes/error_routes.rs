@@ -10,5 +10,6 @@ pub fn configure(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
             .route("/", web::post().to(ErrorHandler::create_error))
             .route("/{id}", web::get().to(ErrorHandler::get_error_by_id))
             .route("/", web::put().to(ErrorHandler::update_error))
+            .route("/aggregate/{namespace_id}", web::get().to(ErrorHandler::get_aggregate_errors_by_date))
     );
 }

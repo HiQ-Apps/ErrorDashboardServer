@@ -1,11 +1,12 @@
-use chrono::Utc;
+use chrono::{Utc, DateTime, Duration};
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, DatabaseConnection};
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
-use shared_types::error_dtos::{CreateErrorDto, ErrorDto, ShortErrorDto, UpdateErrorDto};
+use shared_types::error_dtos::{AggregateErrorDto, CreateErrorDto, ErrorDto, ShortErrorDto, UpdateErrorDto};
 use crate::models::error_model::{Entity as ErrorEntity, Model as ErrorModel};
+use crate::models::user_namespace_junction_model::{Entity as UserNamespaceJunctionEntity, Model as UserNamespaceJunctionModel};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError};
 
 pub struct ErrorService {
@@ -107,5 +108,39 @@ impl ErrorService {
             id: update_error.id,
             resolved: Some(update_error.resolved),
         })
+    }
+
+    // Get all errors for a specific namespace by namespace_id
+    // Using the created_at date column, aggregate a param given time frame ( every 4 hours ) from a param given start time ( 2 years )
+    // return the count of errors and the time frame until the current time
+    pub async fn get_aggregate_errors_by_date(
+        &self,
+        namespace_id: Uuid,
+        start_time: DateTime<Utc>,
+        time_interval: i64,
+    ) -> Result<Vec<AggregateErrorDto>, ServerError> {
+        let now = Utc::now();
+        let mut current_time = start_time;
+        let mut aggregated_errors: Vec<AggregateErrorDto> = Vec::new();
+
+        while current_time < now {
+            let end_time = current_time + Duration::hours(time_interval as i64);
+            let count = ErrorEntity::find()
+                .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::NamespaceId.eq(namespace_id))
+                .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::CreatedAt.gt(current_time))
+                .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::CreatedAt.lt(end_time))
+                .count(&*self.db)
+                .await
+                .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+            aggregated_errors.push(AggregateErrorDto {
+                count,
+                time: current_time,
+            });
+
+            current_time = end_time;
+        }
+
+        Ok(aggregated_errors)
     }
 }

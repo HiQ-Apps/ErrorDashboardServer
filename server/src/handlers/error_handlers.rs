@@ -7,7 +7,8 @@ use crate::managers::namespace_manager::NamespaceServer;
 use crate::handlers::ws_handlers::NewError;
 use crate::services::error_services::ErrorService;
 use crate::shared::utils::errors::ServerError;
-use shared_types::error_dtos::{CreateErrorDto, ShortErrorDto, UpdateErrorDto};
+use shared_types::{{extra_dtos::TimeParams, error_dtos::{CreateErrorDto, ShortErrorDto, UpdateErrorDto}}};
+
 
 
 pub struct ErrorHandler;
@@ -58,4 +59,19 @@ impl ErrorHandler {
         }
     }
 
+
+    pub async fn get_aggregate_errors_by_date(
+        error_services: web::Data<Arc<ErrorService>>,
+        namespace_id: web::Path<Uuid>,
+        time_params_query: web::Query<TimeParams>,
+    ) -> Result<HttpResponse, ServerError> {
+        let time_params = time_params_query.into_inner();
+        let namespace_id = namespace_id.into_inner();
+        let time_interval_hours = time_params.time_interval_hours;
+        let start_time = time_params.start_time;
+        match error_services.get_aggregate_errors_by_date(namespace_id, start_time, time_interval_hours).await {
+            Ok(errors) => Ok(HttpResponse::Ok().json(errors)),
+            Err(err) => Err(err)
+        }
+    }
 }
