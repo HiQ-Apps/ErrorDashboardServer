@@ -6,7 +6,6 @@ use uuid::Uuid;
 use crate::config::Config;
 use shared_types::error_dtos::{AggregateErrorDto, CreateErrorDto, ErrorDto, ShortErrorDto, UpdateErrorDto};
 use crate::models::error_model::{Entity as ErrorEntity, Model as ErrorModel};
-use crate::models::user_namespace_junction_model::{Entity as UserNamespaceJunctionEntity, Model as UserNamespaceJunctionModel};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError};
 
 pub struct ErrorService {
