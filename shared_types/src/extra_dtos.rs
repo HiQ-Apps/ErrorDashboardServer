@@ -1,4 +1,4 @@
-use chrono::{Utc, DateTime};
+use chrono::NaiveDate;
 use serde::{Serialize, Deserialize};
 use serde_valid::Validate;
 
@@ -10,7 +10,7 @@ pub struct PaginationParams {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct TimeParams {
-    pub start_time: DateTime<Utc>,
-    pub time_interval_hours: i64,
+    pub start_time: NaiveDate,
+    pub time_interval_minutes: i64,
 }
 
