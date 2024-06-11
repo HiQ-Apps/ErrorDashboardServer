@@ -48,6 +48,6 @@ pub struct UpdateErrorDto {
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct AggregateErrorDto {
-    pub count: u64,
+    pub count: i64,
     pub time: DateTime<Utc>,
 }

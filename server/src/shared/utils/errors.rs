@@ -2,6 +2,7 @@ use actix_web::{Error as ActixError, HttpResponse, http::StatusCode, error::Resp
 use actix_web_actors::ws::ProtocolError;
 use anyhow::Error as AnyhowError;
 use bcrypt::BcryptError;
+use chrono::ParseError;
 use jsonwebtoken::errors::Error as JwtError;
 use sea_orm::error::{DbErr, SqlErr};
 use sea_orm::TransactionError;
@@ -38,6 +39,7 @@ impl ResponseError for ServerError {
                     QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound => StatusCode::NOT_FOUND,
                     QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists => StatusCode::CONFLICT,
                     QueryError::PasswordIncorrect => StatusCode::UNAUTHORIZED,
+                    QueryError::InvalidTimestamp => StatusCode::BAD_REQUEST,
                     _ => StatusCode::BAD_REQUEST,
                 };
                 HttpResponse::build(status).json(format!("{}", self))
@@ -72,6 +74,9 @@ pub enum ExternalError {
 
     #[error("Database error: {0}")]
     DB(DbErr),
+
+    #[error("Datetime error: {0}")]
+    Chrono(ParseError),
 
     #[error("JWT error: {0}")]
     Jwt(JwtError),
@@ -123,6 +128,9 @@ pub enum QueryError {
 
     #[error("Error not found")]
     ErrorNotFound,
+
+    #[error("Invalid Timestamp")]
+    InvalidTimestamp,
 }
 
 #[derive(Debug, Error)]
@@ -181,6 +189,12 @@ impl From<AnyhowError> for ExternalError {
     fn from(error: AnyhowError) -> Self {
         ExternalError::Anyhow(error)
     }
+}
+
+impl From<ParseError> for ExternalError {
+    fn from(error: ParseError) -> Self {
+        ExternalError::Chrono(error)
+    }   
 }
 
 impl From<DbErr> for ExternalError {
