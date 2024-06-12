@@ -12,5 +12,6 @@ pub struct PaginationParams {
 pub struct TimeParams {
     pub start_time: NaiveDate,
     pub time_interval_minutes: i64,
+    pub timezone: String,
 }
 

@@ -1,5 +1,5 @@
-use chrono::offset::LocalResult;
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
+use chrono_tz::Tz;
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, DatabaseConnection};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -111,37 +111,47 @@ impl ErrorService {
         })
     }
 
-    // Get all errors for a specific namespace by namespace_id
-    // Using the created_at date column, aggregate a param given time frame ( every 4 hours ) from a param given start time ( 2 years )
-    // return the count of errors and the time frame until the current time
-    // optimze: use a hashmap to store the time frame and count of errors
     pub async fn get_aggregate_errors_by_date(
         &self,
         namespace_id: Uuid,
         selected_date: NaiveDate,
         time_interval: i64,
+        timezone: String,
     ) -> Result<Vec<AggregateErrorDto>, ServerError> {
+        let user_tz: Tz = timezone.parse().map_err(|_| ServerError::QueryError(QueryError::InvalidTimestamp))?;
+
         let start_time_naive = selected_date.and_hms_opt(0, 0, 0)
             .ok_or_else(|| ServerError::QueryError(QueryError::InvalidTimestamp))?;
-        let start_time = Utc.from_utc_datetime(&start_time_naive);
+        let start_time_local = user_tz.from_local_datetime(&start_time_naive)
+            .single()
+            .ok_or_else(|| ServerError::QueryError(QueryError::InvalidTimestamp))?;
+        let end_time_local = start_time_local + Duration::days(1);
+        println!("start time local: {:?}", start_time_local); 
+        println!("end time local: {:?}", end_time_local);
 
-        let end_time = start_time + Duration::days(1);
+        // Convert local times to UTC
+        let start_time_utc = start_time_local.with_timezone(&Utc);
+        let end_time_utc = end_time_local.with_timezone(&Utc);
+
+        println!("Start time: {}", start_time_utc);
+        println!("End time: {}", end_time_utc);
 
         let errors = ErrorEntity::find()
             .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::NamespaceId.eq(namespace_id))
-            .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::CreatedAt.gt(start_time))
-            .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::CreatedAt.lt(end_time))
+            .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::CreatedAt.gt(start_time_utc))
+            .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::CreatedAt.lt(end_time_utc))
             .all(&*self.db)
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
         let mut error_map: HashMap<DateTime<Utc>, i64> = HashMap::new();
 
+        println!("{:?}", errors);
+
         for error in errors {
-            println!("Error: {:?}", error);
             let time_bucket_seconds = (error.created_at.timestamp() / (time_interval * 60)) * (time_interval * 60);
             let time_bucket = match Utc.timestamp_opt(time_bucket_seconds, 0) {
-                LocalResult::Single(dt) => dt,
+                chrono::LocalResult::Single(dt) => dt,
                 _ => return Err(ServerError::QueryError(QueryError::InvalidTimestamp)),
             };
 
@@ -154,7 +164,7 @@ impl ErrorService {
             .collect();
 
         aggregated_errors.sort_by(|a, b| a.time.cmp(&b.time));
-
+        println!("{:?}", aggregated_errors);
         Ok(aggregated_errors)
     }
 }

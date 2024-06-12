@@ -69,7 +69,8 @@ impl ErrorHandler {
         let namespace_id = namespace_id.into_inner();
         let time_interval_minutes = time_params.time_interval_minutes;
         let start_time = time_params.start_time;
-        match error_services.get_aggregate_errors_by_date(namespace_id, start_time, time_interval_minutes).await {
+        let timezone = time_params.timezone;
+        match error_services.get_aggregate_errors_by_date(namespace_id, start_time, time_interval_minutes, timezone).await {
             Ok(errors) => Ok(HttpResponse::Ok().json(errors)),
             Err(err) => Err(err)
         }
