@@ -131,6 +131,9 @@ pub enum QueryError {
 
     #[error("Invalid Timestamp")]
     InvalidTimestamp,
+
+    #[error("Tag not found")]
+    InvalidTag,
 }
 
 #[derive(Debug, Error)]

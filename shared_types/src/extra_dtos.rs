@@ -14,4 +14,3 @@ pub struct TimeParams {
     pub time_interval_minutes: i64,
     pub timezone: String,
 }
-

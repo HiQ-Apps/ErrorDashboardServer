@@ -1,6 +1,6 @@
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 use chrono_tz::Tz;
-use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, DatabaseConnection};
+use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, DatabaseConnection, JsonValue};
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -126,15 +126,10 @@ impl ErrorService {
             .single()
             .ok_or_else(|| ServerError::QueryError(QueryError::InvalidTimestamp))?;
         let end_time_local = start_time_local + Duration::days(1);
-        println!("start time local: {:?}", start_time_local); 
-        println!("end time local: {:?}", end_time_local);
 
         // Convert local times to UTC
         let start_time_utc = start_time_local.with_timezone(&Utc);
         let end_time_utc = end_time_local.with_timezone(&Utc);
-
-        println!("Start time: {}", start_time_utc);
-        println!("End time: {}", end_time_utc);
 
         let errors = ErrorEntity::find()
             .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::NamespaceId.eq(namespace_id))

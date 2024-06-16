@@ -14,6 +14,7 @@ pub enum Errors {
     Message,
     StackTrace,
     Resolved,
+    Tags,
     CreatedAt,
     UpdatedAt
 }
@@ -46,6 +47,7 @@ impl MigrationTrait for Migration {
                         )
                         .col(ColumnDef::new(Errors::StackTrace).string().not_null())
                         .col(ColumnDef::new(Errors::Resolved).boolean().not_null())
+                        .col(ColumnDef::new(Errors::Tags).json())
                         .col(ColumnDef::new(Errors::CreatedAt).timestamp_with_time_zone().not_null())
                         .col(ColumnDef::new(Errors::UpdatedAt).timestamp_with_time_zone().not_null())
                         .to_owned(),

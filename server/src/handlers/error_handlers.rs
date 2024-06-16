@@ -30,7 +30,6 @@ impl ErrorHandler {
                     message: error_dto.message,
                     resolved: error_dto.resolved,
                     namespace_id: error_dto.namespace_id,
-                
                 }))
             },
             Err(err) => Err(err)

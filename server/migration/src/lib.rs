@@ -5,6 +5,7 @@ mod m20230921_034443_create_refresh_token_table;
 mod m20231013_164343_create_error_table;
 mod m20231013_200027_create_namespace_table;
 mod m20231015_093305_create_user_namespace_junction_table;
+mod m20240616_024612_create_error_tags;
 
 pub struct Migrator;
 
@@ -17,6 +18,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20231013_200027_create_namespace_table::Migration),
             Box::new(m20231013_164343_create_error_table::Migration),
             Box::new(m20231015_093305_create_user_namespace_junction_table::Migration),
+            Box::new(m20240616_024612_create_error_tags::Migration),
         ]
     }
 }

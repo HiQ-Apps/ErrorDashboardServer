@@ -8,6 +8,9 @@ pub use user_services::*;
 pub mod auth_services;
 pub use auth_services::*;
 
+pub mod tag_services;
+pub use tag_services::*;
+
 pub mod namespace_services;
 pub use namespace_services::*;
 
