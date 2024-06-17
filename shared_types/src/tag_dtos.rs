@@ -7,6 +7,12 @@ pub struct TagDto {
     pub id: Uuid,
     pub tag_key: String,
     pub tag_value: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+pub struct CreateTagDto {
+    pub tag_key: String,
+    pub tag_value: String,
     pub error_id: Uuid,
 }
 
