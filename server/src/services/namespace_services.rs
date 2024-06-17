@@ -298,7 +298,6 @@ impl NamespaceService {
                 status_code: error.status_code,
                 message: error.message.clone(),
                 resolved: error.resolved,
-                namespace_id: error.namespace_id,
                 tags: Some(tags),
             })
         }

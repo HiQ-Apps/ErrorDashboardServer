@@ -52,7 +52,6 @@ impl TagService {
             id: tag.id,
             tag_key: tag.tag_key,
             tag_value: tag.tag_value,
-            error_id: tag.error_id,
         }).collect())
     }
 

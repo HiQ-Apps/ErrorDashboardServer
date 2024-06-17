@@ -11,7 +11,6 @@ pub struct ShortErrorDto {
     pub status_code: i16,
     pub message: String,
     pub resolved: bool,
-    pub namespace_id: Uuid,
     pub tags: Option<Vec<ShortTagDto>>,
 }
 

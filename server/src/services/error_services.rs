@@ -1,7 +1,7 @@
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 use chrono_tz::Tz;
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, DatabaseConnection};
-use shared_types::tag_dtos::TagDto;
+use shared_types::tag_dtos::{CreateTagDto, TagDto};
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -47,12 +47,11 @@ impl ErrorService {
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
 
-        let mut return_tags: Vec<TagDto> = Vec::new();
+        let mut return_tags: Vec<CreateTagDto> = Vec::new();
 
         if let Some(tags) = error.tags {
             for tag in tags {
-                let tag_dto = TagDto {
-                    id: Uuid::new_v4(),
+                let tag_dto = CreateTagDto {
                     tag_key: tag.tag_key,
                     tag_value: tag.tag_value,
                     error_id: create_error.id,
@@ -98,7 +97,6 @@ impl ErrorService {
             id: tag.id,
             tag_key: tag.tag_key,
             tag_value: tag.tag_value,
-            error_id: tag.error_id,
         }).collect());
 
         Ok(ErrorDto {
