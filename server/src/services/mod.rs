@@ -8,6 +8,9 @@ pub use user_services::*;
 pub mod auth_services;
 pub use auth_services::*;
 
+pub mod tag_services;
+pub use tag_services::*;
+
 pub mod namespace_services;
 pub use namespace_services::*;
 
@@ -17,7 +20,7 @@ pub use error_services::*;
 use crate::config::Config;
 use crate::shared::utils::errors::ServerError;
 
-pub fn init_services(db_pool: Arc<DatabaseConnection>, config: Arc<Config>) -> Result<(namespace_services::NamespaceService, user_services::UserService, auth_services::AuthService, error_services::ErrorService), Box<dyn Error>> {
+pub fn init_services(db_pool: Arc<DatabaseConnection>, config: Arc<Config>) -> Result<(namespace_services::NamespaceService, user_services::UserService, auth_services::AuthService, error_services::ErrorService, tag_services::TagService), Box<dyn Error>> {
     let namespace_service = namespace_services::NamespaceService::new(Arc::clone(&db_pool), Arc::clone(&config))
         .map_err(|_| ServerError::ServiceInitError("Namespace service failed to initialize".to_string()))?;
 
@@ -30,6 +33,8 @@ pub fn init_services(db_pool: Arc<DatabaseConnection>, config: Arc<Config>) -> R
     let error_service = error_services::ErrorService::new(Arc::clone(&db_pool), Arc::clone(&config))
         .map_err(|_| ServerError::ServiceInitError("Error services failed to initialize".to_string()))?;
 
+    let tag_service = tag_services::TagService::new(Arc::clone(&db_pool), Arc::clone(&config))
+        .map_err(|_| ServerError::ServiceInitError("Tag services failed to initialize".to_string()))?;
 
-    Ok((namespace_service, user_service, auth_service, error_service))
+    Ok((namespace_service, user_service, auth_service, error_service, tag_service))
 }
