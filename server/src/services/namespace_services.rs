@@ -1,4 +1,5 @@
 use chrono::Utc;
+use futures::stream::{FuturesUnordered, TryStreamExt};
 use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel, DatabaseConnection, QuerySelect, TransactionTrait};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -6,9 +7,11 @@ use log::info;
 
 use shared_types::namespace_dtos::{NamespaceDto, UpdateNamespaceDto, ShortNamespaceDto};
 use shared_types::error_dtos::ShortErrorDto;
+use shared_types::tag_dtos::ShortTagDto;
 use crate::config::Config;
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
 use crate::models::error_model::Entity as ErrorEntity;
+use crate::models::error_tag_model::Entity as TagEntity;
 use crate::models::user_namespace_junction_model::{Entity as UserNamespaceJunctionEntity, Model as UserNamespaceJunctionModel};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError, RequestError};
 
@@ -276,15 +279,31 @@ impl NamespaceService {
             .await
             .map_err(ExternalError::from)?;
 
-        let errors: Vec<ShortErrorDto> = errors.into_iter().map(|error| ShortErrorDto {
-            id: error.id,
-            status_code: error.status_code,
-            message: error.message.clone(),
-            resolved: error.resolved,
-            namespace_id: error.namespace_id,
-        }).collect();
-        
-        Ok(errors)
+        let futures = errors.into_iter().map(|error| {
+        async move {
+            let error_id = error.id;
+            let tags = TagEntity::find()
+                .filter(<TagEntity as EntityTrait>::Column::ErrorId.eq(error_id))
+                .all(db)
+                .await
+                .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+            
+            let tags = tags.into_iter().map(|tag| ShortTagDto {
+                tag_key: tag.tag_key,
+                tag_value: tag.tag_value,
+            }).collect();
+
+            Ok(ShortErrorDto {
+                id: error.id,
+                status_code: error.status_code,
+                message: error.message.clone(),
+                resolved: error.resolved,
+                namespace_id: error.namespace_id,
+                tags: Some(tags),
+            })
+        }
+        }).collect::<FuturesUnordered<_>>();
+        futures.try_collect().await
     }
 
 }

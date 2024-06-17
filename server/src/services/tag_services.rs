@@ -1,11 +1,11 @@
 use std::sync::Arc;
-use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel, DatabaseConnection, QuerySelect, TransactionTrait};
+use sea_orm::{entity::prelude::*, EntityTrait, DatabaseConnection};
 use uuid::Uuid;
 
 use crate::config::Config;
-use shared_types::tag_dtos::{CreateTagDto, TagDto};
-use crate::shared::utils::errors::{ExternalError, QueryError, ServerError, RequestError};
-use crate::models::error_tag_model::{Entity as TagEntity, Model as TagModel};
+use shared_types::tag_dtos::TagDto;
+use crate::shared::utils::errors::{ExternalError, QueryError, ServerError};
+use crate::models::error_tag_model::Entity as TagEntity;
 
 pub struct TagService {
     pub db: Arc<DatabaseConnection>,
@@ -15,29 +15,6 @@ pub struct TagService {
 impl TagService {
     pub fn new(db: Arc<DatabaseConnection>, configs: Arc<Config>) -> Result<Self, ServerError> {
         Ok(Self { db, configs })
-    }
-
-    pub async fn create_tag(
-        &self,
-        tag: CreateTagDto
-    ) -> Result<TagDto, ServerError> {
-        let create_tag = TagModel {
-            id: Uuid::new_v4(),
-            tag_key: tag.key,
-            tag_value: tag.value,
-            error_id: tag.error_id,
-        };
-
-        TagEntity::insert(create_tag.clone().into_active_model())
-            .exec(&*self.db)
-            .await
-            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
-
-        Ok(TagDto {
-            id: create_tag.id,
-            tag_key: create_tag.tag_key,
-            tag_value: create_tag.tag_value,
-        })
     }
 
     pub async fn delete_tag(
@@ -75,8 +52,8 @@ impl TagService {
             id: tag.id,
             tag_key: tag.tag_key,
             tag_value: tag.tag_value,
+            error_id: tag.error_id,
         }).collect())
     }
-
 
 }

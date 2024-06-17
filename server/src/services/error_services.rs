@@ -1,13 +1,15 @@
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 use chrono_tz::Tz;
-use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, DatabaseConnection, JsonValue};
+use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, DatabaseConnection};
+use shared_types::tag_dtos::TagDto;
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
-use shared_types::error_dtos::{AggregateErrorDto, CreateErrorDto, ErrorDto, ShortErrorDto, UpdateErrorDto};
+use shared_types::error_dtos::{AggregateErrorDto, CreateErrorDto, CreateErrorRequest, ErrorDto, UpdateErrorDto};
 use crate::models::error_model::{Entity as ErrorEntity, Model as ErrorModel};
+use crate::models::error_tag_model::{Entity as TagEntity, Model as TagModel, ActiveModel as ActiveTagModel};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError};
 
 pub struct ErrorService {
@@ -22,8 +24,8 @@ impl ErrorService {
 
     pub async fn create_error(
         &self,
-        error: CreateErrorDto,
-    ) -> Result<ShortErrorDto, ServerError> {
+        error: CreateErrorRequest,
+    ) -> Result<CreateErrorDto, ServerError> {
         let now = Utc::now();
         let create_error = ErrorModel {
             id: Uuid::new_v4(),
@@ -43,8 +45,30 @@ impl ErrorService {
             .exec(&*self.db)
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+
+        let mut return_tags: Vec<TagDto> = Vec::new();
+
+        if let Some(tags) = error.tags {
+            for tag in tags {
+                let tag_dto = TagDto {
+                    id: Uuid::new_v4(),
+                    tag_key: tag.tag_key,
+                    tag_value: tag.tag_value,
+                    error_id: create_error.id,
+                };
+                return_tags.push(tag_dto.clone());
+
+                let tag_model: ActiveTagModel = tag_dto.into();
+
+                TagEntity::insert(tag_model)
+                    .exec(&*self.db)
+                    .await
+                    .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+            }
+        }
         
-        Ok(ShortErrorDto {
+        Ok(CreateErrorDto {
             id: create_error.id,
             status_code: create_error.status_code,
             message: create_error.message,
@@ -63,6 +87,19 @@ impl ErrorService {
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
             .ok_or(ServerError::QueryError(QueryError::ErrorNotFound))?;
+        
+        let found_tags = TagEntity::find()
+            .filter(<TagEntity as sea_orm::EntityTrait>::Column::ErrorId.eq(id))
+            .all(&*self.db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+        let tags = Some(found_tags.into_iter().map(|tag| TagDto {
+            id: tag.id,
+            tag_key: tag.tag_key,
+            tag_value: tag.tag_value,
+            error_id: tag.error_id,
+        }).collect());
 
         Ok(ErrorDto {
             id: found_error.id,
@@ -76,6 +113,7 @@ impl ErrorService {
             resolved: found_error.resolved,
             created_at: found_error.created_at,
             updated_at: found_error.updated_at,
+            tags,
         })
     }
 
@@ -98,6 +136,27 @@ impl ErrorService {
             update_error.resolved = resolved;
         }
 
+        let mut tag_list: Vec<TagDto> = Vec::new();
+
+        if let Some(tags) = error.tags {
+            for tag in tags {
+                let tag_clone = tag.clone();
+                let tag_model = TagModel {
+                    id: Uuid::new_v4(),
+                    tag_key: tag_clone.tag_key,
+                    tag_value: tag_clone.tag_value,
+                    error_id: update_error.id,
+                }.into_active_model();
+
+                tag_list.push(tag);
+
+                TagEntity::insert(tag_model)
+                    .exec(&*self.db)
+                    .await
+                    .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+            }
+        }
+
         update_error.updated_at = now;
 
         ErrorEntity::update(update_error.clone().into_active_model())
@@ -108,6 +167,7 @@ impl ErrorService {
         Ok(UpdateErrorDto {
             id: update_error.id,
             resolved: Some(update_error.resolved),
+            tags: Some(tag_list)
         })
     }
 
@@ -141,8 +201,6 @@ impl ErrorService {
 
         let mut error_map: HashMap<DateTime<Utc>, i64> = HashMap::new();
 
-        println!("{:?}", errors);
-
         for error in errors {
             let time_bucket_seconds = (error.created_at.timestamp() / (time_interval * 60)) * (time_interval * 60);
             let time_bucket = match Utc.timestamp_opt(time_bucket_seconds, 0) {
@@ -159,7 +217,7 @@ impl ErrorService {
             .collect();
 
         aggregated_errors.sort_by(|a, b| a.time.cmp(&b.time));
-        println!("{:?}", aggregated_errors);
+
         Ok(aggregated_errors)
     }
 }

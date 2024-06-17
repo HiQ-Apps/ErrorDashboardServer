@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::models::error_model::Entity as ErrorEntity;
+use shared_types::tag_dtos::TagDto;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "error_tags")]
@@ -47,3 +48,15 @@ impl ActiveModel {
 
 #[async_trait]
 impl ActiveModelBehavior for ActiveModel {}
+
+
+impl From<TagDto> for ActiveModel {
+    fn from(dto: TagDto) -> Self {
+        Self {
+            id: ActiveValue::Set(Uuid::new_v4()),
+            error_id: ActiveValue::Set(dto.error_id),
+            tag_key: ActiveValue::Set(dto.tag_key),
+            tag_value: ActiveValue::Set(dto.tag_value)
+        }
+    }
+}

@@ -70,7 +70,7 @@ async fn main() -> std::io::Result<()> {
             "#);
     println!("Listening on {}:{}...", config_for_server.db_host, config_for_server.api_port);
 
-    let (namespace_service, user_service, auth_service, error_service ) = match init_services(db_pool.clone(), config.clone()) {
+    let (namespace_service, user_service, auth_service, error_service, tag_service ) = match init_services(db_pool.clone(), config.clone()) {
         Ok(services) => services,
         Err(e) => {
             error!("Failed to initialize services: {}", e);
@@ -82,6 +82,7 @@ async fn main() -> std::io::Result<()> {
     let user_service = Arc::new(user_service);
     let auth_service = Arc::new(auth_service);
     let error_service = Arc::new(error_service);
+    let tag_service = Arc::new(tag_service);
 
     let namespace_manager = NamespaceServer::new().start();
 
@@ -96,6 +97,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(user_service.clone()))
             .app_data(web::Data::new(auth_service.clone()))
             .app_data(web::Data::new(error_service.clone()))
+            .app_data(web::Data::new(tag_service.clone()))
             
             // Namespace websocket manager
             .app_data(web::Data::new(namespace_manager.clone()))

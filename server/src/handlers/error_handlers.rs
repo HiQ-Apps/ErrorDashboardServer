@@ -7,7 +7,7 @@ use crate::managers::namespace_manager::NamespaceServer;
 use crate::handlers::ws_handlers::NewError;
 use crate::services::error_services::ErrorService;
 use crate::shared::utils::errors::ServerError;
-use shared_types::{{extra_dtos::TimeParams, error_dtos::{CreateErrorDto, ShortErrorDto, UpdateErrorDto}}};
+use shared_types::{{extra_dtos::TimeParams, error_dtos::{CreateErrorRequest, UpdateErrorDto}}};
 
 
 
@@ -17,20 +17,14 @@ impl ErrorHandler {
     pub async fn create_error(
         error_services: web::Data<Arc<ErrorService>>,
         namespace_manager: web::Data<Addr<NamespaceServer>>,
-        new_error: web::Json<CreateErrorDto>,
+        new_error: web::Json<CreateErrorRequest>,
     ) -> Result<HttpResponse, ServerError> {
         let error_dto = new_error.into_inner();
         
         match error_services.create_error(error_dto).await {
             Ok(error_dto) => {
                 namespace_manager.do_send(NewError(error_dto.clone()));
-                Ok(HttpResponse::Ok().json(ShortErrorDto {
-                    id: error_dto.id,
-                    status_code: error_dto.status_code,
-                    message: error_dto.message,
-                    resolved: error_dto.resolved,
-                    namespace_id: error_dto.namespace_id,
-                }))
+                Ok(HttpResponse::Ok().finish())
             },
             Err(err) => Err(err)
         }
