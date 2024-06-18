@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::env;
 
 use crate::middlewares::auth_middleware::JwtMiddleware;
-use crate::routes::{auth_routes, error_routes, namespace_routes, user_routes};
+use crate::routes::{auth_routes, error_routes, namespace_routes, user_routes, tag_routes};
 use crate::services::init_services;
 use crate::managers::namespace_manager::NamespaceServer;
 use config::Config;
@@ -117,6 +117,7 @@ async fn main() -> std::io::Result<()> {
             .configure(|cfg| user_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| namespace_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| error_routes::configure(cfg, &jwt_middleware))
+            .configure(|cfg| tag_routes::configure(cfg, &jwt_middleware))
     })
     .bind(("127.0.0.1", config_for_server.api_port))?
     .run()
