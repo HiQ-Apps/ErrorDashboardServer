@@ -2,12 +2,13 @@ use chrono::Utc;
 use futures::stream::{FuturesUnordered, TryStreamExt};
 use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel, DatabaseConnection, QuerySelect, TransactionTrait};
 use std::sync::Arc;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 use log::info;
 
 use shared_types::namespace_dtos::{NamespaceDto, UpdateNamespaceDto, ShortNamespaceDto};
-use shared_types::error_dtos::ShortErrorDto;
-use shared_types::tag_dtos::ShortTagDto;
+use shared_types::error_dtos::{ShortErrorDto, GetAggregatedErrorDto, ErrorDto, ErrorMetaDto};
+use shared_types::tag_dtos::{ShortTagDto, ShortTagDtoNoId};
 use crate::config::Config;
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
 use crate::models::error_model::Entity as ErrorEntity;
@@ -268,8 +269,19 @@ impl NamespaceService {
         Ok(())
     }
 
-    pub async fn get_errors_by_namespace_with_pagination(&self, namespace_id: Uuid, offset: u64, limit: u64) -> Result<Vec<ShortErrorDto>, ServerError> {
+    // TODO: Implement pagination
+    // TODO: Implement more group_by responses
+    pub async fn get_errors_by_namespace_with_pagination(
+        &self,
+        namespace_id: Uuid,
+        group_by: String,
+        offset: u64,
+        limit: u64,
+    ) -> Result<Vec<GetAggregatedErrorDto>, ServerError> {
         let db: &DatabaseConnection = &*self.db;
+        let mut grouped_errors: HashMap<String, GetAggregatedErrorDto> = HashMap::new();
+        let mut unique_users: HashMap<String, HashSet<String>> = HashMap::new();
+        let mut unique_tags: HashMap<String, HashSet<ShortTagDtoNoId>> = HashMap::new();
 
         let errors = ErrorEntity::find()
             .filter(<ErrorEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
@@ -280,29 +292,72 @@ impl NamespaceService {
             .map_err(ExternalError::from)?;
 
         let futures = errors.into_iter().map(|error| {
-        async move {
-            let error_id = error.id;
-            let tags = TagEntity::find()
-                .filter(<TagEntity as EntityTrait>::Column::ErrorId.eq(error_id))
-                .all(db)
-                .await
-                .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
-            
-            let tags = tags.into_iter().map(|tag| ShortTagDto {
-                tag_key: tag.tag_key,
-                tag_value: tag.tag_value,
-            }).collect();
+            let db = db.clone();
+            async move {
+                let error_id = error.id;
+                let tags = TagEntity::find()
+                    .filter(<TagEntity as EntityTrait>::Column::ErrorId.eq(error_id))
+                    .all(&db)
+                    .await
+                    .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+                
+                let tags = Some(tags.into_iter().map(|tag| ShortTagDtoNoId {
+                    tag_key: tag.tag_key,
+                    tag_value: tag.tag_value,
+                }).collect());
 
-            Ok(ShortErrorDto {
-                id: error.id,
+                Ok(ErrorDto {
+                    id: error.id,
+                    status_code: error.status_code,
+                    user_affected: error.user_affected,
+                    path: error.path,
+                    line: error.line,
+                    message: error.message.clone(),
+                    stack_trace: error.stack_trace,
+                    namespace_id: error.namespace_id,
+                    resolved: error.resolved,
+                    created_at: error.created_at,
+                    tags,
+                    updated_at: error.updated_at,
+                }) as Result<ErrorDto, ServerError>
+            }
+        }).collect::<FuturesUnordered<_>>();
+
+        let results: Vec<ErrorDto> = futures.try_collect().await?;
+
+        for error in results {
+            let key = match group_by.as_str() {
+                "status_code" => error.status_code.to_string(),
+                "message" => error.message.clone(),
+                "line" => error.line.to_string(),
+                _ => "default".to_string(),
+            };
+
+            let entry = grouped_errors.entry(key.clone()).or_insert_with(|| GetAggregatedErrorDto {
                 status_code: error.status_code,
                 message: error.message.clone(),
-                resolved: error.resolved,
-                tags: Some(tags),
-            })
+                user_affected_count: 0,
+                error_count: 0,
+                aggregated_tags: vec![],
+            });
+
+            entry.error_count += 1;
+
+            let user_set = unique_users.entry(key.clone()).or_insert_with(HashSet::new);
+            user_set.insert(error.user_affected.clone());
+            entry.user_affected_count = user_set.len() as i32;
+
+            if let Some(tags) = error.tags {
+                let tag_set = unique_tags.entry(key.clone()).or_insert_with(HashSet::new);
+                for tag in tags {
+                    tag_set.insert(tag);
+                }
+                entry.aggregated_tags = tag_set.iter().cloned().collect();
+            }
         }
-        }).collect::<FuturesUnordered<_>>();
-        futures.try_collect().await
+
+        let response = grouped_errors.into_iter().map(|(_, v)| v).collect();
+        Ok(response)
     }
 
 }
