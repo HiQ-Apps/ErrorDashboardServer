@@ -7,12 +7,12 @@ use uuid::Uuid;
 
 use crate::config::Config;
 use crate::shared::utils::jwt::extract_user_id_from_jwt_header;
-use shared_types::extra_dtos::PaginationParams;
+use shared_types::extra_dtos::{PaginationParams, QueryParams};
 use shared_types::namespace_dtos::{CreateNamespaceDto, UpdateNamespaceDto};
 use crate::managers::namespace_manager::NamespaceServer;
 use crate::handlers::ws_handlers::WsNamespaceSession;
 use crate::services::namespace_services::NamespaceService;
-use crate::shared::utils::errors::{ServerError, ExternalError};
+use crate::shared::utils::errors::{ServerError, ExternalError, RequestError};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserId {
@@ -100,12 +100,17 @@ impl NamespaceHandler {
     pub async fn get_errors_by_namespace_with_pagination(
         namespace_services: web::Data<Arc<NamespaceService>>,
         namespace_id: web::Path<Uuid>,
-        pagination: web::Query<PaginationParams>,
+        query_params: web::Query<QueryParams>,
     ) -> Result<HttpResponse, ServerError> {
-        let offset = pagination.offset;
-        let limit = pagination.limit;
+        let offset = query_params.offset;
+        let limit = query_params.limit;
+        let group_by = match &query_params.group_by {
+            // TODO: This is a temporary solution. Implement ENUM traits for group_by
+            Some(group_by) => group_by.clone(),
+            None => return Err(ServerError::RequestError(RequestError::InvalidQueryParameter)),
+        };
 
-        match namespace_services.get_errors_by_namespace_with_pagination(*namespace_id, offset, limit).await {
+        match namespace_services.get_errors_by_namespace_with_pagination(*namespace_id, group_by, offset, limit).await {
             Ok(errors) => Ok(HttpResponse::Ok().json(errors)),
             Err(err) => Err(err)
         }

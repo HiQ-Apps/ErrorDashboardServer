@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::config::Config;
 use shared_types::tag_dtos::{CreateTagDto, TagDto};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError};
-use crate::models::error_tag_model::{Entity as TagEntity, Model as TagModel, ActiveModel as ActiveTagModel};
+use crate::models::error_tag_model::{Entity as TagEntity, ActiveModel as ActiveTagModel};
 
 pub struct TagService {
     pub db: Arc<DatabaseConnection>,
@@ -65,6 +65,7 @@ impl TagService {
             id: tag.id,
             tag_key: tag.tag_key,
             tag_value: tag.tag_value,
+            error_id: tag.error_id
         }).collect())
     }
 

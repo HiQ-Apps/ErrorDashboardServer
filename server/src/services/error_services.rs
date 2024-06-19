@@ -1,7 +1,7 @@
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 use chrono_tz::Tz;
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, DatabaseConnection};
-use shared_types::tag_dtos::{CreateTagDto, TagDto};
+use shared_types::tag_dtos::{CreateTagDto, TagDto, ShortTagDto, ShortTagDtoNoId};
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -73,6 +73,7 @@ impl ErrorService {
             message: create_error.message,
             resolved: create_error.resolved,
             namespace_id: create_error.namespace_id,
+            stack_trace: create_error.stack_trace,
         })
     }
 
@@ -93,8 +94,7 @@ impl ErrorService {
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
-        let tags = Some(found_tags.into_iter().map(|tag| TagDto {
-            id: tag.id,
+        let tags = Some(found_tags.into_iter().map(|tag| ShortTagDtoNoId {
             tag_key: tag.tag_key,
             tag_value: tag.tag_value,
         }).collect());
