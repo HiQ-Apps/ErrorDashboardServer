@@ -1,10 +1,9 @@
-use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web::{web, HttpResponse};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::config::Config;
 use crate::services::tag_services::TagService;
-use shared_types::tag_dtos::{CreateTagDto, TagDto};
+use shared_types::tag_dtos::CreateTagDto;
 use crate::shared::utils::errors::{ServerError, ExternalError};
 
 pub struct TagHandler;
