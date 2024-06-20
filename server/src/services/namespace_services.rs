@@ -7,8 +7,8 @@ use uuid::Uuid;
 use log::info;
 
 use shared_types::namespace_dtos::{NamespaceDto, UpdateNamespaceDto, ShortNamespaceDto};
-use shared_types::error_dtos::{ShortErrorDto, GetAggregatedErrorDto, ErrorDto, ErrorMetaDto};
-use shared_types::tag_dtos::{ShortTagDto, ShortTagDtoNoId};
+use shared_types::error_dtos::{GetAggregatedErrorDto, ErrorDto, ErrorMetaDto};
+use shared_types::tag_dtos::ShortTagDtoNoId;
 use crate::config::Config;
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
 use crate::models::error_model::Entity as ErrorEntity;
@@ -334,8 +334,8 @@ impl NamespaceService {
             };
 
             let entry = grouped_errors.entry(key.clone()).or_insert_with(|| GetAggregatedErrorDto {
-                status_code: error.status_code,
                 message: error.message.clone(),
+                status_code: error.status_code,
                 user_affected_count: 0,
                 error_count: 0,
                 aggregated_tags: vec![],

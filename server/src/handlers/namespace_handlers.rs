@@ -110,6 +110,7 @@ impl NamespaceHandler {
             None => return Err(ServerError::RequestError(RequestError::InvalidQueryParameter)),
         };
 
+        println!("group_by: {:?}", group_by);
         match namespace_services.get_errors_by_namespace_with_pagination(*namespace_id, group_by, offset, limit).await {
             Ok(errors) => Ok(HttpResponse::Ok().json(errors)),
             Err(err) => Err(err)
