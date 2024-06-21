@@ -23,6 +23,19 @@ pub struct GetAggregatedErrorDto {
     pub error_count: i32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AggregatedResult {
+    ByTags(Vec<TagAggregatedErrorDto>),
+    ByOther(Vec<GetAggregatedErrorDto>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TagAggregatedErrorDto {
+    pub tag: ShortTagDtoNoId,
+    pub user_affected_count: i32,
+    pub error_count: i32,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct CreateErrorDto {
     pub id: Uuid,

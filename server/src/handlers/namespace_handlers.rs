@@ -2,6 +2,7 @@ use actix::Addr;
 use actix_web::{web, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
 use serde::{Serialize, Deserialize};
+use shared_types::error_dtos::AggregatedResult;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -102,19 +103,19 @@ impl NamespaceHandler {
         namespace_id: web::Path<Uuid>,
         query_params: web::Query<QueryParams>,
     ) -> Result<HttpResponse, ServerError> {
-        let offset = query_params.offset;
-        let limit = query_params.limit;
-        let group_by = match &query_params.group_by {
-            // TODO: This is a temporary solution. Implement ENUM traits for group_by
-            Some(group_by) => group_by.clone(),
-            None => return Err(ServerError::RequestError(RequestError::InvalidQueryParameter)),
-        };
-
-        match namespace_services.get_errors_by_namespace_with_pagination(*namespace_id, group_by, offset, limit).await {
-            Ok(errors) => Ok(HttpResponse::Ok().json(errors)),
-            Err(err) => Err(err)
+        let group_by = query_params.group_by.clone().unwrap_or_else(|| "default".to_string());
+        let result = namespace_services.get_errors_by_namespace_with_pagination(
+            *namespace_id,
+            group_by,
+            query_params.offset,
+            query_params.limit,
+        ).await?;
+        match result {
+            AggregatedResult::ByTags(tags) => Ok(HttpResponse::Ok().json(tags)),
+            AggregatedResult::ByOther(aggregated) => Ok(HttpResponse::Ok().json(aggregated)),
         }
     }
+
 
     pub async fn ws_index(
         req: HttpRequest,
