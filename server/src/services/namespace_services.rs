@@ -7,7 +7,7 @@ use uuid::Uuid;
 use log::info;
 
 use shared_types::namespace_dtos::{NamespaceDto, UpdateNamespaceDto, ShortNamespaceDto};
-use shared_types::error_dtos::{GetAggregatedErrorDto, ErrorDto, ErrorMetaDto};
+use shared_types::error_dtos::{ErrorDto, AggregatedResult, GetAggregatedErrorDto, TagAggregatedErrorDto};
 use shared_types::tag_dtos::ShortTagDtoNoId;
 use crate::config::Config;
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
@@ -271,26 +271,23 @@ impl NamespaceService {
     }
 
     // TODO: Implement pagination
-    // TODO: Implement more group_by responses
     pub async fn get_errors_by_namespace_with_pagination(
         &self,
         namespace_id: Uuid,
         group_by: String,
         offset: u64,
         limit: u64,
-    ) -> Result<Vec<GetAggregatedErrorDto>, ServerError> {
+    ) -> Result<AggregatedResult, ServerError> {
         let db: &DatabaseConnection = &*self.db;
         let mut grouped_errors: HashMap<String, GetAggregatedErrorDto> = HashMap::new();
         let mut unique_users: HashMap<String, HashSet<String>> = HashMap::new();
-        let mut unique_tags: HashMap<String, HashSet<ShortTagDtoNoId>> = HashMap::new();
+        let mut tag_aggregations: HashMap<ShortTagDtoNoId, TagAggregatedErrorDto> = HashMap::new();
 
         let errors = ErrorEntity::find()
             .filter(<ErrorEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
-            .offset(offset)
-            .limit(limit)
             .all(db)
             .await
-            .map_err(ExternalError::from)?;
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
         let futures = errors.into_iter().map(|error| {
             let db = db.clone();
@@ -305,7 +302,7 @@ impl NamespaceService {
                 let tags = Some(tags.into_iter().map(|tag| ShortTagDtoNoId {
                     tag_key: tag.tag_key,
                     tag_value: tag.tag_value,
-                }).collect());
+                }).collect::<Vec<_>>());
 
                 Ok(ErrorDto {
                     id: error.id,
@@ -323,42 +320,61 @@ impl NamespaceService {
                 }) as Result<ErrorDto, ServerError>
             }
         }).collect::<FuturesUnordered<_>>();
-
         let results: Vec<ErrorDto> = futures.try_collect().await?;
 
         for error in results {
-            let key = match group_by.as_str() {
-                "status_code" => error.status_code.to_string(),
-                "message" => error.message.clone(),
-                "line" => error.line.to_string(),
-                _ => "default".to_string(),
-            };
+            if group_by == "tags" {
+                if let Some(tags) = &error.tags {
+                    for tag in tags {
+                        let entry = tag_aggregations.entry(tag.clone()).or_insert_with(|| TagAggregatedErrorDto {
+                            tag: tag.clone(),
+                            user_affected_count: 0,
+                            error_count: 0,
+                        });
 
-            let entry = grouped_errors.entry(key.clone()).or_insert_with(|| GetAggregatedErrorDto {
-                message: error.message.clone(),
-                status_code: error.status_code,
-                user_affected_count: 0,
-                error_count: 0,
-                aggregated_tags: vec![],
-            });
+                        entry.error_count += 1;
 
-            entry.error_count += 1;
-
-            let user_set = unique_users.entry(key.clone()).or_insert_with(HashSet::new);
-            user_set.insert(error.user_affected.clone());
-            entry.user_affected_count = user_set.len() as i32;
-
-            if let Some(tags) = error.tags {
-                let tag_set = unique_tags.entry(key.clone()).or_insert_with(HashSet::new);
-                for tag in tags {
-                    tag_set.insert(tag);
+                        let user_set = unique_users.entry(format!("{}:{}", tag.tag_key, tag.tag_value)).or_insert_with(HashSet::new);
+                        user_set.insert(error.user_affected.clone());
+                        entry.user_affected_count = user_set.len() as i32;
+                    }
                 }
-                entry.aggregated_tags = tag_set.iter().cloned().collect();
+            } else {
+                let key = match group_by.as_str() {
+                    "status_code" => error.status_code.to_string(),
+                    "message" => error.message.clone(),
+                    "line" => error.line.to_string(),
+                    _ => "message".to_string(),
+                };
+
+                let entry = grouped_errors.entry(key.clone()).or_insert_with(|| {
+                    GetAggregatedErrorDto {
+                        message: error.message.clone(),
+                        status_code: error.status_code,
+                        user_affected_count: 0,
+                        error_count: 0,
+                        aggregated_tags: vec![],
+                    }
+                });
+
+                entry.error_count += 1;
+
+                let user_set = unique_users.entry(key.clone()).or_insert_with(HashSet::new);
+                user_set.insert(error.user_affected.clone());
+                entry.user_affected_count = user_set.len() as i32;
+
+                if let Some(tags) = &error.tags {
+                    let tag_set: HashSet<ShortTagDtoNoId> = entry.aggregated_tags.iter().cloned().collect();
+                    let new_tags: HashSet<ShortTagDtoNoId> = tags.iter().cloned().collect();
+                    let combined_tags = tag_set.union(&new_tags).cloned().collect();
+                    entry.aggregated_tags = combined_tags;
+                }
             }
         }
 
-        let response = grouped_errors.into_iter().map(|(_, v)| v).collect();
-        Ok(response)
+        match group_by.as_str() {
+            "tags" => Ok(AggregatedResult::ByTags(tag_aggregations.into_iter().map(|(_, v)| v).collect())),
+            _ => Ok(AggregatedResult::ByOther(grouped_errors.into_iter().map(|(_, v)| v).collect())),
+        }
     }
-
 }
