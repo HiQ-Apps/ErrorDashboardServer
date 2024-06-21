@@ -2,7 +2,6 @@ use bcrypt::{verify, hash};
 use chrono::Utc;
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, TransactionTrait};
 use std::sync::Arc;
-use std::time::Instant;
 use uuid::Uuid;
 
 use shared_types::user_dtos::{ShortUserDTO, UserLoginServiceDTO};
@@ -28,41 +27,24 @@ impl AuthService {
     user_email: String,
     user_password: String
 ) -> Result<UserLoginServiceDTO, ServerError> {
-    let start = Instant::now();
-
     let issuer = &self.configs.jwt_issuer;
     let audience = &self.configs.jwt_audience;
     let db = &*self.db;
 
-    // Measure the time taken to query the user from the database
-    let start_db_query = Instant::now();
     let found_user: Option<UserModel> = UserEntity::find()
         .filter(<UserEntity as sea_orm::EntityTrait>::Column::Email.eq(user_email))
         .one(db)
         .await
         .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
-    println!("DB query time: {:?}", start_db_query.elapsed());
 
     match found_user {
         Some(user) => {
-            // Measure the time taken to verify the password
-            let start_password_verify = Instant::now();
             let is_valid = verify(&user_password, &user.password).map_err(|err| ServerError::from(ExternalError::Bcrypt(err)))?;
-            println!("Password verify time: {:?}", start_password_verify.elapsed());
 
             if is_valid {
-                // Measure the time taken to create the access token
-                let start_create_access_token = Instant::now();
                 let access_token = create_access_token(user.clone(), &self.configs)?;
-                println!("Create access token time: {:?}", start_create_access_token.elapsed());
-
-                // Measure the time taken to create the refresh token
-                let start_create_refresh_token = Instant::now();
                 let refresh_token_dto = create_refresh_token(user.id, &self.configs)?;
-                println!("Create refresh token time: {:?}", start_create_refresh_token.elapsed());
 
-                // Measure the time taken to insert the refresh token into the database
-                let start_db_insert = Instant::now();
                 let refresh_token_model = RefreshTokenModel {
                     user_id: Some(user.id),
                     token: refresh_token_dto.refresh_token.clone(),
@@ -78,10 +60,7 @@ impl AuthService {
                     .exec(db)
                     .await
                     .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
-                println!("DB insert time: {:?}", start_db_insert.elapsed());
 
-                // Measure the time taken to create the user response
-                let start_create_response = Instant::now();
                 let user_response = UserLoginServiceDTO { 
                     user: ShortUserDTO {
                         id: user.id,
@@ -91,17 +70,13 @@ impl AuthService {
                     access_token,
                     refresh_token: refresh_token_dto,
                 };
-                println!("Create response time: {:?}", start_create_response.elapsed());
 
-                println!("Total login time: {:?}", start.elapsed());
                 Ok(user_response)
             } else {
-                println!("Total login time: {:?}", start.elapsed());
                 Err(ServerError::QueryError(QueryError::PasswordIncorrect))
             }
         },
         None => {
-            println!("Total login time: {:?}", start.elapsed());
             Err(ServerError::QueryError(QueryError::UserNotFound))
         }
     }
