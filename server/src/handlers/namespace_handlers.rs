@@ -103,7 +103,7 @@ impl NamespaceHandler {
         namespace_id: web::Path<Uuid>,
         query_params: web::Query<QueryParams>,
     ) -> Result<HttpResponse, ServerError> {
-        let group_by = query_params.group_by.clone().unwrap_or_else(|| "default".to_string());
+        let group_by = query_params.group_by.clone().unwrap_or_else(|| "message".to_string());
         let result = namespace_services.get_errors_by_namespace_with_pagination(
             *namespace_id,
             group_by,

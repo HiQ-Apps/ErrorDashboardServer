@@ -344,7 +344,7 @@ impl NamespaceService {
                     "status_code" => error.status_code.to_string(),
                     "message" => error.message.clone(),
                     "line" => error.line.to_string(),
-                    _ => "default".to_string(),
+                    _ => "message".to_string(),
                 };
 
                 let entry = grouped_errors.entry(key.clone()).or_insert_with(|| {
