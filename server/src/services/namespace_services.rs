@@ -190,6 +190,8 @@ impl NamespaceService {
             namespace.client_secret = ActiveValue::Set(client_secret);
         };
 
+        namespace.updated_at = ActiveValue::Set(now);
+
         let updated_namespace = match namespace.update(&transaction).await {
             Ok(namespace) => namespace,
             Err(err) => {
@@ -210,7 +212,6 @@ impl NamespaceService {
             created_at: updated_namespace.created_at,
             updated_at: now,
         };
-
         Ok(updated_namespace_dto)
     }
 

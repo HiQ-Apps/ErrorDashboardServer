@@ -1,7 +1,7 @@
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 use chrono_tz::Tz;
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, DatabaseConnection};
-use shared_types::tag_dtos::{CreateTagDto, TagDto, ShortTagDto, ShortTagDtoNoId};
+use shared_types::tag_dtos::{CreateTagDto, TagDto, ShortTagDtoNoId};
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
