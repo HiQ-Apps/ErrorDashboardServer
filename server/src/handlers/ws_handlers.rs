@@ -3,7 +3,7 @@ use actix_web_actors::ws;
 use actix_web_actors::ws::WebsocketContext;
 use uuid::Uuid;
 
-use shared_types::error_dtos::CreateErrorDto;
+use shared_types::error_dtos::CreateErrorDTO;
 use crate::managers::namespace_manager::{NamespaceServer, Subscribe, Unsubscribe};
 
 #[derive(Debug, Clone)]
@@ -48,7 +48,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsNamespaceSessio
 
 #[derive(Message)]
 #[rtype(result = "()")]
-pub struct NewError(pub CreateErrorDto);
+pub struct NewError(pub CreateErrorDTO);
 
 impl Handler<NewError> for WsNamespaceSession {
     type Result = ();

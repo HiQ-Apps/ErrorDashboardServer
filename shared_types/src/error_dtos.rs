@@ -3,41 +3,41 @@ use serde::{Deserialize, Serialize};
 use serde_valid::Validate;
 use uuid::Uuid;
 
-use super::tag_dtos::{TagDto, ShortTagDtoNoId};
+use super::tag_dtos::{TagDTO, ShortTagNoIdDTO};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
-pub struct ShortErrorDto {
+pub struct ShortErrorDTO {
     pub id: Uuid,
     pub status_code: i16,
     pub message: String,
     pub resolved: bool,
-    pub tags: Option<Vec<ShortTagDtoNoId>>,
+    pub tags: Option<Vec<ShortTagNoIdDTO>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
-pub struct GetAggregatedErrorDto {
+pub struct GetAggregatedErrorDTO {
     pub status_code: i16,
     pub message: String,
-    pub aggregated_tags: Vec<ShortTagDtoNoId>,
+    pub aggregated_tags: Vec<ShortTagNoIdDTO>,
     pub user_affected_count: i32,
     pub error_count: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AggregatedResult {
-    ByTags(Vec<TagAggregatedErrorDto>),
-    ByOther(Vec<GetAggregatedErrorDto>),
+    ByTags(Vec<TagAggregatedErrorDTO>),
+    ByOther(Vec<GetAggregatedErrorDTO>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TagAggregatedErrorDto {
-    pub tag: ShortTagDtoNoId,
+pub struct TagAggregatedErrorDTO {
+    pub tag: ShortTagNoIdDTO,
     pub user_affected_count: i32,
     pub error_count: i32,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
-pub struct CreateErrorDto {
+pub struct CreateErrorDTO {
     pub id: Uuid,
     pub status_code: i16,
     pub message: String,
@@ -56,7 +56,7 @@ pub struct CreateErrorResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
-pub struct ErrorDto {
+pub struct ErrorDTO {
     pub id: Uuid,
     pub status_code: i16,
     pub user_affected: String,
@@ -66,13 +66,13 @@ pub struct ErrorDto {
     pub stack_trace: String,
     pub namespace_id: Uuid,
     pub resolved: bool,
-    pub tags: Option<Vec<ShortTagDtoNoId>>,
+    pub tags: Option<Vec<ShortTagNoIdDTO>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
-pub struct ErrorMetaDto {
+pub struct ErrorMetaDTO {
     pub id: Uuid,
     pub created_at: DateTime<Utc>,
 }
@@ -86,18 +86,18 @@ pub struct CreateErrorRequest {
     pub stack_trace: String,
     pub message: String,
     pub namespace_id: Uuid,
-    pub tags: Option<Vec<ShortTagDtoNoId>>,
+    pub tags: Option<Vec<ShortTagNoIdDTO>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
-pub struct UpdateErrorDto {
+pub struct UpdateErrorDTO {
     pub id: Uuid,
     pub resolved: Option<bool>,
-    pub tags: Option<Vec<TagDto>>,
+    pub tags: Option<Vec<TagDTO>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
-pub struct AggregateErrorDto {
+pub struct AggregateErrorDTO {
     pub count: i64,
     pub time: DateTime<Utc>,
 }

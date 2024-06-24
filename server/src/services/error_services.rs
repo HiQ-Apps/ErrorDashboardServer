@@ -1,13 +1,13 @@
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 use chrono_tz::Tz;
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, DatabaseConnection};
-use shared_types::tag_dtos::{CreateTagDto, TagDto, ShortTagDtoNoId};
+use shared_types::tag_dtos::{CreateTagDTO, TagDTO, ShortTagNoIdDTO};
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
-use shared_types::error_dtos::{AggregateErrorDto, CreateErrorDto, CreateErrorRequest, ErrorDto, UpdateErrorDto};
+use shared_types::error_dtos::{AggregateErrorDTO, CreateErrorDTO, CreateErrorRequest, ErrorDTO, UpdateErrorDTO};
 use crate::models::error_model::{Entity as ErrorEntity, Model as ErrorModel};
 use crate::models::error_tag_model::{Entity as TagEntity, Model as TagModel, ActiveModel as ActiveTagModel};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError};
@@ -25,7 +25,7 @@ impl ErrorService {
     pub async fn create_error(
         &self,
         error: CreateErrorRequest,
-    ) -> Result<CreateErrorDto, ServerError> {
+    ) -> Result<CreateErrorDTO, ServerError> {
         let now = Utc::now();
         let create_error = ErrorModel {
             id: Uuid::new_v4(),
@@ -47,11 +47,11 @@ impl ErrorService {
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
 
-        let mut return_tags: Vec<CreateTagDto> = Vec::new();
+        let mut return_tags: Vec<CreateTagDTO> = Vec::new();
 
         if let Some(tags) = error.tags {
             for tag in tags {
-                let tag_dto = CreateTagDto {
+                let tag_dto = CreateTagDTO {
                     tag_key: tag.tag_key,
                     tag_value: tag.tag_value,
                     error_id: create_error.id,
@@ -67,7 +67,7 @@ impl ErrorService {
             }
         }
         
-        Ok(CreateErrorDto {
+        Ok(CreateErrorDTO {
             id: create_error.id,
             status_code: create_error.status_code,
             message: create_error.message,
@@ -80,7 +80,7 @@ impl ErrorService {
     pub async fn get_error_by_id(
         &self,
         id: Uuid,
-    ) -> Result<ErrorDto, ServerError> {
+    ) -> Result<ErrorDTO, ServerError> {
         let found_error = ErrorEntity::find()
             .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::Id.eq(id))
             .one(&*self.db)
@@ -94,12 +94,12 @@ impl ErrorService {
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
-        let tags = Some(found_tags.into_iter().map(|tag| ShortTagDtoNoId {
+        let tags = Some(found_tags.into_iter().map(|tag| ShortTagNoIdDTO {
             tag_key: tag.tag_key,
             tag_value: tag.tag_value,
         }).collect());
 
-        Ok(ErrorDto {
+        Ok(ErrorDTO {
             id: found_error.id,
             status_code: found_error.status_code,
             user_affected: found_error.user_affected,
@@ -117,8 +117,8 @@ impl ErrorService {
 
     pub async fn update_error(
         &self,
-        error: UpdateErrorDto,
-    ) -> Result<UpdateErrorDto, ServerError> {
+        error: UpdateErrorDTO,
+    ) -> Result<UpdateErrorDTO, ServerError> {
         let now = Utc::now();
 
         let found_error = ErrorEntity::find()
@@ -134,7 +134,7 @@ impl ErrorService {
             update_error.resolved = resolved;
         }
 
-        let mut tag_list: Vec<TagDto> = Vec::new();
+        let mut tag_list: Vec<TagDTO> = Vec::new();
 
         if let Some(tags) = error.tags {
             for tag in tags {
@@ -162,7 +162,7 @@ impl ErrorService {
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
-        Ok(UpdateErrorDto {
+        Ok(UpdateErrorDTO {
             id: update_error.id,
             resolved: Some(update_error.resolved),
             tags: Some(tag_list)
@@ -175,7 +175,7 @@ impl ErrorService {
         selected_date: NaiveDate,
         time_interval: i64,
         timezone: String,
-    ) -> Result<Vec<AggregateErrorDto>, ServerError> {
+    ) -> Result<Vec<AggregateErrorDTO>, ServerError> {
         let user_tz: Tz = timezone.parse().map_err(|_| ServerError::QueryError(QueryError::InvalidTimestamp))?;
 
         let start_time_naive = selected_date.and_hms_opt(0, 0, 0)
@@ -209,9 +209,9 @@ impl ErrorService {
             *error_map.entry(time_bucket).or_insert(0) += 1;
         }
 
-        let mut aggregated_errors: Vec<AggregateErrorDto> = error_map
+        let mut aggregated_errors: Vec<AggregateErrorDTO> = error_map
             .into_iter()
-            .map(|(time, count)| AggregateErrorDto { count, time })
+            .map(|(time, count)| AggregateErrorDTO { count, time })
             .collect();
 
         aggregated_errors.sort_by(|a, b| a.time.cmp(&b.time));

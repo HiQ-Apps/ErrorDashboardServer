@@ -3,7 +3,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::services::tag_services::TagService;
-use shared_types::tag_dtos::CreateTagDto;
+use shared_types::tag_dtos::CreateTagDTO;
 use crate::shared::utils::errors::{ServerError, ExternalError};
 
 pub struct TagHandler;
@@ -11,7 +11,7 @@ pub struct TagHandler;
 impl TagHandler {
     pub async fn create_tag(
         tag_services: web::Data<Arc<TagService>>,
-        new_tag: web::Json<CreateTagDto>,
+        new_tag: web::Json<CreateTagDTO>,
     ) -> Result<HttpResponse, ServerError> {
         let new_tag = new_tag.into_inner();
         match tag_services.create_tag(new_tag).await {

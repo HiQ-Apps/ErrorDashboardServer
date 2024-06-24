@@ -3,7 +3,7 @@ use serde_valid::Validate;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
-pub struct TagDto {
+pub struct TagDTO {
     pub id: Uuid,
     pub tag_key: String,
     pub tag_value: String,
@@ -11,21 +11,21 @@ pub struct TagDto {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
-pub struct ShortTagDto {
+pub struct ShortTagDTO {
     pub id: Uuid,
     pub tag_key: String,
     pub tag_value: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
-pub struct CreateTagDto {
+pub struct CreateTagDTO {
     pub tag_key: String,
     pub tag_value: String,
     pub error_id: Uuid,
 }
 
 #[derive(Hash, Eq, PartialEq, Debug, Serialize, Deserialize, Clone, Validate)]
-pub struct ShortTagDtoNoId {
+pub struct ShortTagNoIdDTO {
     pub tag_key: String,
     pub tag_value: String,
 }

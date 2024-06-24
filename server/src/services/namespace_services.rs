@@ -6,9 +6,9 @@ use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 use log::info;
 
-use shared_types::namespace_dtos::{NamespaceDto, UpdateNamespaceDto, ShortNamespaceDto};
-use shared_types::error_dtos::{ErrorDto, AggregatedResult, GetAggregatedErrorDto, TagAggregatedErrorDto};
-use shared_types::tag_dtos::ShortTagDtoNoId;
+use shared_types::namespace_dtos::{NamespaceDTO, UpdateNamespaceDTO, ShortNamespaceDTO};
+use shared_types::error_dtos::{ErrorDTO, AggregatedResult, GetAggregatedErrorDTO, TagAggregatedErrorDTO};
+use shared_types::tag_dtos::ShortTagNoIdDTO;
 use crate::config::Config;
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
 use crate::models::error_model::Entity as ErrorEntity;
@@ -85,7 +85,7 @@ impl NamespaceService {
         }
     }
     
-    pub async fn get_namespaces_by_user_id(&self, user_id: Uuid, offset: u64, limit: u64) -> Result<Vec<ShortNamespaceDto>, ServerError> {
+    pub async fn get_namespaces_by_user_id(&self, user_id: Uuid, offset: u64, limit: u64) -> Result<Vec<ShortNamespaceDTO>, ServerError> {
         let junction_result = UserNamespaceJunctionEntity::find()
             .filter(<UserNamespaceJunctionEntity as sea_orm::EntityTrait>::Column::UserId.eq(user_id))
             .all(&*self.db)
@@ -105,7 +105,7 @@ impl NamespaceService {
                         .await
                         .map_err(ExternalError::from)?;
 
-                    let short_namespaces = namespaces.into_iter().map(|namespace| ShortNamespaceDto {
+                    let short_namespaces = namespaces.into_iter().map(|namespace| ShortNamespaceDTO {
                         id: namespace.id,
                         active: namespace.active,
                         service_name: namespace.service_name,
@@ -124,7 +124,7 @@ impl NamespaceService {
     pub async fn update_namespace(
         &self,
         user_id: Uuid,
-        update_namespace_object: UpdateNamespaceDto) -> Result<NamespaceDto, ServerError> {
+        update_namespace_object: UpdateNamespaceDTO) -> Result<NamespaceDTO, ServerError> {
         let db: &DatabaseConnection = &*self.db;
         let transaction = db.begin().await.map_err(ExternalError::from)?;
         let now = Utc::now();
@@ -202,7 +202,7 @@ impl NamespaceService {
 
         transaction.commit().await.map_err(ExternalError::from)?;
 
-        let updated_namespace_dto = NamespaceDto {
+        let updated_namespace_dto = NamespaceDTO {
             id: updated_namespace.id,
             active: updated_namespace.active,
             service_name: updated_namespace.service_name,
@@ -279,9 +279,9 @@ impl NamespaceService {
         limit: u64,
     ) -> Result<AggregatedResult, ServerError> {
         let db: &DatabaseConnection = &*self.db;
-        let mut grouped_errors: HashMap<String, GetAggregatedErrorDto> = HashMap::new();
+        let mut grouped_errors: HashMap<String, GetAggregatedErrorDTO> = HashMap::new();
         let mut unique_users: HashMap<String, HashSet<String>> = HashMap::new();
-        let mut tag_aggregations: HashMap<ShortTagDtoNoId, TagAggregatedErrorDto> = HashMap::new();
+        let mut tag_aggregations: HashMap<ShortTagNoIdDTO, TagAggregatedErrorDTO> = HashMap::new();
 
         let errors = ErrorEntity::find()
             .filter(<ErrorEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
@@ -299,12 +299,12 @@ impl NamespaceService {
                     .await
                     .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
                 
-                let tags = Some(tags.into_iter().map(|tag| ShortTagDtoNoId {
+                let tags = Some(tags.into_iter().map(|tag| ShortTagNoIdDTO {
                     tag_key: tag.tag_key,
                     tag_value: tag.tag_value,
-                }).collect::<Vec<_>>());
+                }).collect::<Vec<ShortTagNoIdDTO>>());
 
-                Ok(ErrorDto {
+                Ok(ErrorDTO {
                     id: error.id,
                     status_code: error.status_code,
                     user_affected: error.user_affected,
@@ -317,16 +317,16 @@ impl NamespaceService {
                     created_at: error.created_at,
                     tags,
                     updated_at: error.updated_at,
-                }) as Result<ErrorDto, ServerError>
+                }) as Result<ErrorDTO, ServerError>
             }
         }).collect::<FuturesUnordered<_>>();
-        let results: Vec<ErrorDto> = futures.try_collect().await?;
+        let results: Vec<ErrorDTO> = futures.try_collect().await?;
 
         for error in results {
             if group_by == "tags" {
                 if let Some(tags) = &error.tags {
                     for tag in tags {
-                        let entry = tag_aggregations.entry(tag.clone()).or_insert_with(|| TagAggregatedErrorDto {
+                        let entry = tag_aggregations.entry(tag.clone()).or_insert_with(|| TagAggregatedErrorDTO {
                             tag: tag.clone(),
                             user_affected_count: 0,
                             error_count: 0,
@@ -348,7 +348,7 @@ impl NamespaceService {
                 };
 
                 let entry = grouped_errors.entry(key.clone()).or_insert_with(|| {
-                    GetAggregatedErrorDto {
+                    GetAggregatedErrorDTO {
                         message: error.message.clone(),
                         status_code: error.status_code,
                         user_affected_count: 0,
@@ -364,8 +364,8 @@ impl NamespaceService {
                 entry.user_affected_count = user_set.len() as i32;
 
                 if let Some(tags) = &error.tags {
-                    let tag_set: HashSet<ShortTagDtoNoId> = entry.aggregated_tags.iter().cloned().collect();
-                    let new_tags: HashSet<ShortTagDtoNoId> = tags.iter().cloned().collect();
+                    let tag_set: HashSet<ShortTagNoIdDTO> = entry.aggregated_tags.iter().cloned().collect();
+                    let new_tags: HashSet<ShortTagNoIdDTO> = tags.iter().cloned().collect();
                     let combined_tags = tag_set.union(&new_tags).cloned().collect();
                     entry.aggregated_tags = combined_tags;
                 }
