@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::services::tag_services::TagService;
 use shared_types::tag_dtos::CreateTagDTO;
-use crate::shared::utils::errors::{ServerError, ExternalError};
+use crate::shared::utils::errors::ServerError;
 
 pub struct TagHandler;
 

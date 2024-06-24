@@ -13,7 +13,7 @@ use shared_types::namespace_dtos::{CreateNamespaceDTO, UpdateNamespaceDTO};
 use crate::managers::namespace_manager::NamespaceServer;
 use crate::handlers::ws_handlers::WsNamespaceSession;
 use crate::services::namespace_services::NamespaceService;
-use crate::shared::utils::errors::{ServerError, ExternalError, RequestError};
+use crate::shared::utils::errors::{ServerError, ExternalError};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserId {
