@@ -34,3 +34,7 @@ serde_valid = "0.21.0"
 actix-cors = "0.7.0"
 chrono-tz = "0.9.0"
 cargo-watch = "8.5.2"
+
+[[bin]]
+name = "server"
+path = "src/main.rs"

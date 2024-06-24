@@ -11,3 +11,7 @@ serde = { version = "1.0.183", features = ["derive"] }
 serde_json = "1.0"
 serde_valid = "0.21.0"
 uuid = { version = "1.4.1", features = ["v4", "serde", "js"] }
+
+[lib]
+name = "shared_types"
+path = "src/lib.rs"
