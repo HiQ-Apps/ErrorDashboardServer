@@ -9,7 +9,7 @@ use uuid::Uuid;
 use crate::config::Config;
 use crate::shared::utils::jwt::extract_user_id_from_jwt_header;
 use shared_types::extra_dtos::{PaginationParams, QueryParams};
-use shared_types::namespace_dtos::{CreateNamespaceDto, UpdateNamespaceDto};
+use shared_types::namespace_dtos::{CreateNamespaceDTO, UpdateNamespaceDTO};
 use crate::managers::namespace_manager::NamespaceServer;
 use crate::handlers::ws_handlers::WsNamespaceSession;
 use crate::services::namespace_services::NamespaceService;
@@ -28,13 +28,13 @@ impl NamespaceHandler {
         req: HttpRequest,
         config: web::Data<Arc<Config>>,
         namespace_services: web::Data<Arc<NamespaceService>>,
-        new_namespace: web::Json<CreateNamespaceDto>,
+        new_namespace: web::Json<CreateNamespaceDTO>,
     ) -> Result<HttpResponse, ServerError> {
         let headers = req.headers();
         let secret_key = config.secret_key.clone();
         let user_id = extract_user_id_from_jwt_header(headers, &secret_key)?;
 
-        let CreateNamespaceDto { service_name, environment_type } = new_namespace.into_inner();
+        let CreateNamespaceDTO { service_name, environment_type } = new_namespace.into_inner();
         match namespace_services.create_namespace(user_id, service_name, environment_type).await {
             Ok(id) => Ok(HttpResponse::Ok().json(id)),
             Err(err) => Err(err)
@@ -68,7 +68,7 @@ impl NamespaceHandler {
         req: HttpRequest,
         config: web::Data<Arc<Config>>,
         namespace_services: web::Data<Arc<NamespaceService>>,
-        update_namespace_json: web::Json<UpdateNamespaceDto>,
+        update_namespace_json: web::Json<UpdateNamespaceDTO>,
     ) -> Result<HttpResponse, ServerError> {
 
         let secret_key = &config.secret_key;

@@ -7,6 +7,7 @@ pub enum Users {
     Username,
     Email,
     Password,
+    UserProfileId,
     CreatedAt,
     UpdatedAt,
 }
@@ -26,6 +27,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Users::Username).string().not_null())
                     .col(ColumnDef::new(Users::Email).string().not_null())
                     .col(ColumnDef::new(Users::Password).string().not_null())
+                    .col(ColumnDef::new(Users::UserProfileId).uuid())
                     .col(ColumnDef::new(Users::CreatedAt).timestamp_with_time_zone().not_null())
                     .col(ColumnDef::new(Users::UpdatedAt).timestamp_with_time_zone())
                     .to_owned(),

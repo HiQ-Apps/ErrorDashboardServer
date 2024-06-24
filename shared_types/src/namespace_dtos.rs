@@ -4,13 +4,13 @@ use serde_valid::Validate;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
-pub struct CreateNamespaceDto {
+pub struct CreateNamespaceDTO {
     pub service_name: String,
     pub environment_type: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
-pub struct UpdateNamespaceDto {
+pub struct UpdateNamespaceDTO {
     pub id: Uuid,
     pub active: Option<bool>,
     pub service_name: Option<String>,
@@ -20,7 +20,7 @@ pub struct UpdateNamespaceDto {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
-pub struct NamespaceDto {
+pub struct NamespaceDTO {
     pub id: Uuid,
     pub active: bool,
     pub service_name: String,
@@ -33,7 +33,7 @@ pub struct NamespaceDto {
 
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
-pub struct ShortNamespaceDto {
+pub struct ShortNamespaceDTO {
     pub id: Uuid,
     pub active: bool,
     pub service_name: String,

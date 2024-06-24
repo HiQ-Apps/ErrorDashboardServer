@@ -1,10 +1,11 @@
 use sea_orm::{entity::prelude::*, EntityTrait};
-use shared_types::user_dtos::ShortUserDTO;
+use shared_types::user_dtos::{ShortUserDTO, ShortUserProfileDTO};
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
 use crate::models::user_model::Entity as UserEntity;
+use crate::models::user_profile_model::Entity as UserProfileEntity;
 use crate::shared::utils::errors::{ServerError, QueryError, ExternalError};
 
 
@@ -32,6 +33,25 @@ impl UserService {
                 };
 
                 Ok(user_dto)
+            },
+            Ok(None) => Err(ServerError::from(QueryError::UserNotFound)),
+            Err(err) => Err(ServerError::from(ExternalError::from(err)))
+        }
+    }
+
+    pub async fn get_user_profile(&self, uid: Uuid) -> Result<ShortUserProfileDTO, ServerError> {
+        let get_base_user_query = UserProfileEntity::find_by_id(uid)
+            .one(&*self.db).await;
+
+        match get_base_user_query {
+            Ok(Some(user)) => {
+                let user_profile_dto = ShortUserProfileDTO {
+                    first_name: user.first_name,
+                    last_name: user.last_name,
+                    avatar_color: user.avatar_color,
+                };
+
+                Ok(user_profile_dto)
             },
             Ok(None) => Err(ServerError::from(QueryError::UserNotFound)),
             Err(err) => Err(ServerError::from(ExternalError::from(err)))

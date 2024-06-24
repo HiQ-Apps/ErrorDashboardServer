@@ -4,9 +4,10 @@ use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, TransactionTrait
 use std::sync::Arc;
 use uuid::Uuid;
 
-use shared_types::user_dtos::{ShortUserDTO, UserLoginServiceDTO};
+use shared_types::user_dtos::{ShortUserDTO, UserLoginServiceDTO, ShortUserProfileDTO};
 
 use crate::config::Config;
+use crate::models::user_profile_model::{Model as UserProfileModel, Entity as UserProfileEntity};
 use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
 use crate::models::refresh_token_model::{Entity as RefreshTokenEntity, Model as RefreshTokenModel};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError, RequestError};
@@ -23,64 +24,79 @@ impl AuthService {
     }
 
     pub async fn login(
-    &self,
-    user_email: String,
-    user_password: String
-) -> Result<UserLoginServiceDTO, ServerError> {
-    let issuer = &self.configs.jwt_issuer;
-    let audience = &self.configs.jwt_audience;
-    let db = &*self.db;
+        &self,
+        user_email: String,
+        user_password: String
+    ) -> Result<UserLoginServiceDTO, ServerError> {
+        let issuer = &self.configs.jwt_issuer;
+        let audience = &self.configs.jwt_audience;
+        let db = &*self.db;
 
-    let found_user: Option<UserModel> = UserEntity::find()
-        .filter(<UserEntity as sea_orm::EntityTrait>::Column::Email.eq(user_email))
-        .one(db)
-        .await
-        .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+        let found_user: Option<UserModel> = UserEntity::find()
+            .filter(<UserEntity as sea_orm::EntityTrait>::Column::Email.eq(user_email))
+            .one(db)
+            .await
+            .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
 
-    match found_user {
-        Some(user) => {
-            let is_valid = verify(&user_password, &user.password).map_err(|err| ServerError::from(ExternalError::Bcrypt(err)))?;
+        match found_user {
+            Some(user) => {
+                let is_valid = verify(&user_password, &user.password).map_err(|err| ServerError::from(ExternalError::Bcrypt(err)))?;
 
-            if is_valid {
-                let access_token = create_access_token(user.clone(), &self.configs)?;
-                let refresh_token_dto = create_refresh_token(user.id, &self.configs)?;
+                if is_valid {
+                    let access_token = create_access_token(user.clone(), &self.configs)?;
+                    let refresh_token_dto = create_refresh_token(user.id, &self.configs)?;
 
-                let refresh_token_model = RefreshTokenModel {
-                    user_id: Some(user.id),
-                    token: refresh_token_dto.refresh_token.clone(),
-                    issued_at: refresh_token_dto.issued_at,
-                    expires_at: refresh_token_dto.expires_at,
-                    issuer: issuer.to_string(),
-                    audience: audience.to_string(),
-                    revoked: false,
-                    id: Uuid::new_v4(),
-                }.into_active_model();
+                    let refresh_token_model = RefreshTokenModel {
+                        user_id: Some(user.id),
+                        token: refresh_token_dto.refresh_token.clone(),
+                        issued_at: refresh_token_dto.issued_at,
+                        expires_at: refresh_token_dto.expires_at,
+                        issuer: issuer.to_string(),
+                        audience: audience.to_string(),
+                        revoked: false,
+                        id: Uuid::new_v4(),
+                    }.into_active_model();
 
-                RefreshTokenEntity::insert(refresh_token_model)
-                    .exec(db)
-                    .await
-                    .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+                    RefreshTokenEntity::insert(refresh_token_model)
+                        .exec(db)
+                        .await
+                        .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
-                let user_response = UserLoginServiceDTO { 
-                    user: ShortUserDTO {
-                        id: user.id,
-                        username: user.username,
-                        email: user.email,
-                    },
-                    access_token,
-                    refresh_token: refresh_token_dto,
-                };
+                    let user_profile = UserProfileEntity::find()
+                        .filter(<UserProfileEntity as sea_orm::EntityTrait>::Column::UserId.eq(user.id))
+                        .one(db)
+                        .await
+                        .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
+                        .ok_or(ServerError::QueryError(QueryError::UserProfileNotFound))?;
 
-                Ok(user_response)
-            } else {
-                Err(ServerError::QueryError(QueryError::PasswordIncorrect))
+                    
+                    let user_profile_dto = ShortUserProfileDTO {
+                        first_name: user_profile.first_name,
+                        last_name: user_profile.last_name,
+                        avatar_color: user_profile.avatar_color,
+                    };
+
+                    let user_response = UserLoginServiceDTO { 
+                        user: ShortUserDTO {
+                            id: user.id,
+                            username: user.username,
+                            email: user.email,
+                        },
+                        user_profile: user_profile_dto,
+                        access_token,
+                        refresh_token: refresh_token_dto,
+                    };
+
+                    Ok(user_response)
+                } else {
+                    Err(ServerError::QueryError(QueryError::PasswordIncorrect))
+                }
+            },
+            None => {
+                Err(ServerError::QueryError(QueryError::UserNotFound))
             }
-        },
-        None => {
-            Err(ServerError::QueryError(QueryError::UserNotFound))
         }
     }
-}
 
 
     pub async fn register(
@@ -101,14 +117,35 @@ impl AuthService {
         let now = Utc::now();
         let hashed_pass = hash(user_pass, hash_cost).map_err(|err| ServerError::ExternalError(ExternalError::Bcrypt(err)))?;
 
+        let initialize_user_profile = UserProfileModel {
+            id: Uuid::new_v4(),
+            user_id: uid,
+            first_name: None,
+            last_name: None,
+            avatar_color: "#098585".to_string(),
+            created_at: now,
+            updated_at: None,
+        
+        };
+
         let user = UserModel {
             id: uid,
             username: user_name,
             email: user_email,
             password: hashed_pass,
+            user_profile_id: initialize_user_profile.id,
             created_at: now,
             updated_at: None,
         };
+
+        let active_user_profile = initialize_user_profile.clone().into_active_model();
+
+        if let Err(err) = UserProfileEntity::insert(active_user_profile)
+            .exec(&transaction)
+            .await {
+                transaction.rollback().await.map_err(|rollback_err| ServerError::ExternalError(ExternalError::DB(rollback_err)))?;
+                return Err(ServerError::ExternalError(ExternalError::DB(err)));
+            }
 
         let active_user_model = user.clone().into_active_model();
 
@@ -147,6 +184,11 @@ impl AuthService {
                 id: uid,
                 username: user.username.clone(),
                 email: user.email.clone(),
+            },
+            user_profile: ShortUserProfileDTO {
+                first_name: initialize_user_profile.first_name,
+                last_name: initialize_user_profile.last_name,
+                avatar_color: "#098585".to_string(),
             },
             access_token,
             refresh_token: refresh_token_dto,
@@ -236,11 +278,23 @@ impl AuthService {
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
             .ok_or(ServerError::QueryError(QueryError::UserNotFound))?;
 
+        let found_user_profile = UserProfileEntity::find()
+            .filter(<UserProfileEntity as EntityTrait>::Column::UserId.eq(found_user.id))
+            .one(db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
+            .ok_or(ServerError::QueryError(QueryError::UserProfileNotFound))?;
+
         let user_response = UserLoginServiceDTO {
             user: ShortUserDTO {
                 id: found_user.id,
                 username: found_user.username,
                 email: found_user.email,
+            },
+            user_profile: ShortUserProfileDTO {
+                first_name: found_user_profile.first_name,
+                last_name: found_user_profile.last_name,
+                avatar_color: found_user_profile.avatar_color,
             },
             access_token: refreshed_access_token,
             refresh_token: new_refresh_token_dto,

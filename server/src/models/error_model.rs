@@ -4,7 +4,7 @@ use sea_orm::{entity::prelude::*, ActiveValue};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use shared_types::error_dtos::ErrorDto;
+use shared_types::error_dtos::ErrorDTO;
 use crate::models::namespace_model::Entity as NamespaceEntity;
 
 
@@ -79,8 +79,8 @@ impl ActiveModel {
 #[async_trait]
 impl ActiveModelBehavior for ActiveModel {}
 
-impl From<ErrorDto> for Model {
-    fn from(dto: ErrorDto) -> Self {
+impl From<ErrorDTO> for Model {
+    fn from(dto: ErrorDTO) -> Self {
         Self {
             id: dto.id,
             status_code: dto.status_code,

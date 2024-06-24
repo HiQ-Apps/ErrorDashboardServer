@@ -22,11 +22,12 @@ impl AuthHandler {
 
         match auth_services.login(email, password).await {
             Ok(user_service_response) => {
-                let UserLoginServiceDTO { user, access_token, refresh_token } = user_service_response;
+                let UserLoginServiceDTO { user, user_profile, access_token, refresh_token } = user_service_response;
                 let refresh_token_value = refresh_token.refresh_token.clone();
 
                 let user_response = UserResponseDTO {
                     user,
+                    user_profile,
                     access_token: access_token.clone(),
                 };
 
@@ -63,11 +64,12 @@ impl AuthHandler {
 
         match auth_services.register(username, email, password).await {
             Ok(user_service_response) => {
-                let UserLoginServiceDTO { user, access_token, refresh_token } = user_service_response;
+                let UserLoginServiceDTO { user, user_profile, access_token, refresh_token } = user_service_response;
                 let refresh_token_value = refresh_token.refresh_token.clone();
 
                 let user_response = UserResponseDTO {
                     user,
+                    user_profile,
                     access_token: access_token.clone(),
                 };
 
@@ -130,9 +132,11 @@ impl AuthHandler {
 
                         let user_id = extract_user_id_from_jwt_cookie(&refresh_token_cookie, &config.secret_key)?;
                         let user = user_services.get_user(user_id).await?;
+                        let user_profile = user_services.get_user_profile(user_id).await?;  
 
                         let user_response = UserResponseDTO {
                             user,
+                            user_profile,
                             access_token: new_access_token,
                         };
 

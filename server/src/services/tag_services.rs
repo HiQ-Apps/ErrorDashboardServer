@@ -3,7 +3,7 @@ use sea_orm::{entity::prelude::*, EntityTrait, DatabaseConnection};
 use uuid::Uuid;
 
 use crate::config::Config;
-use shared_types::tag_dtos::{CreateTagDto, TagDto};
+use shared_types::tag_dtos::{CreateTagDTO, TagDTO};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError};
 use crate::models::error_tag_model::{Entity as TagEntity, ActiveModel as ActiveTagModel};
 
@@ -19,7 +19,7 @@ impl TagService {
 
     pub async fn create_tag(
         &self,
-        tag: CreateTagDto
+        tag: CreateTagDTO
     ) -> Result<(), ServerError> {
         let create_tag: ActiveTagModel = tag.into();
         TagEntity::insert(create_tag)
@@ -54,14 +54,14 @@ impl TagService {
     pub async fn get_tags_by_error_id(
         &self,
         error_id: Uuid
-    ) -> Result<Vec<TagDto>, ServerError> {
+    ) -> Result<Vec<TagDTO>, ServerError> {
         let tags = TagEntity::find()
             .filter(<TagEntity as EntityTrait>::Column::ErrorId.eq(error_id))
             .all(&*self.db)
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
-        Ok(tags.into_iter().map(|tag| TagDto {
+        Ok(tags.into_iter().map(|tag| TagDTO {
             id: tag.id,
             tag_key: tag.tag_key,
             tag_value: tag.tag_value,

@@ -9,6 +9,7 @@ use sea_orm::TransactionError;
 use serde_json::Error as JsonError;
 use serde_valid::Error as ValidationError;
 use thiserror::Error;
+use tokio::sync::oneshot::error;
 use uuid::Error as UuidError;
 
 // Group enum'd errors into a single enum
@@ -36,7 +37,7 @@ impl ResponseError for ServerError {
         match self {
             ServerError::QueryError(ref err) => {
                 let status = match err {
-                    QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound => StatusCode::NOT_FOUND,
+                    QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound | QueryError::UserProfileNotFound => StatusCode::NOT_FOUND,
                     QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists => StatusCode::CONFLICT,
                     QueryError::PasswordIncorrect => StatusCode::UNAUTHORIZED,
                     QueryError::InvalidTimestamp => StatusCode::BAD_REQUEST,
@@ -105,6 +106,9 @@ pub enum ExternalError {
 
 #[derive(Debug, Error)]
 pub enum QueryError {
+    #[error("User profile not found")]
+    UserProfileNotFound,
+
     #[error("User not found")]
     UserNotFound,
 

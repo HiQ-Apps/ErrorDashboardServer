@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::models::refresh_token_model::Entity as RefreshTokenEntity;
+use crate::models::user_profile_model::Entity as UserProfileEntity;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "users")]
@@ -15,6 +16,7 @@ pub struct Model {
     #[sea_orm(unique)]
     pub email: String,
     pub password: String,
+    pub user_profile_id: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -22,13 +24,21 @@ pub struct Model {
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
     RefreshTokenEntity,
+    UserProfileEntity
 }
 
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
             Self::RefreshTokenEntity => Entity::has_many(RefreshTokenEntity).into(),
+            Self::UserProfileEntity => Entity::has_one(UserProfileEntity).into()
         }
+    }
+}
+
+impl Related<UserProfileEntity> for Entity {
+    fn to() -> RelationDef {
+        Relation::UserProfileEntity.def()
     }
 }
 
@@ -53,9 +63,10 @@ impl ActiveModelBehavior for ActiveModel {
     fn new() -> Self {
         Self {
             id: ActiveValue::Set(Uuid::new_v4()),
-            username: ActiveValue::Set("".to_string()),
-            email: ActiveValue::Set("".to_string()),
-            password: ActiveValue::Set("".to_string()),
+            user_profile_id: ActiveValue::Set(Uuid::new_v4()),
+            username: ActiveValue::Set(String::new()),
+            email: ActiveValue::Set(String::new()),
+            password: ActiveValue::Set(String::new()),
             created_at: ActiveValue::Set(Utc::now()),
             updated_at: ActiveValue::Unchanged(None),
         }
