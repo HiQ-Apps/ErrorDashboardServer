@@ -1,13 +1,14 @@
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 use chrono_tz::Tz;
-use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, DatabaseConnection};
+use sea_orm::sea_query::Query;
+use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, QueryOrder, QuerySelect, Condition, DatabaseConnection};
 use shared_types::tag_dtos::{CreateTagDTO, TagDTO, ShortTagNoIdDTO};
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
-use shared_types::error_dtos::{AggregateErrorDTO, CreateErrorDTO, CreateErrorRequest, ErrorDTO, UpdateErrorDTO};
+use shared_types::error_dtos::{AggregateErrorDTO, CreateErrorDTO, CreateErrorRequest, ErrorDTO, ErrorMetaDTO, UpdateErrorDTO};
 use crate::models::error_model::{Entity as ErrorEntity, Model as ErrorModel};
 use crate::models::error_tag_model::{Entity as TagEntity, Model as TagModel, ActiveModel as ActiveTagModel};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError};
@@ -217,5 +218,70 @@ impl ErrorService {
         aggregated_errors.sort_by(|a, b| a.time.cmp(&b.time));
 
         Ok(aggregated_errors)
+    }
+
+    pub async fn get_error_metadata_by_group(
+        &self,
+        namespace_id: Uuid,
+        group_by: String,
+        group_key: String,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<ErrorMetaDTO>, ServerError> {
+        let db: &DatabaseConnection = &*self.db;
+
+        let errors = if group_by == "tags" {
+            let parts: Vec<&str> = group_key.split(':').collect();
+            if parts.len() != 2 {
+                return Err(ServerError::QueryError(QueryError::InvalidTag));
+            }
+            let tag_key = parts[0].trim();
+            let tag_value = parts[1].trim();
+
+            ErrorEntity::find()
+                .filter(<ErrorEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
+                .filter(
+                    Condition::any()
+                        .add(<ErrorEntity as EntityTrait>::Column::Id.in_subquery(
+                            Query::select()
+                                .column(<TagEntity as EntityTrait>::Column::ErrorId)
+                                .from(TagEntity)
+                                .and_where(<TagEntity as EntityTrait>::Column::TagKey.eq(tag_key))
+                                .and_where(<TagEntity as EntityTrait>::Column::TagValue.eq(tag_value))
+                                .to_owned(),
+                        )),
+                )
+                .order_by_desc(<ErrorEntity as EntityTrait>::Column::CreatedAt)
+                .offset(offset as u64)
+                .limit(limit as u64)
+                .all(db)
+                .await
+                .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
+        } else {
+            ErrorEntity::find()
+                .filter(<ErrorEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
+                .filter(match group_by.as_str() {
+                    "status_code" => <ErrorEntity as EntityTrait>::Column::StatusCode.eq(group_key.parse::<i32>().unwrap_or_default()),
+                    "message" => <ErrorEntity as EntityTrait>::Column::Message.eq(group_key),
+                    "line" => <ErrorEntity as EntityTrait>::Column::Line.eq(group_key.parse::<i32>().unwrap_or_default()),
+                    _ => <ErrorEntity as EntityTrait>::Column::Message.eq(group_key),
+                })
+                .order_by_desc(<ErrorEntity as EntityTrait>::Column::CreatedAt)
+                .offset(offset as u64)
+                .limit(limit as u64)
+                .all(db)
+                .await
+                .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
+        };
+        
+        let error_meta = errors.into_iter().map(|error| {
+            ErrorMetaDTO {
+                id: error.id,
+                created_at: error.created_at,
+                resolved: !error.resolved,
+            }
+        }).collect();
+
+        Ok(error_meta)
     }
 }
