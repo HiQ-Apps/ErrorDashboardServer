@@ -2,18 +2,18 @@ use actix::Addr;
 use actix_web::{web, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
 use serde::{Serialize, Deserialize};
-use shared_types::error_dtos::AggregatedResult;
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
-use crate::shared::utils::jwt::extract_user_id_from_jwt_header;
-use shared_types::extra_dtos::{PaginationParams, QueryParams};
+use shared_types::error_dtos::AggregatedResult;
+use shared_types::extra_dtos::{PaginationParams, ErrorQueryParams, ErrorMetadataQueryParams};
 use shared_types::namespace_dtos::{CreateNamespaceDTO, UpdateNamespaceDTO};
 use crate::managers::namespace_manager::NamespaceServer;
 use crate::handlers::ws_handlers::WsNamespaceSession;
 use crate::services::namespace_services::NamespaceService;
 use crate::shared::utils::errors::{ServerError, ExternalError};
+use crate::shared::utils::jwt::extract_user_id_from_jwt_header;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserId {
@@ -101,21 +101,20 @@ impl NamespaceHandler {
     pub async fn get_errors_by_namespace_with_pagination(
         namespace_services: web::Data<Arc<NamespaceService>>,
         namespace_id: web::Path<Uuid>,
-        query_params: web::Query<QueryParams>,
+        query_params: web::Query<ErrorQueryParams>,
     ) -> Result<HttpResponse, ServerError> {
         let group_by = query_params.group_by.clone().unwrap_or_else(|| "message".to_string());
         let result = namespace_services.get_errors_by_namespace_with_pagination(
             *namespace_id,
             group_by,
-            query_params.offset,
-            query_params.limit,
+            query_params.offset as usize,
+            query_params.limit as usize,
         ).await?;
         match result {
             AggregatedResult::ByTags(tags) => Ok(HttpResponse::Ok().json(tags)),
             AggregatedResult::ByOther(aggregated) => Ok(HttpResponse::Ok().json(aggregated)),
         }
     }
-
 
     pub async fn ws_index(
         req: HttpRequest,

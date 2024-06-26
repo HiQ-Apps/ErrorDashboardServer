@@ -119,7 +119,7 @@ async fn main() -> std::io::Result<()> {
             .configure(|cfg| error_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| tag_routes::configure(cfg, &jwt_middleware))
     })
-    .bind(("0.0.0.0", config_for_server.api_port))?
+    .bind(("127.0.0.1", config_for_server.api_port))?
     .run()
     .await
     

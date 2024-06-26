@@ -3,10 +3,18 @@ use serde::{Serialize, Deserialize};
 use serde_valid::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
-pub struct QueryParams {
+pub struct ErrorQueryParams {
     pub offset: u64,
     pub limit: u64,
     pub group_by: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+pub struct ErrorMetadataQueryParams {
+    pub offset: u64,
+    pub limit: u64,
+    pub group_by: String,
+    pub group_key: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]

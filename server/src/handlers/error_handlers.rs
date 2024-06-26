@@ -7,7 +7,7 @@ use crate::managers::namespace_manager::NamespaceServer;
 use crate::handlers::ws_handlers::NewError;
 use crate::services::error_services::ErrorService;
 use crate::shared::utils::errors::ServerError;
-use shared_types::{{extra_dtos::TimeParams, error_dtos::{CreateErrorRequest, UpdateErrorDTO}}};
+use shared_types::{error_dtos::{CreateErrorRequest, UpdateErrorDTO}, extra_dtos::{ErrorMetadataQueryParams, TimeParams}};
 
 
 
@@ -67,5 +67,21 @@ impl ErrorHandler {
             Ok(errors) => Ok(HttpResponse::Ok().json(errors)),
             Err(err) => Err(err)
         }
+    }
+
+    pub async fn get_error_metadata_by_group(
+        namespace_services: web::Data<Arc<ErrorService>>,
+        namespace_id: web::Path<Uuid>,
+        query_params: web::Query<ErrorMetadataQueryParams>,
+    ) -> Result<HttpResponse, ServerError> {
+        let result = namespace_services.get_error_metadata_by_group(
+            *namespace_id,
+            query_params.group_by.clone(),
+            query_params.group_key.clone(),
+            query_params.offset as usize,
+            query_params.limit as usize,
+        ).await.map_err(|err| ServerError::from(err))?;
+
+        Ok(HttpResponse::Ok().json(result))  
     }
 }

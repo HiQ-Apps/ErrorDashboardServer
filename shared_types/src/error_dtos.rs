@@ -74,6 +74,7 @@ pub struct ErrorDTO {
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct ErrorMetaDTO {
     pub id: Uuid,
+    pub resolved: bool,
     pub created_at: DateTime<Utc>,
 }
 
