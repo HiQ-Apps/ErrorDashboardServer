@@ -18,7 +18,7 @@ pub struct Model {
     pub password: String,
     pub user_profile_id: Uuid,
     pub created_at: DateTime<Utc>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -68,7 +68,7 @@ impl ActiveModelBehavior for ActiveModel {
             email: ActiveValue::Set(String::new()),
             password: ActiveValue::Set(String::new()),
             created_at: ActiveValue::Set(Utc::now()),
-            updated_at: ActiveValue::Unchanged(None),
+            updated_at: ActiveValue::Set(Utc::now()),
         }
     }
 }
