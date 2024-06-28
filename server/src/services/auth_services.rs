@@ -31,6 +31,7 @@ impl AuthService {
         let issuer = &self.configs.jwt_issuer;
         let audience = &self.configs.jwt_audience;
         let db = &*self.db;
+        let now = Utc::now();
 
         let found_user: Option<UserModel> = UserEntity::find()
             .filter(<UserEntity as sea_orm::EntityTrait>::Column::Email.eq(user_email))
@@ -74,6 +75,7 @@ impl AuthService {
                         first_name: user_profile.first_name,
                         last_name: user_profile.last_name,
                         avatar_color: user_profile.avatar_color,
+                        updated_at: now
                     };
 
                     let user_response = UserLoginServiceDTO { 
@@ -115,6 +117,7 @@ impl AuthService {
         let hash_cost = configs.hash_cost.parse().unwrap_or(bcrypt::DEFAULT_COST);
         let uid = Uuid::new_v4();
         let now = Utc::now();
+
         let hashed_pass = hash(user_pass, hash_cost).map_err(|err| ServerError::ExternalError(ExternalError::Bcrypt(err)))?;
 
         let initialize_user_profile = UserProfileModel {
@@ -124,7 +127,7 @@ impl AuthService {
             last_name: None,
             avatar_color: "#098585".to_string(),
             created_at: now,
-            updated_at: None,
+            updated_at: now,
         
         };
 
@@ -135,7 +138,7 @@ impl AuthService {
             password: hashed_pass,
             user_profile_id: initialize_user_profile.id,
             created_at: now,
-            updated_at: None,
+            updated_at: now,
         };
 
         let active_user_profile = initialize_user_profile.clone().into_active_model();
@@ -189,6 +192,7 @@ impl AuthService {
                 first_name: initialize_user_profile.first_name,
                 last_name: initialize_user_profile.last_name,
                 avatar_color: "#098585".to_string(),
+                updated_at: now,
             },
             access_token,
             refresh_token: refresh_token_dto,
@@ -234,6 +238,7 @@ impl AuthService {
         let configs = &*self.configs;
         let issuer = &configs.jwt_issuer;
         let audience = &configs.jwt_audience;
+        let now = Utc::now();
 
         let mut token_model = self
             .find_by_token(token)
@@ -295,6 +300,7 @@ impl AuthService {
                 first_name: found_user_profile.first_name,
                 last_name: found_user_profile.last_name,
                 avatar_color: found_user_profile.avatar_color,
+                updated_at: now,
             },
             access_token: refreshed_access_token,
             refresh_token: new_refresh_token_dto,

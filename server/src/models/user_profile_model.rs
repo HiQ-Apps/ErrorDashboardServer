@@ -15,7 +15,7 @@ pub struct Model {
     pub last_name: Option<String>,
     pub avatar_color: String,
     pub created_at: DateTime<Utc>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -49,7 +49,7 @@ impl ActiveModelBehavior for ActiveModel {
             last_name: ActiveValue::Unchanged(None),
             avatar_color: ActiveValue::Set(String::new()),
             created_at: ActiveValue::Set(Utc::now()),
-            updated_at: ActiveValue::Unchanged(None),
+            updated_at: ActiveValue::Set(Utc::now()),
         }
     }
 }

@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Serialize, Deserialize};
 use serde_valid::Validate;
 use uuid::Uuid;
@@ -33,6 +34,17 @@ pub struct ShortUserProfileDTO {
     pub avatar_color: String,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
+    pub updated_at: DateTime<Utc>
+}
+
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+pub struct UpdateUserProfileDTO {
+    pub avatar_color: Option<String>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub password: Option<String>,
+    pub username: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
