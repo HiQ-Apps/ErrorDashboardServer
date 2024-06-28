@@ -43,6 +43,8 @@ pub struct UpdateUserProfileDTO {
     pub avatar_color: Option<String>,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
+    pub password: Option<String>,
+    pub username: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]

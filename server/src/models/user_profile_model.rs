@@ -49,7 +49,7 @@ impl ActiveModelBehavior for ActiveModel {
             last_name: ActiveValue::Unchanged(None),
             avatar_color: ActiveValue::Set(String::new()),
             created_at: ActiveValue::Set(Utc::now()),
-            updated_at: ActiveValue::Unchanged(Utc::now()),
+            updated_at: ActiveValue::Set(Utc::now()),
         }
     }
 }
