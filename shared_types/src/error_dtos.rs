@@ -15,9 +15,24 @@ pub struct ShortErrorDTO {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
-pub struct GetAggregatedErrorDTO {
+pub struct GetAggregatedStatusErrorDTO {
     pub status_code: i16,
+    pub aggregated_tags: Vec<ShortTagNoIdDTO>,
+    pub user_affected_count: i32,
+    pub error_count: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+pub struct GetAggregatedMessageErrorDTO {
     pub message: String,
+    pub aggregated_tags: Vec<ShortTagNoIdDTO>,
+    pub user_affected_count: i32,
+    pub error_count: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+pub struct GetAggregatedLineErrorDTO {
+    pub line: i32,
     pub aggregated_tags: Vec<ShortTagNoIdDTO>,
     pub user_affected_count: i32,
     pub error_count: i32,
@@ -26,7 +41,9 @@ pub struct GetAggregatedErrorDTO {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AggregatedResult {
     ByTags(Vec<TagAggregatedErrorDTO>),
-    ByOther(Vec<GetAggregatedErrorDTO>),
+    ByLine(Vec<GetAggregatedLineErrorDTO>),
+    ByMessage(Vec<GetAggregatedMessageErrorDTO>),
+    ByStatus(Vec<GetAggregatedStatusErrorDTO>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

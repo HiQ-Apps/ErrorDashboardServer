@@ -8,6 +8,7 @@ pub struct TagDTO {
     pub tag_key: String,
     pub tag_value: String,
     pub error_id: Uuid,
+    pub tag_color: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
@@ -15,6 +16,7 @@ pub struct ShortTagDTO {
     pub id: Uuid,
     pub tag_key: String,
     pub tag_value: String,
+    pub tag_color: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
@@ -28,4 +30,5 @@ pub struct CreateTagDTO {
 pub struct ShortTagNoIdDTO {
     pub tag_key: String,
     pub tag_value: String,
+    pub tag_color: String,
 }

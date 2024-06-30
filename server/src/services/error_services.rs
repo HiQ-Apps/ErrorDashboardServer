@@ -98,6 +98,7 @@ impl ErrorService {
         let tags = Some(found_tags.into_iter().map(|tag| ShortTagNoIdDTO {
             tag_key: tag.tag_key,
             tag_value: tag.tag_value,
+            tag_color: tag.tag_color,
         }).collect());
 
         Ok(ErrorDTO {
@@ -145,6 +146,7 @@ impl ErrorService {
                     tag_key: tag_clone.tag_key,
                     tag_value: tag_clone.tag_value,
                     error_id: update_error.id,
+                    tag_color: tag_clone.tag_color,
                 }.into_active_model();
 
                 tag_list.push(tag);

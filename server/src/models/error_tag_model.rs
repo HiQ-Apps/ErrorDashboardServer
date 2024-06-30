@@ -13,7 +13,8 @@ pub struct Model {
     pub id: Uuid,
     pub error_id: Uuid,
     pub tag_key: String,
-    pub tag_value: String
+    pub tag_value: String,
+    pub tag_color: String
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -41,7 +42,8 @@ impl ActiveModel {
             id: ActiveValue::Set(Uuid::new_v4()),
             error_id: ActiveValue::Set(error_id),
             tag_key: ActiveValue::Set(tag_key),
-            tag_value: ActiveValue::Set(tag_value)
+            tag_value: ActiveValue::Set(tag_value),
+            tag_color: ActiveValue::Set(String::new())
         }
     }
 }
@@ -56,7 +58,8 @@ impl From<CreateTagDTO> for ActiveModel {
             id: ActiveValue::Set(Uuid::new_v4()),
             error_id: ActiveValue::Set(dto.error_id),
             tag_key: ActiveValue::Set(dto.tag_key),
-            tag_value: ActiveValue::Set(dto.tag_value)
+            tag_value: ActiveValue::Set(dto.tag_value),
+            tag_color: ActiveValue::Set("098585".to_string())
         }
     }
 }
