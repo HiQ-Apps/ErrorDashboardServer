@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_valid::Validate;
 use uuid::Uuid;
 
-use super::tag_dtos::{TagDTO, ShortTagNoIdDTO};
+use super::tag_dtos::{TagDTO, ShortTagNoIdDTO, ShortTagDTO, CreateTagClientNoIdDTO};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct ShortErrorDTO {
@@ -81,6 +81,24 @@ pub struct ErrorDTO {
     pub line: i32,
     pub message: String,
     pub stack_trace: String,
+    pub user_agent: String,
+    pub namespace_id: Uuid,
+    pub resolved: bool,
+    pub tags: Option<Vec<ShortTagDTO>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+pub struct AggregateIndividualErrorDTO {
+    pub id: Uuid,
+    pub status_code: i16,
+    pub user_affected: String,
+    pub path: String,
+    pub line: i32,
+    pub message: String,
+    pub stack_trace: String,
+    pub user_agent: String,
     pub namespace_id: Uuid,
     pub resolved: bool,
     pub tags: Option<Vec<ShortTagNoIdDTO>>,
@@ -92,6 +110,7 @@ pub struct ErrorDTO {
 pub struct ErrorMetaDTO {
     pub id: Uuid,
     pub resolved: bool,
+    pub user_agent: String,
     pub created_at: DateTime<Utc>,
 }
 
@@ -102,9 +121,10 @@ pub struct CreateErrorRequest {
     pub path: String,
     pub line: i32,
     pub stack_trace: String,
+    pub user_agent: String,
     pub message: String,
     pub namespace_id: Uuid,
-    pub tags: Option<Vec<ShortTagNoIdDTO>>,
+    pub tags: Option<Vec<CreateTagClientNoIdDTO>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate)]

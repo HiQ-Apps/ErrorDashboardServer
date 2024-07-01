@@ -7,7 +7,7 @@ use uuid::Uuid;
 use log::info;
 
 use shared_types::namespace_dtos::{NamespaceDTO, UpdateNamespaceDTO, ShortNamespaceDTO};
-use shared_types::error_dtos::{AggregatedResult, ErrorDTO, GetAggregatedLineErrorDTO, GetAggregatedMessageErrorDTO, GetAggregatedStatusErrorDTO, TagAggregatedErrorDTO};
+use shared_types::error_dtos::{AggregatedResult, GetAggregatedLineErrorDTO, AggregateIndividualErrorDTO, GetAggregatedMessageErrorDTO, GetAggregatedStatusErrorDTO, TagAggregatedErrorDTO};
 use shared_types::tag_dtos::ShortTagNoIdDTO;
 use crate::config::Config;
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
@@ -273,7 +273,7 @@ impl NamespaceService {
     pub async fn get_errors_by_namespace_id(
         &self,
         namespace_id: Uuid,
-    ) -> Result<Vec<ErrorDTO>, ServerError> {
+    ) -> Result<Vec<AggregateIndividualErrorDTO>, ServerError> {
         let db: &DatabaseConnection = &*self.db;
         let errors = ErrorEntity::find()
             .filter(<ErrorEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
@@ -297,7 +297,7 @@ impl NamespaceService {
                     tag_color: tag.tag_color
                 }).collect::<Vec<ShortTagNoIdDTO>>());
 
-                Ok(ErrorDTO {
+                Ok(AggregateIndividualErrorDTO {
                     id: error.id,
                     status_code: error.status_code,
                     user_affected: error.user_affected,
@@ -305,22 +305,23 @@ impl NamespaceService {
                     line: error.line,
                     message: error.message.clone(),
                     stack_trace: error.stack_trace,
+                    user_agent: error.user_agent,
                     namespace_id: error.namespace_id,
                     resolved: error.resolved,
                     created_at: error.created_at,
                     tags,
                     updated_at: error.updated_at,
-                }) as Result<ErrorDTO, ServerError>
+                }) as Result<AggregateIndividualErrorDTO, ServerError>
             }
         }).collect::<FuturesUnordered<_>>();
 
-        let mut results: Vec<ErrorDTO> = futures.try_collect().await?;
+        let mut results: Vec<AggregateIndividualErrorDTO> = futures.try_collect().await?;
         results.sort_by(|a, b| b.created_at.cmp(&a.created_at));
         Ok(results)
     }
 
 
-    pub fn match_group_by_errors(&self, group_by: &str, error: &ErrorDTO) -> String {
+    pub fn match_group_by_errors(&self, group_by: &str, error: &AggregateIndividualErrorDTO) -> String {
         match group_by {
             "status_code" => error.status_code.to_string(),
             "message" => error.message.clone(),
@@ -331,7 +332,7 @@ impl NamespaceService {
 
     async fn aggregate_errors(
         &self,
-        errors: &[ErrorDTO],
+        errors: &[AggregateIndividualErrorDTO],
         group_by: &str,
     ) -> (
         HashMap<String, GetAggregatedMessageErrorDTO>,
@@ -373,7 +374,7 @@ impl NamespaceService {
         &self,
         tag_aggregations: &mut HashMap<ShortTagNoIdDTO, TagAggregatedErrorDTO>,
         unique_users: &mut HashMap<String, HashSet<String>>,
-        error: &ErrorDTO,
+        error: &AggregateIndividualErrorDTO,
     ) {
         if let Some(tags) = &error.tags {
             for tag in tags {
@@ -398,7 +399,7 @@ impl NamespaceService {
         grouped_errors_by_status: &mut HashMap<String, GetAggregatedStatusErrorDTO>,
         grouped_errors_by_line: &mut HashMap<String, GetAggregatedLineErrorDTO>,
         unique_users: &mut HashMap<String, HashSet<String>>,
-        error: &ErrorDTO,
+        error: &AggregateIndividualErrorDTO,
         group_by: &str,
     ) {
         match group_by {

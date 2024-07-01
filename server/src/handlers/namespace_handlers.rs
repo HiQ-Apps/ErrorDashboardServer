@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::config::Config;
 use shared_types::error_dtos::AggregatedResult;
-use shared_types::extra_dtos::{PaginationParams, ErrorQueryParams, ErrorMetadataQueryParams};
+use shared_types::extra_dtos::{PaginationParams, ErrorQueryParams};
 use shared_types::namespace_dtos::{CreateNamespaceDTO, UpdateNamespaceDTO};
 use crate::managers::namespace_manager::NamespaceServer;
 use crate::handlers::ws_handlers::WsNamespaceSession;

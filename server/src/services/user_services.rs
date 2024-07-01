@@ -1,6 +1,6 @@
 use bcrypt::hash;
 use chrono::Utc;
-use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, ActiveValue, TransactionTrait};
+use sea_orm::{entity::prelude::*, EntityTrait, ActiveValue, TransactionTrait};
 use shared_types::user_dtos::{ShortUserDTO, ShortUserProfileDTO, UpdateUserProfileDTO};
 use std::sync::Arc;
 use uuid::Uuid;

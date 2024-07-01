@@ -23,6 +23,14 @@ pub struct ShortTagDTO {
 pub struct CreateTagDTO {
     pub tag_key: String,
     pub tag_value: String,
+    pub tag_color: String,
+    pub error_id: Uuid,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+pub struct CreateTagClientNoIdDTO {
+    pub tag_key: String,
+    pub tag_value: String,
     pub error_id: Uuid,
 }
 

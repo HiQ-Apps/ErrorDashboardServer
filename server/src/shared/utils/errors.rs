@@ -9,7 +9,6 @@ use sea_orm::TransactionError;
 use serde_json::Error as JsonError;
 use serde_valid::Error as ValidationError;
 use thiserror::Error;
-use tokio::sync::oneshot::error;
 use uuid::Error as UuidError;
 
 // Group enum'd errors into a single enum

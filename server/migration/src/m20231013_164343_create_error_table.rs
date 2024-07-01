@@ -13,6 +13,7 @@ pub enum Errors {
     Line,
     Message,
     StackTrace,
+    UserAgent,
     Resolved,
     Tags,
     CreatedAt,
@@ -45,6 +46,7 @@ impl MigrationTrait for Migration {
                                 .on_delete(ForeignKeyAction::Cascade)
                                 .on_update(ForeignKeyAction::Cascade),
                         )
+                        .col(ColumnDef::new(Errors::UserAgent).string())
                         .col(ColumnDef::new(Errors::StackTrace).string().not_null())
                         .col(ColumnDef::new(Errors::Resolved).boolean().not_null())
                         .col(ColumnDef::new(Errors::Tags).json())
