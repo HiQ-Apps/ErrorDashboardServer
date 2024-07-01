@@ -1,13 +1,13 @@
 use chrono::Utc;
 use futures::stream::{FuturesUnordered, TryStreamExt};
-use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel, QueryOrder, DatabaseConnection, QuerySelect, TransactionTrait};
+use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel, DatabaseConnection, QuerySelect, TransactionTrait};
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 use log::info;
 
 use shared_types::namespace_dtos::{NamespaceDTO, UpdateNamespaceDTO, ShortNamespaceDTO};
-use shared_types::error_dtos::{AggregatedResult, ErrorDTO, ErrorMetaDTO, GetAggregatedErrorDTO, TagAggregatedErrorDTO};
+use shared_types::error_dtos::{AggregatedResult, GetAggregatedLineErrorDTO, AggregateIndividualErrorDTO, GetAggregatedMessageErrorDTO, GetAggregatedStatusErrorDTO, TagAggregatedErrorDTO};
 use shared_types::tag_dtos::ShortTagNoIdDTO;
 use crate::config::Config;
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
@@ -273,7 +273,7 @@ impl NamespaceService {
     pub async fn get_errors_by_namespace_id(
         &self,
         namespace_id: Uuid,
-    ) -> Result<Vec<ErrorDTO>, ServerError> {
+    ) -> Result<Vec<AggregateIndividualErrorDTO>, ServerError> {
         let db: &DatabaseConnection = &*self.db;
         let errors = ErrorEntity::find()
             .filter(<ErrorEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
@@ -294,9 +294,10 @@ impl NamespaceService {
                 let tags = Some(tags.into_iter().map(|tag| ShortTagNoIdDTO {
                     tag_key: tag.tag_key,
                     tag_value: tag.tag_value,
+                    tag_color: tag.tag_color
                 }).collect::<Vec<ShortTagNoIdDTO>>());
 
-                Ok(ErrorDTO {
+                Ok(AggregateIndividualErrorDTO {
                     id: error.id,
                     status_code: error.status_code,
                     user_affected: error.user_affected,
@@ -304,21 +305,23 @@ impl NamespaceService {
                     line: error.line,
                     message: error.message.clone(),
                     stack_trace: error.stack_trace,
+                    user_agent: error.user_agent,
                     namespace_id: error.namespace_id,
                     resolved: error.resolved,
                     created_at: error.created_at,
                     tags,
                     updated_at: error.updated_at,
-                }) as Result<ErrorDTO, ServerError>
+                }) as Result<AggregateIndividualErrorDTO, ServerError>
             }
         }).collect::<FuturesUnordered<_>>();
 
-        let mut results: Vec<ErrorDTO> = futures.try_collect().await?;
+        let mut results: Vec<AggregateIndividualErrorDTO> = futures.try_collect().await?;
         results.sort_by(|a, b| b.created_at.cmp(&a.created_at));
         Ok(results)
     }
 
-    pub fn match_group_by_errors(&self, group_by: &str, error: &ErrorDTO) -> String {
+
+    pub fn match_group_by_errors(&self, group_by: &str, error: &AggregateIndividualErrorDTO) -> String {
         match group_by {
             "status_code" => error.status_code.to_string(),
             "message" => error.message.clone(),
@@ -329,14 +332,18 @@ impl NamespaceService {
 
     async fn aggregate_errors(
         &self,
-        errors: &[ErrorDTO],
+        errors: &[AggregateIndividualErrorDTO],
         group_by: &str,
     ) -> (
-        HashMap<String, GetAggregatedErrorDTO>,
+        HashMap<String, GetAggregatedMessageErrorDTO>,
+        HashMap<String, GetAggregatedStatusErrorDTO>,
+        HashMap<String, GetAggregatedLineErrorDTO>,
         HashMap<ShortTagNoIdDTO, TagAggregatedErrorDTO>,
         HashMap<String, HashSet<String>>,
     ) {
-        let mut grouped_errors: HashMap<String, GetAggregatedErrorDTO> = HashMap::new();
+        let mut grouped_errors_by_message: HashMap<String, GetAggregatedMessageErrorDTO> = HashMap::new();
+        let mut grouped_errors_by_status: HashMap<String, GetAggregatedStatusErrorDTO> = HashMap::new();
+        let mut grouped_errors_by_line: HashMap<String, GetAggregatedLineErrorDTO> = HashMap::new();
         let mut unique_users: HashMap<String, HashSet<String>> = HashMap::new();
         let mut tag_aggregations: HashMap<ShortTagNoIdDTO, TagAggregatedErrorDTO> = HashMap::new();
 
@@ -344,18 +351,30 @@ impl NamespaceService {
             if group_by == "tags" {
                 self.aggregate_by_tags(&mut tag_aggregations, &mut unique_users, error);
             } else {
-                self.aggregate_by_other(&mut grouped_errors, &mut unique_users, error, group_by);
+                self.aggregate_by_other(
+                    &mut grouped_errors_by_message,
+                    &mut grouped_errors_by_status,
+                    &mut grouped_errors_by_line,
+                    &mut unique_users,
+                    error,
+                    group_by,
+                );
             }
         }
-
-        (grouped_errors, tag_aggregations, unique_users)
+        (
+            grouped_errors_by_message,
+            grouped_errors_by_status,
+            grouped_errors_by_line,
+            tag_aggregations,
+            unique_users,
+        )
     }
 
     fn aggregate_by_tags(
         &self,
         tag_aggregations: &mut HashMap<ShortTagNoIdDTO, TagAggregatedErrorDTO>,
         unique_users: &mut HashMap<String, HashSet<String>>,
-        error: &ErrorDTO,
+        error: &AggregateIndividualErrorDTO,
     ) {
         if let Some(tags) = &error.tags {
             for tag in tags {
@@ -376,32 +395,81 @@ impl NamespaceService {
 
     fn aggregate_by_other(
         &self,
-        grouped_errors: &mut HashMap<String, GetAggregatedErrorDTO>,
+        grouped_errors_by_message: &mut HashMap<String, GetAggregatedMessageErrorDTO>,
+        grouped_errors_by_status: &mut HashMap<String, GetAggregatedStatusErrorDTO>,
+        grouped_errors_by_line: &mut HashMap<String, GetAggregatedLineErrorDTO>,
         unique_users: &mut HashMap<String, HashSet<String>>,
-        error: &ErrorDTO,
+        error: &AggregateIndividualErrorDTO,
         group_by: &str,
     ) {
-        let key = self.match_group_by_errors(group_by, error);
+        match group_by {
+            "status_code" => {
+                let key = error.status_code.to_string();
+                let entry = grouped_errors_by_status.entry(key.clone()).or_insert_with(|| GetAggregatedStatusErrorDTO {
+                    status_code: error.status_code,
+                    user_affected_count: 0,
+                    error_count: 0,
+                    aggregated_tags: vec![],
+                });
 
-        let entry = grouped_errors.entry(key.clone()).or_insert_with(|| GetAggregatedErrorDTO {
-            message: error.message.clone(),
-            status_code: error.status_code,
-            user_affected_count: 0,
-            error_count: 0,
-            aggregated_tags: vec![],
-        });
+                entry.error_count += 1;
 
-        entry.error_count += 1;
+                let user_set = unique_users.entry(key.clone()).or_insert_with(HashSet::new);
+                user_set.insert(error.user_affected.clone());
+                entry.user_affected_count = user_set.len() as i32;
 
-        let user_set = unique_users.entry(key.clone()).or_insert_with(HashSet::new);
-        user_set.insert(error.user_affected.clone());
-        entry.user_affected_count = user_set.len() as i32;
+                if let Some(tags) = &error.tags {
+                    let tag_set: HashSet<ShortTagNoIdDTO> = entry.aggregated_tags.iter().cloned().collect();
+                    let new_tags: HashSet<ShortTagNoIdDTO> = tags.iter().cloned().collect();
+                    let combined_tags: HashSet<ShortTagNoIdDTO> = tag_set.union(&new_tags).cloned().collect();
+                    entry.aggregated_tags = combined_tags.into_iter().collect();
+                }
+            }
+            "message" => {
+                let key = error.message.clone();
+                let entry = grouped_errors_by_message.entry(key.clone()).or_insert_with(|| GetAggregatedMessageErrorDTO {
+                    message: error.message.clone(),
+                    user_affected_count: 0,
+                    error_count: 0,
+                    aggregated_tags: vec![],
+                });
 
-        if let Some(tags) = &error.tags {
-            let tag_set: HashSet<ShortTagNoIdDTO> = entry.aggregated_tags.iter().cloned().collect();
-            let new_tags: HashSet<ShortTagNoIdDTO> = tags.iter().cloned().collect();
-            let combined_tags = tag_set.union(&new_tags).cloned().collect();
-            entry.aggregated_tags = combined_tags;
+                entry.error_count += 1;
+
+                let user_set = unique_users.entry(key.clone()).or_insert_with(HashSet::new);
+                user_set.insert(error.user_affected.clone());
+                entry.user_affected_count = user_set.len() as i32;
+
+                if let Some(tags) = &error.tags {
+                    let tag_set: HashSet<ShortTagNoIdDTO> = entry.aggregated_tags.iter().cloned().collect();
+                    let new_tags: HashSet<ShortTagNoIdDTO> = tags.iter().cloned().collect();
+                    let combined_tags: HashSet<ShortTagNoIdDTO> = tag_set.union(&new_tags).cloned().collect();
+                    entry.aggregated_tags = combined_tags.into_iter().collect();
+                }
+            }
+            "line" => {
+                let key = error.line.clone();
+                let entry = grouped_errors_by_line.entry(key.to_string()).or_insert_with(|| GetAggregatedLineErrorDTO {
+                    line: error.line.clone(),
+                    user_affected_count: 0,
+                    error_count: 0,
+                    aggregated_tags: vec![],
+                });
+
+                entry.error_count += 1;
+
+                let user_set = unique_users.entry(key.to_string()).or_insert_with(HashSet::new);
+                user_set.insert(error.user_affected.clone());
+                entry.user_affected_count = user_set.len() as i32;
+
+                if let Some(tags) = &error.tags {
+                    let tag_set: HashSet<ShortTagNoIdDTO> = entry.aggregated_tags.iter().cloned().collect();
+                    let new_tags: HashSet<ShortTagNoIdDTO> = tags.iter().cloned().collect();
+                    let combined_tags: HashSet<ShortTagNoIdDTO> = tag_set.union(&new_tags).cloned().collect();
+                    entry.aggregated_tags = combined_tags.into_iter().collect();
+                }
+            }
+            _ => {}
         }
     }
 
@@ -413,7 +481,8 @@ impl NamespaceService {
         limit: usize,
     ) -> Result<AggregatedResult, ServerError> {
         let errors = self.get_errors_by_namespace_id(namespace_id).await?;
-        let (grouped_errors, tag_aggregations, _) = self.aggregate_errors(&errors, &group_by).await;
+        let (grouped_errors_by_message, grouped_errors_by_status, grouped_errors_by_line, tag_aggregations, _) =
+            self.aggregate_errors(&errors, &group_by).await;
 
         match group_by.as_str() {
             "tags" => {
@@ -421,13 +490,43 @@ impl NamespaceService {
                 tag_results.sort_by(|a, b| b.error_count.cmp(&a.error_count));
                 let paginated_results = tag_results.into_iter().skip(offset).take(limit).collect();
                 Ok(AggregatedResult::ByTags(paginated_results))
-            },
+            }
+            "status_code" => {
+                let mut status_code_results: Vec<GetAggregatedStatusErrorDTO> = grouped_errors_by_status
+                    .into_iter()
+                    .map(|(_, v)| v)
+                    .collect();
+                status_code_results.sort_by(|a, b| b.error_count.cmp(&a.error_count));
+                let paginated_results = status_code_results.into_iter().skip(offset).take(limit).collect();
+                Ok(AggregatedResult::ByStatus(paginated_results))
+            }
+            "message" => {
+                let mut message_results: Vec<GetAggregatedMessageErrorDTO> = grouped_errors_by_message
+                    .into_iter()
+                    .map(|(_, v)| v)
+                    .collect();
+                message_results.sort_by(|a, b| b.error_count.cmp(&a.error_count));
+                let paginated_results = message_results.into_iter().skip(offset).take(limit).collect();
+                Ok(AggregatedResult::ByMessage(paginated_results))
+            }
+            "line" => {
+                let mut line_results: Vec<GetAggregatedLineErrorDTO> = grouped_errors_by_line
+                    .into_iter()
+                    .map(|(_, v)| v)
+                    .collect();
+                line_results.sort_by(|a, b| b.error_count.cmp(&a.error_count));
+                let paginated_results = line_results.into_iter().skip(offset).take(limit).collect();
+                Ok(AggregatedResult::ByLine(paginated_results))
+            }
             _ => {
-                let mut other_results: Vec<GetAggregatedErrorDTO> = grouped_errors.into_iter().map(|(_, v)| v).collect();
-                other_results.sort_by(|a, b| b.error_count.cmp(&a.error_count));
-                let paginated_results = other_results.into_iter().skip(offset).take(limit).collect();
-                Ok(AggregatedResult::ByOther(paginated_results))
-            },
+                let mut message_results: Vec<GetAggregatedMessageErrorDTO> = grouped_errors_by_message
+                    .into_iter()
+                    .map(|(_, v)| v)
+                    .collect();
+                message_results.sort_by(|a, b| b.error_count.cmp(&a.error_count));
+                let paginated_results = message_results.into_iter().skip(offset).take(limit).collect();
+                Ok(AggregatedResult::ByMessage(paginated_results))
+            }
         }
     }
 }

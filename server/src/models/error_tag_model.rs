@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::models::error_model::Entity as ErrorEntity;
-use shared_types::tag_dtos::CreateTagDTO;
+use shared_types::tag_dtos::{CreateTagDTO, CreateTagClientNoIdDTO};
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "error_tags")]
@@ -13,7 +13,8 @@ pub struct Model {
     pub id: Uuid,
     pub error_id: Uuid,
     pub tag_key: String,
-    pub tag_value: String
+    pub tag_value: String,
+    pub tag_color: String
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -41,7 +42,8 @@ impl ActiveModel {
             id: ActiveValue::Set(Uuid::new_v4()),
             error_id: ActiveValue::Set(error_id),
             tag_key: ActiveValue::Set(tag_key),
-            tag_value: ActiveValue::Set(tag_value)
+            tag_value: ActiveValue::Set(tag_value),
+            tag_color: ActiveValue::Set(String::new())
         }
     }
 }
@@ -50,14 +52,27 @@ impl ActiveModel {
 impl ActiveModelBehavior for ActiveModel {}
 
 
+impl From<CreateTagClientNoIdDTO> for ActiveModel {
+    fn from(dto: CreateTagClientNoIdDTO) -> Self {
+        Self {
+            id: ActiveValue::Set(Uuid::new_v4()),
+            error_id: ActiveValue::Set(dto.error_id),
+            tag_key: ActiveValue::Set(dto.tag_key),
+            tag_value: ActiveValue::Set(dto.tag_value),
+            tag_color: ActiveValue::Set("098585".to_string())
+        }
+    }
+}
+
+
 impl From<CreateTagDTO> for ActiveModel {
     fn from(dto: CreateTagDTO) -> Self {
         Self {
             id: ActiveValue::Set(Uuid::new_v4()),
             error_id: ActiveValue::Set(dto.error_id),
             tag_key: ActiveValue::Set(dto.tag_key),
-            tag_value: ActiveValue::Set(dto.tag_value)
+            tag_value: ActiveValue::Set(dto.tag_value),
+            tag_color: ActiveValue::Set(dto.tag_color)
         }
     }
 }
-

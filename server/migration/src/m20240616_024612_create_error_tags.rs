@@ -8,6 +8,7 @@ pub enum ErrorTags {
     ErrorId,
     TagKey,
     TagValue,
+    TagColor,
 }
 
 #[derive(DeriveMigrationName)]
@@ -31,6 +32,7 @@ impl MigrationTrait for Migration {
                             .on_delete(ForeignKeyAction::Cascade)
                             .on_update(ForeignKeyAction::Cascade),
                     )
+                    .col(ColumnDef::new(ErrorTags::TagColor).string().not_null())
                     .col(ColumnDef::new(ErrorTags::TagKey).string())
                     .col(ColumnDef::new(ErrorTags::TagValue).string())
                     .to_owned(),

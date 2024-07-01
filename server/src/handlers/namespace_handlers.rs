@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::config::Config;
 use shared_types::error_dtos::AggregatedResult;
-use shared_types::extra_dtos::{PaginationParams, ErrorQueryParams, ErrorMetadataQueryParams};
+use shared_types::extra_dtos::{PaginationParams, ErrorQueryParams};
 use shared_types::namespace_dtos::{CreateNamespaceDTO, UpdateNamespaceDTO};
 use crate::managers::namespace_manager::NamespaceServer;
 use crate::handlers::ws_handlers::WsNamespaceSession;
@@ -111,8 +111,10 @@ impl NamespaceHandler {
             query_params.limit as usize,
         ).await?;
         match result {
-            AggregatedResult::ByTags(tags) => Ok(HttpResponse::Ok().json(tags)),
-            AggregatedResult::ByOther(aggregated) => Ok(HttpResponse::Ok().json(aggregated)),
+            AggregatedResult::ByTags(tag) => Ok(HttpResponse::Ok().json(tag)),
+            AggregatedResult::ByLine(line) => Ok(HttpResponse::Ok().json(line)),
+            AggregatedResult::ByMessage(message) => Ok(HttpResponse::Ok().json(message)),
+            AggregatedResult::ByStatus(status) => Ok(HttpResponse::Ok().json(status)),
         }
     }
 

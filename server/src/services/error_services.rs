@@ -2,12 +2,12 @@ use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 use chrono_tz::Tz;
 use sea_orm::sea_query::Query;
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, QueryOrder, QuerySelect, Condition, DatabaseConnection};
-use shared_types::tag_dtos::{CreateTagDTO, TagDTO, ShortTagNoIdDTO};
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
+use shared_types::tag_dtos::{TagDTO, ShortTagDTO, CreateTagClientNoIdDTO};
 use shared_types::error_dtos::{AggregateErrorDTO, CreateErrorDTO, CreateErrorRequest, ErrorDTO, ErrorMetaDTO, UpdateErrorDTO};
 use crate::models::error_model::{Entity as ErrorEntity, Model as ErrorModel};
 use crate::models::error_tag_model::{Entity as TagEntity, Model as TagModel, ActiveModel as ActiveTagModel};
@@ -36,6 +36,7 @@ impl ErrorService {
             line: error.line,
             message: error.message,
             stack_trace: error.stack_trace,
+            user_agent: error.user_agent,
             resolved: false,
             namespace_id: error.namespace_id,
             created_at: now,
@@ -48,11 +49,11 @@ impl ErrorService {
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
 
-        let mut return_tags: Vec<CreateTagDTO> = Vec::new();
+        let mut return_tags: Vec<CreateTagClientNoIdDTO> = Vec::new();
 
         if let Some(tags) = error.tags {
             for tag in tags {
-                let tag_dto = CreateTagDTO {
+                let tag_dto = CreateTagClientNoIdDTO {
                     tag_key: tag.tag_key,
                     tag_value: tag.tag_value,
                     error_id: create_error.id,
@@ -95,9 +96,11 @@ impl ErrorService {
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
-        let tags = Some(found_tags.into_iter().map(|tag| ShortTagNoIdDTO {
+        let tags = Some(found_tags.into_iter().map(|tag| ShortTagDTO {
+            id: tag.id,
             tag_key: tag.tag_key,
             tag_value: tag.tag_value,
+            tag_color: tag.tag_color,
         }).collect());
 
         Ok(ErrorDTO {
@@ -108,6 +111,7 @@ impl ErrorService {
             line: found_error.line,
             message: found_error.message,
             stack_trace: found_error.stack_trace,
+            user_agent: found_error.user_agent,
             namespace_id: found_error.namespace_id,
             resolved: found_error.resolved,
             created_at: found_error.created_at,
@@ -145,6 +149,7 @@ impl ErrorService {
                     tag_key: tag_clone.tag_key,
                     tag_value: tag_clone.tag_value,
                     error_id: update_error.id,
+                    tag_color: tag_clone.tag_color,
                 }.into_active_model();
 
                 tag_list.push(tag);
@@ -278,7 +283,8 @@ impl ErrorService {
             ErrorMetaDTO {
                 id: error.id,
                 created_at: error.created_at,
-                resolved: !error.resolved,
+                user_agent: error.user_agent,
+                resolved: error.resolved,
             }
         }).collect();
 
