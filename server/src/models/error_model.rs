@@ -13,13 +13,11 @@ use crate::models::namespace_model::Entity as NamespaceEntity;
 pub struct Model {
     #[sea_orm(primary_key, column_type = "Uuid")]
     pub id: Uuid,
-    pub status_code: i16,
     pub user_affected: String,
     pub path: String,
     pub line: i32,
     pub message: String,
     pub stack_trace: String,
-    pub user_agent: String,
     pub resolved: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -53,12 +51,10 @@ impl ActiveModel {
         Self {
             id: ActiveValue::Set(Uuid::new_v4()),
             namespace_id: ActiveValue::Set(namespace_id),  
-            status_code: ActiveValue::Set(namespace.status_code),
             user_affected: ActiveValue::Set(namespace.user_affected),
             path: ActiveValue::Set(namespace.path),
             line: ActiveValue::Set(namespace.line),
             message: ActiveValue::Set(namespace.message),
-            user_agent: ActiveValue::Set(namespace.user_agent),
             stack_trace: ActiveValue::Set(namespace.stack_trace),
             resolved: ActiveValue::Set(false),
             created_at: ActiveValue::Set(Utc::now()),
@@ -67,7 +63,6 @@ impl ActiveModel {
     }
 
     pub fn update_values(&mut self, new_values: Model) {
-        self.status_code = ActiveValue::Set(new_values.status_code);
         self.user_affected = ActiveValue::Set(new_values.user_affected);
         self.path = ActiveValue::Set(new_values.path);
         self.line = ActiveValue::Set(new_values.line);
@@ -85,13 +80,11 @@ impl From<ErrorDTO> for Model {
     fn from(dto: ErrorDTO) -> Self {
         Self {
             id: dto.id,
-            status_code: dto.status_code,
             user_affected: dto.user_affected,
             path: dto.path,
             line: dto.line,
             message: dto.message,
             stack_trace: dto.stack_trace,
-            user_agent: dto.user_agent,
             resolved: dto.resolved,
             created_at: dto.created_at,
             updated_at: dto.updated_at,
