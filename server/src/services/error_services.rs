@@ -30,17 +30,17 @@ impl ErrorService {
         let now = Utc::now();
         let create_error = ErrorModel {
             id: Uuid::new_v4(),
-            status_code: error.status_code,
             user_affected: error.user_affected,
             path: error.path,
             line: error.line,
             message: error.message,
             stack_trace: error.stack_trace,
-            user_agent: error.user_agent,
             resolved: false,
             namespace_id: error.namespace_id,
             created_at: now,
             updated_at: now,
+            // status_code: error.status_code,
+            // user_agent: error.user_agent,
         };
         
         ErrorEntity::insert(create_error.clone().into_active_model())
@@ -71,7 +71,6 @@ impl ErrorService {
         
         Ok(CreateErrorDTO {
             id: create_error.id,
-            status_code: create_error.status_code,
             message: create_error.message,
             resolved: create_error.resolved,
             namespace_id: create_error.namespace_id,
@@ -105,17 +104,17 @@ impl ErrorService {
 
         Ok(ErrorDTO {
             id: found_error.id,
-            status_code: found_error.status_code,
             user_affected: found_error.user_affected,
             path: found_error.path,
             line: found_error.line,
             message: found_error.message,
             stack_trace: found_error.stack_trace,
-            user_agent: found_error.user_agent,
             namespace_id: found_error.namespace_id,
             resolved: found_error.resolved,
             created_at: found_error.created_at,
             updated_at: found_error.updated_at,
+            // status_code: found_error.status_code,
+            // user_agent: found_error.user_agent,
             tags,
         })
     }
@@ -266,7 +265,6 @@ impl ErrorService {
             ErrorEntity::find()
                 .filter(<ErrorEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
                 .filter(match group_by.as_str() {
-                    "status_code" => <ErrorEntity as EntityTrait>::Column::StatusCode.eq(group_key.parse::<i32>().unwrap_or_default()),
                     "message" => <ErrorEntity as EntityTrait>::Column::Message.eq(group_key),
                     "line" => <ErrorEntity as EntityTrait>::Column::Line.eq(group_key.parse::<i32>().unwrap_or_default()),
                     _ => <ErrorEntity as EntityTrait>::Column::Message.eq(group_key),
@@ -283,7 +281,7 @@ impl ErrorService {
             ErrorMetaDTO {
                 id: error.id,
                 created_at: error.created_at,
-                user_agent: error.user_agent,
+                // user_agent: error.user_agent,
                 resolved: error.resolved,
             }
         }).collect();

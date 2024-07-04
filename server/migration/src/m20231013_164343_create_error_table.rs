@@ -7,13 +7,11 @@ pub enum Errors {
     Table,
     Id,
     NamespaceId,
-    StatusCode,
     UserAffected,
     Path,
     Line,
     Message,
     StackTrace,
-    UserAgent,
     Resolved,
     Tags,
     CreatedAt,
@@ -32,7 +30,6 @@ impl MigrationTrait for Migration {
                     .table(Errors::Table)
                     .if_not_exists()
                         .col(ColumnDef::new(Errors::Id).uuid().primary_key())
-                        .col(ColumnDef::new(Errors::StatusCode).small_integer().not_null())
                         .col(ColumnDef::new(Errors::UserAffected).string().not_null())
                         .col(ColumnDef::new(Errors::Path).string().not_null())
                         .col(ColumnDef::new(Errors::Line).integer().not_null())
@@ -40,13 +37,12 @@ impl MigrationTrait for Migration {
                         .col(ColumnDef::new(Errors::NamespaceId).uuid().not_null())
                         .foreign_key(
                             ForeignKey::create()
-                                .name("fk_error_namespace")
-                                .from(Errors::Table, Errors::NamespaceId)
-                                .to(Namespaces::Table, Namespaces::Id)
-                                .on_delete(ForeignKeyAction::Cascade)
-                                .on_update(ForeignKeyAction::Cascade),
+                            .name("fk_error_namespace")
+                            .from(Errors::Table, Errors::NamespaceId)
+                            .to(Namespaces::Table, Namespaces::Id)
+                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_update(ForeignKeyAction::Cascade),
                         )
-                        .col(ColumnDef::new(Errors::UserAgent).string())
                         .col(ColumnDef::new(Errors::StackTrace).string().not_null())
                         .col(ColumnDef::new(Errors::Resolved).boolean().not_null())
                         .col(ColumnDef::new(Errors::Tags).json())

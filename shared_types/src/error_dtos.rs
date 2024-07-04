@@ -43,7 +43,6 @@ pub enum AggregatedResult {
     ByTags(Vec<TagAggregatedErrorDTO>),
     ByLine(Vec<GetAggregatedLineErrorDTO>),
     ByMessage(Vec<GetAggregatedMessageErrorDTO>),
-    ByStatus(Vec<GetAggregatedStatusErrorDTO>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,7 +55,6 @@ pub struct TagAggregatedErrorDTO {
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct CreateErrorDTO {
     pub id: Uuid,
-    pub status_code: i16,
     pub message: String,
     pub resolved: bool,
     pub namespace_id: Uuid,
@@ -66,22 +64,18 @@ pub struct CreateErrorDTO {
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct CreateErrorResponse {
     pub id: Uuid,
-    pub status_code: i16,
     pub message: String,
-    pub resolved: bool,
     pub namespace_id: Uuid,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct ErrorDTO {
     pub id: Uuid,
-    pub status_code: i16,
     pub user_affected: String,
     pub path: String,
     pub line: i32,
     pub message: String,
     pub stack_trace: String,
-    pub user_agent: String,
     pub namespace_id: Uuid,
     pub resolved: bool,
     pub tags: Option<Vec<ShortTagDTO>>,
@@ -92,13 +86,11 @@ pub struct ErrorDTO {
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct AggregateIndividualErrorDTO {
     pub id: Uuid,
-    pub status_code: i16,
     pub user_affected: String,
     pub path: String,
     pub line: i32,
     pub message: String,
     pub stack_trace: String,
-    pub user_agent: String,
     pub namespace_id: Uuid,
     pub resolved: bool,
     pub tags: Option<Vec<ShortTagNoIdDTO>>,
@@ -110,18 +102,15 @@ pub struct AggregateIndividualErrorDTO {
 pub struct ErrorMetaDTO {
     pub id: Uuid,
     pub resolved: bool,
-    pub user_agent: String,
     pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct CreateErrorRequest {
-    pub status_code: i16,
     pub user_affected: String,
     pub path: String,
     pub line: i32,
     pub stack_trace: String,
-    pub user_agent: String,
     pub message: String,
     pub namespace_id: Uuid,
     pub tags: Option<Vec<CreateTagClientNoIdDTO>>,
