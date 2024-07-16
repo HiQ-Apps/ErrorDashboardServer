@@ -112,9 +112,7 @@ impl NamespaceHandler {
         ).await?;
         match result {
             AggregatedResult::ByTags(tag) => Ok(HttpResponse::Ok().json(tag)),
-            AggregatedResult::ByLine(line) => Ok(HttpResponse::Ok().json(line)),
             AggregatedResult::ByMessage(message) => Ok(HttpResponse::Ok().json(message)),
-            // AggregatedResult::ByStatus(status) => Ok(HttpResponse::Ok().json(status)),
         }
     }
 

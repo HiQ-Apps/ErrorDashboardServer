@@ -32,7 +32,6 @@ pub struct GetAggregatedMessageErrorDTO {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct GetAggregatedLineErrorDTO {
-    pub line: i32,
     pub aggregated_tags: Vec<ShortTagNoIdDTO>,
     pub user_affected_count: i32,
     pub error_count: i32,
@@ -41,7 +40,6 @@ pub struct GetAggregatedLineErrorDTO {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AggregatedResult {
     ByTags(Vec<TagAggregatedErrorDTO>),
-    ByLine(Vec<GetAggregatedLineErrorDTO>),
     ByMessage(Vec<GetAggregatedMessageErrorDTO>),
 }
 
@@ -59,6 +57,7 @@ pub struct CreateErrorDTO {
     pub resolved: bool,
     pub namespace_id: Uuid,
     pub stack_trace: String,
+    pub user_affected: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
@@ -72,9 +71,9 @@ pub struct CreateErrorResponse {
 pub struct ErrorDTO {
     pub id: Uuid,
     pub user_affected: String,
-    pub path: String,
-    pub line: i32,
     pub message: String,
+    pub path: String,
+    pub line: String,
     pub stack_trace: String,
     pub namespace_id: Uuid,
     pub resolved: bool,
@@ -87,8 +86,6 @@ pub struct ErrorDTO {
 pub struct AggregateIndividualErrorDTO {
     pub id: Uuid,
     pub user_affected: String,
-    pub path: String,
-    pub line: i32,
     pub message: String,
     pub stack_trace: String,
     pub namespace_id: Uuid,
@@ -108,8 +105,6 @@ pub struct ErrorMetaDTO {
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct CreateErrorRequest {
     pub user_affected: String,
-    pub path: String,
-    pub line: i32,
     pub stack_trace: String,
     pub message: String,
     pub namespace_id: Uuid,

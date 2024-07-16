@@ -15,7 +15,7 @@ pub struct Model {
     pub id: Uuid,
     pub user_affected: String,
     pub path: String,
-    pub line: i32,
+    pub line: String,
     pub message: String,
     pub stack_trace: String,
     pub resolved: bool,
@@ -64,8 +64,6 @@ impl ActiveModel {
 
     pub fn update_values(&mut self, new_values: Model) {
         self.user_affected = ActiveValue::Set(new_values.user_affected);
-        self.path = ActiveValue::Set(new_values.path);
-        self.line = ActiveValue::Set(new_values.line);
         self.message = ActiveValue::Set(new_values.message);
         self.stack_trace = ActiveValue::Set(new_values.stack_trace);
         self.resolved = ActiveValue::Set(new_values.resolved);
