@@ -1,8 +1,9 @@
 use actix_web::cookie::Cookie;
 use actix_web::http::header::HeaderMap;
+use bcrypt::{verify, DEFAULT_COST};
 use chrono::{Duration, Utc, DateTime};
 use jsonwebtoken::{Header, Validation, TokenData, encode, decode, EncodingKey, DecodingKey};
-use sea_orm::{EntityTrait, DatabaseConnection};
+use sea_orm::{DatabaseConnection, EntityTrait, ColumnTrait, QueryFilter};
 use serde_json::to_value;
 use uuid::Uuid;
 
@@ -10,6 +11,7 @@ use shared_types::auth_dtos::{RefreshTokenDTO, Claims};
 
 use crate::config::Config;
 use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
+use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
 use crate::models::refresh_token_model::Model as RefreshTokenModel;
 use crate::shared::utils::errors::{ServerError, QueryError, ExternalError, RequestError};
 
@@ -27,6 +29,23 @@ pub async fn validate_jwt(token: &str, secret_key: &str, validation: &Validation
     match found_user {
         Some(_user) => Ok(()),
         None => Err(ServerError::from(QueryError::UserNotFound)),
+    }
+}
+
+pub async fn validate_namespace_secret_jwt(client_id: Uuid, client_secret: String, db: &DatabaseConnection) -> Result<bool, ServerError> {
+    let found_namespace = NamespaceEntity::find()
+        .filter(<NamespaceEntity as EntityTrait>::Column::ClientId.eq(client_id))
+        .one(db)
+        .await
+        .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+
+    match found_namespace {
+        Some(namespace) => {
+            verify(client_secret, &namespace.client_secret.to_string())
+                .map_err(|err| ServerError::from(ExternalError::Bcrypt(err)));
+            Ok(true)
+        },
+        None => Err(ServerError::from(QueryError::NamespaceNotFound)),
     }
 }
 

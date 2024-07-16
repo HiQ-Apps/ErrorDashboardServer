@@ -1,4 +1,5 @@
 use chrono::Utc;
+use bcrypt::{verify, hash, DEFAULT_COST};
 use futures::stream::{FuturesUnordered, TryStreamExt};
 use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel, DatabaseConnection, QuerySelect, TransactionTrait};
 use std::sync::Arc;
@@ -37,7 +38,6 @@ impl NamespaceService {
         let transaction = db.begin().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
         let uid = Uuid::new_v4();
-        let new_client_secret = Uuid::new_v4();
         let new_client_id = Uuid::new_v4();
         let now = Utc::now();
 
@@ -47,7 +47,7 @@ impl NamespaceService {
             service_name: namespace_service_name,
             environment_type,
             client_id: new_client_id,
-            client_secret: new_client_secret,
+            client_secret: Uuid::new_v4(),
             created_at: now,
             updated_at: now,
         }
@@ -78,11 +78,11 @@ impl NamespaceService {
     pub async fn get_namespace_by_id(&self, uid: Uuid) -> Result<GetNamespaceResponseDTO, ServerError> {
         let config = &*self.configs;
         let result = NamespaceEntity::find().filter(<NamespaceEntity as sea_orm::EntityTrait>::Column::Id.eq(uid)).one(&*self.db).await;
-        let hash_cost = config.hash_cost.parse().unwrap_or(bcrypt::DEFAULT_COST);
+        let hash_cost = config.hash_cost.parse().unwrap_or(DEFAULT_COST);
 
         match result {
             Ok(Some(namespace)) => {
-                let hash_secret = bcrypt::hash(namespace.client_secret.to_string(), hash_cost).unwrap();
+                let hash_secret = hash(namespace.client_secret.to_string(), hash_cost).unwrap();
                 let namespace_dto = GetNamespaceResponseDTO {
                     id: namespace.id,
                     active: namespace.active,
@@ -141,6 +141,8 @@ impl NamespaceService {
         user_id: Uuid,
         update_namespace_object: UpdateNamespaceDTO) -> Result<(), ServerError> {
         let db: &DatabaseConnection = &*self.db;
+        let config = &*self.configs;
+
         let transaction = db.begin().await.map_err(ExternalError::from)?;
         let now = Utc::now();
 
@@ -210,7 +212,7 @@ impl NamespaceService {
         namespace.updated_at = ActiveValue::Set(now);
 
         match namespace.update(&transaction).await {
-            Ok(namespace) => namespace,
+            Ok(_) => (),
             Err(err) => {
                 transaction.rollback().await.map_err(ExternalError::from)?;
                 return Err(ServerError::from(ExternalError::from(err)));
