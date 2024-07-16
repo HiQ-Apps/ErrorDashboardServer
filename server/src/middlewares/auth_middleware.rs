@@ -19,6 +19,12 @@ pub struct JwtMiddleware {
     pub config: Arc<Config>,
     pub db_pool: Arc<DatabaseConnection>,
 }
+pub struct JwtTransform<S, E> {
+    config: Arc<Config>,
+    db_pool: Arc<DatabaseConnection>,
+    service: S,
+    phantom: PhantomData<E>,
+}
 
 impl<S, B, E> Transform<S, ServiceRequest> for JwtMiddleware
 where
@@ -42,13 +48,6 @@ where
     }
 }
 
-pub struct JwtTransform<S, E> {
-    config: Arc<Config>,
-    db_pool: Arc<DatabaseConnection>,
-    service: S,
-    phantom: PhantomData<E>,
-}
-
 impl<S, B, E> Service<ServiceRequest> for JwtTransform<S, E>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = E> + 'static,
@@ -59,8 +58,8 @@ where
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
     type Error = E;
 
-    fn poll_ready(&self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.service.poll_ready(cx)
+    fn poll_ready(&self, ctx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.service.poll_ready(ctx)
     }
 
     fn call(&self, req: ServiceRequest) -> Self::Future {

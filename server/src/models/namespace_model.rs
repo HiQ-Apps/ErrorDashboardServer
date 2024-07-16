@@ -58,8 +58,8 @@ impl ActiveModelBehavior for ActiveModel {
         Self {
             id: ActiveValue::Set(Uuid::new_v4()),
             active: ActiveValue::Set(false),
-            service_name: ActiveValue::Set("".to_string()),
-            environment_type: ActiveValue::Set("".to_string()),
+            service_name: ActiveValue::Set(String::new()),
+            environment_type: ActiveValue::Set(String::new()),
             client_id: ActiveValue::Set(Uuid::new_v4()),
             client_secret: ActiveValue::Set(Uuid::new_v4()),
             created_at: ActiveValue::Set(Utc::now()),

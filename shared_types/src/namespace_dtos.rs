@@ -39,7 +39,7 @@ pub struct NamespaceDTO {
     pub service_name: String,
     pub environment_type: String,
     pub client_id: Uuid,
-    pub client_secret: Uuid,
+    pub client_secret: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>
 }

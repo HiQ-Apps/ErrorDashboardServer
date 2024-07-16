@@ -61,7 +61,7 @@ impl ActiveModelBehavior for ActiveModel {
         Self {
             id: ActiveValue::Set(Uuid::new_v4()),
             user_id: ActiveValue::Unchanged(None),
-            token: ActiveValue::Set("".to_string()),
+            token: ActiveValue::Set(String::new()),
             issued_at: ActiveValue::Set(Utc::now()),
             expires_at: ActiveValue::Set(Utc::now() + Duration::days(1)),
             issuer: ActiveValue::Set("default_issuer".to_string()),
