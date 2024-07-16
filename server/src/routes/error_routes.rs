@@ -1,7 +1,7 @@
 use actix_web::web;
 
 use crate::handlers::error_handlers::ErrorHandler;
-use crate::middlewares::{auth_middleware::JwtMiddleware, namespace_auth_middleware::ClientAuthMiddleware};
+use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware};
 
 pub fn configure(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
     cfg.service(

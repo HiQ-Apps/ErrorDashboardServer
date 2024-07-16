@@ -17,7 +17,7 @@ use log::{ error, info };
 use std::sync::Arc;
 use std::env;
 
-use crate::middlewares::{auth_middleware::JwtMiddleware, namespace_auth_middleware::ClientAuthMiddleware};
+use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware};
 use crate::routes::{auth_routes, error_routes, namespace_routes, user_routes, tag_routes};
 use crate::services::init_services;
 use crate::managers::namespace_manager::NamespaceServer;
