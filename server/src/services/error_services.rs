@@ -33,6 +33,7 @@ impl ErrorService {
         let mut stack_trace_info: StackTraceInfo = StackTraceInfo::default();
         let error_stack_trace = error.stack_trace.clone();
 
+        // Add  the rest later
         match parse_stack_trace(&error_stack_trace) {
             Ok(info) => stack_trace_info = info,
             Err(err) => println!("Failed to parse stack trace: {}", err),
