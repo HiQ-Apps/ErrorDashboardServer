@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_valid::Validate;
 use uuid::Uuid;
 
-use super::tag_dtos::{TagDTO, ShortTagNoIdDTO, ShortTagDTO, CreateTagClientNoIdDTO};
+use super::tag_dtos::{TagDTO, ShortTagNoIdDTO, ShortTagDTO, CreateTagClientNoIdDTO, CreateTagRequestDTO};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct ShortErrorDTO {
@@ -21,6 +21,7 @@ pub struct GetAggregatedStatusErrorDTO {
     pub user_affected_count: i32,
     pub error_count: i32,
 }
+
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct GetAggregatedMessageErrorDTO {
@@ -59,6 +60,7 @@ pub struct CreateErrorDTO {
     pub resolved: bool,
     pub namespace_id: Uuid,
     pub stack_trace: String,
+    pub user_affected: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
@@ -72,9 +74,9 @@ pub struct CreateErrorResponse {
 pub struct ErrorDTO {
     pub id: Uuid,
     pub user_affected: String,
+    pub message: String,
     pub path: String,
     pub line: i32,
-    pub message: String,
     pub stack_trace: String,
     pub namespace_id: Uuid,
     pub resolved: bool,
@@ -87,9 +89,9 @@ pub struct ErrorDTO {
 pub struct AggregateIndividualErrorDTO {
     pub id: Uuid,
     pub user_affected: String,
+    pub message: String,
     pub path: String,
     pub line: i32,
-    pub message: String,
     pub stack_trace: String,
     pub namespace_id: Uuid,
     pub resolved: bool,
@@ -108,11 +110,8 @@ pub struct ErrorMetaDTO {
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct CreateErrorRequest {
     pub user_affected: String,
-    pub path: String,
-    pub line: i32,
     pub stack_trace: String,
     pub message: String,
-    pub namespace_id: Uuid,
     pub tags: Option<Vec<CreateTagClientNoIdDTO>>,
 }
 

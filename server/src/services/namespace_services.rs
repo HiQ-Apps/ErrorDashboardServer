@@ -1,5 +1,5 @@
 use chrono::Utc;
-use bcrypt::{verify, hash, DEFAULT_COST};
+use bcrypt::{hash, DEFAULT_COST};
 use futures::stream::{FuturesUnordered, TryStreamExt};
 use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel, DatabaseConnection, QuerySelect, TransactionTrait};
 use std::sync::Arc;
@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 use log::info;
 
-use shared_types::namespace_dtos::{NamespaceDTO, UpdateNamespaceDTO, ShortNamespaceDTO, GetNamespaceResponseDTO};
+use shared_types::namespace_dtos::{UpdateNamespaceDTO, ShortNamespaceDTO, GetNamespaceResponseDTO};
 use shared_types::error_dtos::{AggregatedResult, GetAggregatedLineErrorDTO, AggregateIndividualErrorDTO, GetAggregatedMessageErrorDTO, GetAggregatedStatusErrorDTO, TagAggregatedErrorDTO};
 use shared_types::tag_dtos::ShortTagNoIdDTO;
 use crate::config::Config;
@@ -308,9 +308,9 @@ impl NamespaceService {
                 Ok(AggregateIndividualErrorDTO {
                     id: error.id,
                     user_affected: error.user_affected,
-                    path: error.path,
-                    line: error.line,
                     message: error.message.clone(),
+                    line: error.line,
+                    path: error.path,
                     stack_trace: error.stack_trace,
                     namespace_id: error.namespace_id,
                     resolved: error.resolved,

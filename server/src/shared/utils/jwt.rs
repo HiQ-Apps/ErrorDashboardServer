@@ -1,6 +1,6 @@
 use actix_web::cookie::Cookie;
 use actix_web::http::header::HeaderMap;
-use bcrypt::{verify, DEFAULT_COST};
+use bcrypt::verify;
 use chrono::{Duration, Utc, DateTime};
 use jsonwebtoken::{Header, Validation, TokenData, encode, decode, EncodingKey, DecodingKey};
 use sea_orm::{DatabaseConnection, EntityTrait, ColumnTrait, QueryFilter};
@@ -11,7 +11,7 @@ use shared_types::auth_dtos::{RefreshTokenDTO, Claims};
 
 use crate::config::Config;
 use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
-use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
+use crate::models::namespace_model::Entity as NamespaceEntity;
 use crate::models::refresh_token_model::Model as RefreshTokenModel;
 use crate::shared::utils::errors::{ServerError, QueryError, ExternalError, RequestError};
 

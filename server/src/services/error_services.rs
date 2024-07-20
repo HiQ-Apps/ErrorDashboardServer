@@ -7,11 +7,13 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
-use shared_types::tag_dtos::{TagDTO, ShortTagDTO, CreateTagClientNoIdDTO};
+use shared_types::tag_dtos::{TagDTO, ShortTagDTO, CreateTagRequestDTO};
 use shared_types::error_dtos::{AggregateErrorDTO, CreateErrorDTO, CreateErrorRequest, ErrorDTO, ErrorMetaDTO, UpdateErrorDTO};
 use crate::models::error_model::{Entity as ErrorEntity, Model as ErrorModel};
 use crate::models::error_tag_model::{Entity as TagEntity, Model as TagModel, ActiveModel as ActiveTagModel};
+use crate::models::namespace_model::Entity as NamespaceEntity;
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError};
+use crate::shared::utils::parse::{parse_stack_trace, StackTraceInfo};
 
 pub struct ErrorService {
     pub db: Arc<DatabaseConnection>,
@@ -26,21 +28,38 @@ impl ErrorService {
     pub async fn create_error(
         &self,
         error: CreateErrorRequest,
+        namespace_client_id: Uuid,
     ) -> Result<CreateErrorDTO, ServerError> {
         let now = Utc::now();
+
+        let mut stack_trace_info: StackTraceInfo = StackTraceInfo::default();
+        let error_stack_trace = error.stack_trace.clone();
+
+        // Add  the rest later
+        match parse_stack_trace(&error_stack_trace) {
+            Ok(info) => stack_trace_info = info,
+            Err(err) => println!("Failed to parse stack trace: {}", err),
+        }
+
+        let found_namespace = NamespaceEntity::find()
+            .filter(<NamespaceEntity as sea_orm::EntityTrait>::Column::ClientId.eq(namespace_client_id))
+            .one(&*self.db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
+            .ok_or(ServerError::QueryError(QueryError::NamespaceNotFound))?;
+
+
         let create_error = ErrorModel {
             id: Uuid::new_v4(),
             user_affected: error.user_affected,
-            path: error.path,
-            line: error.line,
+            path: stack_trace_info.file_path,
+            line: stack_trace_info.line_number,
             message: error.message,
-            stack_trace: error.stack_trace,
+            stack_trace: error_stack_trace,
             resolved: false,
-            namespace_id: error.namespace_id,
+            namespace_id: found_namespace.id,
             created_at: now,
             updated_at: now,
-            // status_code: error.status_code,
-            // user_agent: error.user_agent,
         };
         
         ErrorEntity::insert(create_error.clone().into_active_model())
@@ -49,11 +68,11 @@ impl ErrorService {
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
 
-        let mut return_tags: Vec<CreateTagClientNoIdDTO> = Vec::new();
+        let mut return_tags: Vec<CreateTagRequestDTO> = Vec::new();
 
         if let Some(tags) = error.tags {
             for tag in tags {
-                let tag_dto = CreateTagClientNoIdDTO {
+                let tag_dto = CreateTagRequestDTO {
                     tag_key: tag.tag_key,
                     tag_value: tag.tag_value,
                     error_id: create_error.id,
@@ -75,6 +94,7 @@ impl ErrorService {
             resolved: create_error.resolved,
             namespace_id: create_error.namespace_id,
             stack_trace: create_error.stack_trace,
+            user_affected: create_error.user_affected,
         })
     }
 
@@ -105,16 +125,14 @@ impl ErrorService {
         Ok(ErrorDTO {
             id: found_error.id,
             user_affected: found_error.user_affected,
+            message: found_error.message,
             path: found_error.path,
             line: found_error.line,
-            message: found_error.message,
             stack_trace: found_error.stack_trace,
             namespace_id: found_error.namespace_id,
             resolved: found_error.resolved,
             created_at: found_error.created_at,
             updated_at: found_error.updated_at,
-            // status_code: found_error.status_code,
-            // user_agent: found_error.user_agent,
             tags,
         })
     }
@@ -266,7 +284,6 @@ impl ErrorService {
                 .filter(<ErrorEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
                 .filter(match group_by.as_str() {
                     "message" => <ErrorEntity as EntityTrait>::Column::Message.eq(group_key),
-                    "line" => <ErrorEntity as EntityTrait>::Column::Line.eq(group_key.parse::<i32>().unwrap_or_default()),
                     _ => <ErrorEntity as EntityTrait>::Column::Message.eq(group_key),
                 })
                 .order_by_desc(<ErrorEntity as EntityTrait>::Column::CreatedAt)

@@ -63,13 +63,7 @@ impl ActiveModel {
     }
 
     pub fn update_values(&mut self, new_values: Model) {
-        self.user_affected = ActiveValue::Set(new_values.user_affected);
-        self.path = ActiveValue::Set(new_values.path);
-        self.line = ActiveValue::Set(new_values.line);
-        self.message = ActiveValue::Set(new_values.message);
-        self.stack_trace = ActiveValue::Set(new_values.stack_trace);
         self.resolved = ActiveValue::Set(new_values.resolved);
-        self.updated_at = ActiveValue::Set(new_values.updated_at);
     }
 }
 
