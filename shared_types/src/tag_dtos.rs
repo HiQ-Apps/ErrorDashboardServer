@@ -31,8 +31,17 @@ pub struct CreateTagDTO {
 pub struct CreateTagClientNoIdDTO {
     pub tag_key: String,
     pub tag_value: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+pub struct CreateTagRequestDTO {
+    pub tag_key: String,
+    pub tag_value: String,
     pub error_id: Uuid,
 }
+
+
+
 
 #[derive(Hash, Eq, PartialEq, Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct ShortTagNoIdDTO {

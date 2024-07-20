@@ -120,8 +120,8 @@ async fn main() -> std::io::Result<()> {
             .configure(|cfg| auth_routes::configure_with_auth(cfg, &jwt_middleware))
             .configure(|cfg| user_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| namespace_routes::configure(cfg, &jwt_middleware))
-            .configure(|cfg| error_routes::sdk_configure(cfg, &sdk_middleware))
             .configure(|cfg| error_routes::configure(cfg, &jwt_middleware))
+            .configure(|cfg| error_routes::sdk_configure(cfg, &sdk_middleware))
             .configure(|cfg| tag_routes::configure(cfg, &jwt_middleware))
     })
     .bind(("127.0.0.1", config_for_server.api_port))?

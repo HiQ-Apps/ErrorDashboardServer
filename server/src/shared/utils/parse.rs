@@ -3,7 +3,7 @@ pub struct StackTraceInfo {
     pub error_type: String,
     pub error_message: String,
     pub file_path: String,
-    pub line_number: String,
+    pub line_number: i32,
     pub function_name: String,
     pub module_name: String,
     pub stack_trace_lines: Vec<String>,
@@ -15,7 +15,7 @@ impl StackTraceInfo {
             error_type: String::new(),
             error_message: String::new(),
             file_path: String::new(),
-            line_number: String::new(),
+            line_number: 0,
             function_name: String::new(),
             module_name: String::new(),
             stack_trace_lines: Vec::new(),
@@ -26,7 +26,7 @@ impl StackTraceInfo {
         error_type: String,
         error_message: String,
         file_path: String,
-        line_number: String,
+        line_number: i32,
         function_name: String,
         module_name: String,
         stack_trace_lines: Vec<String>,
@@ -54,7 +54,7 @@ pub fn parse_stack_trace(stack_trace: &String) -> Result<StackTraceInfo, &'stati
     let mut error_type = String::new();
     let mut error_message = String::new();
     let mut file_path = String::new();
-    let mut line_number = String::new();
+    let mut line_number = 0;
     let mut function_name = String::new();
     let mut module_name = String::new();
     let mut stack_trace_lines = Vec::new();
@@ -79,7 +79,7 @@ pub fn parse_stack_trace(stack_trace: &String) -> Result<StackTraceInfo, &'stati
 
             if error_origin_parts.len() > 1 {
                 file_path = error_origin_parts[0].to_string();
-                line_number = error_origin_parts[1].to_string();
+                line_number = error_origin_parts[1].parse().unwrap();
             }
 
             if line_parts.len() > 2 {

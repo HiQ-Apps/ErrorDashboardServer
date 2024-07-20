@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_valid::Validate;
 use uuid::Uuid;
 
-use super::tag_dtos::{TagDTO, ShortTagNoIdDTO, ShortTagDTO, CreateTagClientNoIdDTO};
+use super::tag_dtos::{TagDTO, ShortTagNoIdDTO, ShortTagDTO, CreateTagClientNoIdDTO, CreateTagRequestDTO};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct ShortErrorDTO {
@@ -33,7 +33,7 @@ pub struct GetAggregatedMessageErrorDTO {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 pub struct GetAggregatedLineErrorDTO {
-    pub line: String,
+    pub line: i32,
     pub aggregated_tags: Vec<ShortTagNoIdDTO>,
     pub user_affected_count: i32,
     pub error_count: i32,
@@ -76,7 +76,7 @@ pub struct ErrorDTO {
     pub user_affected: String,
     pub message: String,
     pub path: String,
-    pub line: String,
+    pub line: i32,
     pub stack_trace: String,
     pub namespace_id: Uuid,
     pub resolved: bool,
@@ -91,7 +91,7 @@ pub struct AggregateIndividualErrorDTO {
     pub user_affected: String,
     pub message: String,
     pub path: String,
-    pub line: String,
+    pub line: i32,
     pub stack_trace: String,
     pub namespace_id: Uuid,
     pub resolved: bool,
@@ -112,7 +112,6 @@ pub struct CreateErrorRequest {
     pub user_affected: String,
     pub stack_trace: String,
     pub message: String,
-    pub namespace_id: Uuid,
     pub tags: Option<Vec<CreateTagClientNoIdDTO>>,
 }
 

@@ -1,9 +1,9 @@
 use actix::Addr;
-use actix_web::{web, HttpResponse, Result};
+use actix_web::{web, HttpRequest, HttpResponse, Result};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::managers::namespace_manager::NamespaceServer;
+use crate::{managers::namespace_manager::NamespaceServer, shared::utils::errors::RequestError};
 use crate::handlers::ws_handlers::NewError;
 use crate::services::error_services::ErrorService;
 use crate::shared::utils::errors::ServerError;
@@ -15,13 +15,22 @@ pub struct ErrorHandler;
 
 impl ErrorHandler {
     pub async fn create_error(
+        req: HttpRequest,
         error_services: web::Data<Arc<ErrorService>>,
         namespace_manager: web::Data<Addr<NamespaceServer>>,
         new_error: web::Json<CreateErrorRequest>,
     ) -> Result<HttpResponse, ServerError> {
         let error_dto = new_error.into_inner();
+        let headers = req.headers();
+        let client_id_header = headers.get("client_id").unwrap();
+
+        let client_id = match client_id_header.to_str() {
+            Ok(client_id) => client_id,
+            Err(_) => return Err(ServerError::RequestError(RequestError::InvalidHeader))
+        };
+        let client_id = Uuid::parse_str(client_id).unwrap();
         
-        match error_services.create_error(error_dto).await {
+        match error_services.create_error(error_dto, client_id).await {
             Ok(error_dto) => {
                 namespace_manager.do_send(NewError(error_dto.clone()));
                 Ok(HttpResponse::Ok().finish())

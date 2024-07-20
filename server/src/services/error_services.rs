@@ -7,10 +7,11 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
-use shared_types::tag_dtos::{TagDTO, ShortTagDTO, CreateTagClientNoIdDTO};
+use shared_types::tag_dtos::{TagDTO, ShortTagDTO, CreateTagRequestDTO};
 use shared_types::error_dtos::{AggregateErrorDTO, CreateErrorDTO, CreateErrorRequest, ErrorDTO, ErrorMetaDTO, UpdateErrorDTO};
 use crate::models::error_model::{Entity as ErrorEntity, Model as ErrorModel};
 use crate::models::error_tag_model::{Entity as TagEntity, Model as TagModel, ActiveModel as ActiveTagModel};
+use crate::models::namespace_model::Entity as NamespaceEntity;
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError};
 use crate::shared::utils::parse::{parse_stack_trace, StackTraceInfo};
 
@@ -27,6 +28,7 @@ impl ErrorService {
     pub async fn create_error(
         &self,
         error: CreateErrorRequest,
+        namespace_client_id: Uuid,
     ) -> Result<CreateErrorDTO, ServerError> {
         let now = Utc::now();
 
@@ -39,6 +41,14 @@ impl ErrorService {
             Err(err) => println!("Failed to parse stack trace: {}", err),
         }
 
+        let found_namespace = NamespaceEntity::find()
+            .filter(<NamespaceEntity as sea_orm::EntityTrait>::Column::ClientId.eq(namespace_client_id))
+            .one(&*self.db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
+            .ok_or(ServerError::QueryError(QueryError::NamespaceNotFound))?;
+
+
         let create_error = ErrorModel {
             id: Uuid::new_v4(),
             user_affected: error.user_affected,
@@ -47,7 +57,7 @@ impl ErrorService {
             message: error.message,
             stack_trace: error_stack_trace,
             resolved: false,
-            namespace_id: error.namespace_id,
+            namespace_id: found_namespace.id,
             created_at: now,
             updated_at: now,
         };
@@ -58,11 +68,11 @@ impl ErrorService {
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
 
-        let mut return_tags: Vec<CreateTagClientNoIdDTO> = Vec::new();
+        let mut return_tags: Vec<CreateTagRequestDTO> = Vec::new();
 
         if let Some(tags) = error.tags {
             for tag in tags {
-                let tag_dto = CreateTagClientNoIdDTO {
+                let tag_dto = CreateTagRequestDTO {
                     tag_key: tag.tag_key,
                     tag_value: tag.tag_value,
                     error_id: create_error.id,

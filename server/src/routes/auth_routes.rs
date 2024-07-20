@@ -5,7 +5,7 @@ use crate::middlewares::auth_middleware::JwtMiddleware;
 
 pub fn configure_without_auth(cfg: &mut web::ServiceConfig) {
     cfg.service(
-        web::scope("/auth")
+        web::scope("/api/auth")
             .route("/login", web::post().to(AuthHandler::login))
             .route("/register", web::post().to(AuthHandler::register))
             .route("/refresh", web::get().to(AuthHandler::refresh_access_token))

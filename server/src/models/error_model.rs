@@ -15,7 +15,7 @@ pub struct Model {
     pub id: Uuid,
     pub user_affected: String,
     pub path: String,
-    pub line: String,
+    pub line: i32,
     pub message: String,
     pub stack_trace: String,
     pub resolved: bool,

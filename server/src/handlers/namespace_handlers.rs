@@ -113,7 +113,7 @@ impl NamespaceHandler {
         match result {
             AggregatedResult::ByTags(tag) => Ok(HttpResponse::Ok().json(tag)),
             AggregatedResult::ByLine(line) => Ok(HttpResponse::Ok().json(line)),
-            AggregatedResult::ByMessage(message) => Ok(HttpResponse::Ok().json(message)),
+             AggregatedResult::ByMessage(message) => Ok(HttpResponse::Ok().json(message)),
         }
     }
 

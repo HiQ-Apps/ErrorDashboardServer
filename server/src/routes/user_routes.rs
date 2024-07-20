@@ -6,7 +6,7 @@ use crate::middlewares::auth_middleware::JwtMiddleware;
 
 pub fn configure(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
     cfg.service(
-        web::scope("/users")
+        web::scope("/api/users")
             .wrap(jwt_middleware.clone())
             .route("/{id}", web::get().to(UserHandler::get_user))
             .route("/{id}/profile", web::get().to(UserHandler::get_user_profile))
