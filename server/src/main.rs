@@ -14,14 +14,15 @@ use actix::Actor;
 use actix_cors::Cors;
 use actix_web::{middleware, web, App, HttpServer, http};
 use log::{ error, info };
-use std::sync::Arc;
 use std::env;
+use std::sync::Arc;
 
 use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware};
-use crate::routes::{auth_routes, error_routes, namespace_routes, user_routes, tag_routes};
+use crate::routes::{auth_routes, error_routes, namespace_routes, user_routes, tag_routes, static_routes};
 use crate::services::init_services;
 use crate::managers::namespace_manager::NamespaceServer;
 use config::Config;
+
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -116,6 +117,7 @@ async fn main() -> std::io::Result<()> {
             )
 
             .wrap(middleware::Logger::default())
+            .configure(static_routes::configure)
             .configure(auth_routes::configure_without_auth)
             .configure(|cfg| auth_routes::configure_with_auth(cfg, &jwt_middleware))
             .configure(|cfg| user_routes::configure(cfg, &jwt_middleware))
