@@ -10,6 +10,7 @@ use serde_json::Error as JsonError;
 use serde_valid::Error as ValidationError;
 use thiserror::Error;
 use uuid::Error as UuidError;
+use std::io::Error as IoError;
 
 // Group enum'd errors into a single enum
 #[derive(Debug, Error)]
@@ -101,6 +102,9 @@ pub enum ExternalError {
 
     #[error("Validation error: {0}")]
     Validation(ValidationError<JsonError>),
+
+    #[error("IO error: {0}")]
+    Io(IoError),
 }
 
 #[derive(Debug, Error)]
