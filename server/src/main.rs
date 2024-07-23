@@ -107,14 +107,14 @@ async fn main() -> std::io::Result<()> {
             // Namespace websocket manager
             .app_data(web::Data::new(namespace_manager.clone()))
 
-            .wrap(
-                Cors::default()
-                    .allowed_origin("http://localhost:3000")
-                    .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
-                    .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT, http::header::CONTENT_TYPE])
-                    .max_age(3600)
-                    .supports_credentials()
-            )
+            // .wrap(
+            //     Cors::default()
+            //         .allowed_origin("http://localhost:3000")
+            //         .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+            //         .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT, http::header::CONTENT_TYPE])
+            //         .max_age(3600)
+            //         .supports_credentials()
+            // )
 
             .wrap(middleware::Logger::default())
             .configure(static_routes::configure)
