@@ -3,6 +3,7 @@ use serde_valid::Validate;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct TagDTO {
     pub id: Uuid,
     pub tag_key: String,
@@ -12,6 +13,7 @@ pub struct TagDTO {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct ShortTagDTO {
     pub id: Uuid,
     pub tag_key: String,
@@ -20,6 +22,7 @@ pub struct ShortTagDTO {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateTagDTO {
     pub tag_key: String,
     pub tag_value: String,
@@ -28,12 +31,14 @@ pub struct CreateTagDTO {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateTagClientNoIdDTO {
     pub tag_key: String,
     pub tag_value: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateTagRequestDTO {
     pub tag_key: String,
     pub tag_value: String,
@@ -44,6 +49,7 @@ pub struct CreateTagRequestDTO {
 
 
 #[derive(Hash, Eq, PartialEq, Debug, Serialize, Deserialize, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct ShortTagNoIdDTO {
     pub tag_key: String,
     pub tag_value: String,

@@ -11,6 +11,7 @@ async fn index_file() -> Result<NamedFile, ServerError> {
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(Files::new("/assets", "../../ErrorDashboardClient/client/dist/assets"));
+    cfg.service(Files::new("/fonts", "../../ErrorDashboardClient/client/dist/fonts"));
     cfg.service(web::resource("/").route(web::get().to(index_file)));
     cfg.default_service(web::route().to(index_file));
 }

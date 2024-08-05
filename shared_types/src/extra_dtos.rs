@@ -3,6 +3,7 @@ use serde::{Serialize, Deserialize};
 use serde_valid::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct ErrorQueryParams {
     pub offset: u64,
     pub limit: u64,
@@ -10,6 +11,7 @@ pub struct ErrorQueryParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct ErrorMetadataQueryParams {
     pub offset: u64,
     pub limit: u64,
@@ -18,12 +20,14 @@ pub struct ErrorMetadataQueryParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct PaginationParams {
     pub offset: u64,
     pub limit: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct TimeParams {
     pub start_time: NaiveDate,
     pub time_interval_minutes: i64,

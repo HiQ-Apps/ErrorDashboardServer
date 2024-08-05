@@ -5,6 +5,7 @@ use serde_valid::Validate;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct RefreshTokenDTO {
     pub refresh_token: String,
     pub issued_at: DateTime<Utc>,
@@ -15,6 +16,7 @@ pub struct RefreshTokenDTO {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct Claims {
     pub sub: Uuid,
     #[serde(with = "chrono::serde::ts_seconds")]
@@ -27,12 +29,14 @@ pub struct Claims {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct RefreshTokenServiceDTO {
     pub refresh_token: String,
     pub access_token: String
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct VerifyUserDTO {
     pub password: String
 }
