@@ -6,6 +6,7 @@ use uuid::Uuid;
 use super::auth_dtos::RefreshTokenDTO;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct UserProfileDTO {
     pub id: Uuid,
     pub first_name: String,
@@ -16,6 +17,7 @@ pub struct UserProfileDTO {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct UserCreateDTO {
     pub username: String,
     pub email: String,
@@ -23,6 +25,7 @@ pub struct UserCreateDTO {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct ShortUserDTO {
     pub id: Uuid,
     pub username: String,
@@ -30,6 +33,7 @@ pub struct ShortUserDTO {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct ShortUserProfileDTO {
     pub avatar_color: String,
     pub first_name: Option<String>,
@@ -39,6 +43,7 @@ pub struct ShortUserProfileDTO {
 
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateUserProfileDTO {
     pub avatar_color: Option<String>,
     pub first_name: Option<String>,
@@ -48,12 +53,14 @@ pub struct UpdateUserProfileDTO {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct UserLoginDTO {
     pub email: String,
     pub password: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct UserLoginServiceDTO {
     pub user: ShortUserDTO,
     pub user_profile: ShortUserProfileDTO,
@@ -62,6 +69,7 @@ pub struct UserLoginServiceDTO {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct UserResponseDTO {
     pub user: ShortUserDTO,
     pub user_profile: ShortUserProfileDTO,

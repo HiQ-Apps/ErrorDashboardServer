@@ -31,7 +31,7 @@ impl AuthHandler {
                     access_token: access_token.clone(),
                 };
 
-                let refresh_token_cookie = Cookie::build("refresh_token", refresh_token_value)
+                let refresh_token_cookie = Cookie::build("refreshToken", refresh_token_value)
                     .http_only(true)
                     .path("/")
                     .secure(false)
@@ -39,7 +39,7 @@ impl AuthHandler {
                     .max_age(Duration::days(1))
                     .finish();
 
-                let access_token_cookie = Cookie::build("access_token", access_token)
+                let access_token_cookie = Cookie::build("accessToken", access_token)
                     .http_only(true)
                     .path("/")
                     .secure(false)
@@ -73,14 +73,14 @@ impl AuthHandler {
                     access_token: access_token.clone(),
                 };
 
-                let refresh_token_cookie = Cookie::build("refresh_token", refresh_token_value)
+                let refresh_token_cookie = Cookie::build("refreshToken", refresh_token_value)
                     .http_only(true)
                     .secure(false)
                     .path("/")
                     .same_site(SameSite::Strict)
                     .finish();
 
-                let access_token_cookie = Cookie::build("access_token", access_token)
+                let access_token_cookie = Cookie::build("accessToken", access_token)
                     .http_only(true)
                     .secure(false)
                     .path("/")
@@ -104,7 +104,7 @@ impl AuthHandler {
         config: web::Data<Arc<Config>>,
     ) -> Result<HttpResponse, ServerError> {
         let cookies = req.cookies().map_err(|_| ServerError::RequestError(RequestError::InvalidCookies))?;
-        let refresh_token_cookie = cookies.iter().find(|cookie| cookie.name() == "refresh_token");
+        let refresh_token_cookie = cookies.iter().find(|cookie| cookie.name() == "refreshToken");
 
         match refresh_token_cookie {
             Some(refresh_token_cookie) => {
@@ -116,14 +116,14 @@ impl AuthHandler {
                         let refresh_token_response = auth_services.process_token_refresh(&token_model.token).await?;
                         let new_access_token = refresh_token_response.access_token.clone();
 
-                        let new_access_token_cookie = Cookie::build("access_token", new_access_token.clone())
+                        let new_access_token_cookie = Cookie::build("accessToken", new_access_token.clone())
                             .http_only(true)
                             .secure(false)
                             .path("/")
                             .same_site(SameSite::Strict)
                             .finish();
 
-                        let new_refresh_token_cookie = Cookie::build("refresh_token", refresh_token_response.refresh_token.refresh_token.clone())
+                        let new_refresh_token_cookie = Cookie::build("refreshToken", refresh_token_response.refresh_token.refresh_token.clone())
                             .http_only(true)
                             .secure(false)
                             .path("/")
