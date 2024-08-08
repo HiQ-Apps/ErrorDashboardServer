@@ -11,11 +11,10 @@ mod shared {
 }
 
 use actix::Actor;
-use actix_cors::Cors;
-use actix_web::{middleware, web, App, HttpServer, http};
+use actix_web::{middleware, web};
 use log::{ error, info };
-use std::env;
 use std::sync::Arc;
+use shuttle_actix_web::{ShuttleActixWeb, ActixWebService};
 
 use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware};
 use crate::routes::{auth_routes, error_routes, namespace_routes, user_routes, tag_routes, static_routes};
@@ -24,17 +23,13 @@ use crate::managers::namespace_manager::NamespaceServer;
 use config::Config;
 
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    env::set_var("RUST_BACKTRACE", "1");
-
+#[shuttle_runtime::main]
+async fn main() -> ShuttleActixWeb<impl FnOnce(&mut web::ServiceConfig) + Send + Clone + 'static> {
     let config = match Config::from_env() {
         Ok(conf) => {
-            env_logger::init();
             info!("Successfully loaded configurations.");
             Arc::new(conf)},
         Err(error) => {
-            env_logger::init();
             error!("Failed to load configurations: {}", error);
             std::process::exit(1)
         }
@@ -91,10 +86,9 @@ async fn main() -> std::io::Result<()> {
 
     let namespace_manager = NamespaceServer::new().start();
 
-    HttpServer::new(move || {
-        App::new()
+    let configure_services = move |cfg: &mut web::ServiceConfig| {
             // DB Pool and Configs
-            .app_data(web::Data::new(Arc::clone(&db_pool)))
+            cfg.app_data(web::Data::new(Arc::clone(&db_pool)))
             .app_data(web::Data::new(Arc::clone(&config)))
             
             // Pass service as app_data to handlers and routes to make accessable
@@ -107,28 +101,19 @@ async fn main() -> std::io::Result<()> {
             // Namespace websocket manager
             .app_data(web::Data::new(namespace_manager.clone()))
 
-            // .wrap(
-            //     Cors::default()
-            //         .allowed_origin("http://localhost:3000")
-            //         .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
-            //         .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT, http::header::CONTENT_TYPE])
-            //         .max_age(3600)
-            //         .supports_credentials()
-            // )
-
-            .wrap(middleware::Logger::default())
-            .configure(static_routes::configure)
-            .configure(auth_routes::configure_without_auth)
-            .configure(|cfg| auth_routes::configure_with_auth(cfg, &jwt_middleware))
-            .configure(|cfg| user_routes::configure(cfg, &jwt_middleware))
-            .configure(|cfg| namespace_routes::configure(cfg, &jwt_middleware))
-            .configure(|cfg| error_routes::configure(cfg, &jwt_middleware))
-            .configure(|cfg| error_routes::sdk_configure(cfg, &sdk_middleware))
-            .configure(|cfg| tag_routes::configure(cfg, &jwt_middleware))
-    })
-    .bind(("127.0.0.1", config_for_server.api_port))?
-    .run()
-    .await
-    
+            .service(
+                web::scope("")
+                    .wrap(middleware::Logger::default())
+                    .configure(static_routes::configure)
+                    .configure(auth_routes::configure_without_auth)
+                    .configure(|cfg| auth_routes::configure_with_auth(cfg, &jwt_middleware))
+                    .configure(|cfg| user_routes::configure(cfg, &jwt_middleware))
+                    .configure(|cfg| namespace_routes::configure(cfg, &jwt_middleware))
+                    .configure(|cfg| error_routes::configure(cfg, &jwt_middleware))
+                    .configure(|cfg| error_routes::sdk_configure(cfg, &sdk_middleware))
+                    .configure(|cfg| tag_routes::configure(cfg, &jwt_middleware))
+            );
+    };
+    Ok(ActixWebService(configure_services))
 }
 
