@@ -10,10 +10,8 @@ mod shared {
     pub mod utils;
 }
 
-use actix::{Actor, Addr, Arbiter, System};
-use actix_web::{middleware, web, App, HttpServer};
+use actix_web::web;
 use log::{error, info};
-use tokio::sync::oneshot;
 use std::sync::Arc;
 use shuttle_actix_web::{ShuttleActixWeb, ActixWebService};
 use shuttle_runtime::SecretStore;
