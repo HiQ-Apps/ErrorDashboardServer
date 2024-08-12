@@ -47,6 +47,7 @@ impl ResponseError for ServerError {
             },
             ServerError::RequestError(ref err) => {
                 let status = match err {
+                    RequestError::NamespaceLimitReached => StatusCode::FORBIDDEN,
                     RequestError::InvalidCookies => StatusCode::UNAUTHORIZED,
                     RequestError::MissingCookie => StatusCode::UNAUTHORIZED,
                     RequestError::MissingUserID => StatusCode::BAD_REQUEST,
@@ -156,6 +157,9 @@ pub enum RequestError {
 
     #[error("Missing header")]
     MissingHeader,
+
+    #[error("Namespace Limit Reached")]
+    NamespaceLimitReached,
 
     #[error("Permission denied")]
     PermissionDenied,

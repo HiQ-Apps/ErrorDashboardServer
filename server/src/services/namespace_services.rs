@@ -41,6 +41,16 @@ impl NamespaceService {
         let new_client_id = Uuid::new_v4();
         let now = Utc::now();
 
+        // Check if user has 10 > namespaces
+        let user_namespace_count = UserNamespaceJunctionEntity::find()
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::UserId.eq(user_id))
+            .count(db)
+            .await.map_err(ExternalError::from)?;
+
+        if user_namespace_count >= 10 {
+            return Err(ServerError::RequestError(RequestError::NamespaceLimitReached));
+        }
+
         let namespace = NamespaceModel {
             id: uid,
             active: true,
