@@ -14,7 +14,7 @@ pub fn configure_without_auth(cfg: &mut web::ServiceConfig) {
 
 pub fn configure_with_auth(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
     cfg.service(
-        web::scope("/verified/auth")
+        web::scope("api/verified/auth")
             .wrap(jwt_middleware.clone())
             .route("/check", web::post().to(AuthHandler::verify_user))
     );

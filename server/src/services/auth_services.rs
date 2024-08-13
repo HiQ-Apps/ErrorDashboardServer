@@ -201,7 +201,7 @@ impl AuthService {
         Ok(user_response)
     }
 
-    pub async fn verify_user(&self, user_id: Uuid, user_pass: String) -> Result<(), ServerError> {
+    pub async fn verify_user(&self, user_id: Uuid, user_pass: String) -> Result<bool, ServerError> {
         let db = &*self.db;
 
         let found_user: Option<UserModel> = UserEntity::find()
@@ -215,7 +215,7 @@ impl AuthService {
             Some(user) => {
                 let is_valid = verify(&user_pass, &user.password).map_err(|err| ServerError::from(ExternalError::Bcrypt(err)))?;
                 if is_valid {
-                    Ok(())
+                    Ok(true)
                 } else {
                     Err(ServerError::QueryError(QueryError::PasswordIncorrect))
                 }

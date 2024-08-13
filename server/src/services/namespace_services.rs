@@ -233,60 +233,59 @@ impl NamespaceService {
         Ok(())
     }
 
-    pub async fn delete_namespace(&self, namespace_id: Uuid, user_id: Uuid) -> Result<(), ServerError> {
-        let db: &DatabaseConnection = &*self.db;
-        let transaction = db.begin().await.map_err(ExternalError::from)?;
-        
+pub async fn delete_namespace(&self, namespace_id: Uuid, user_id: Uuid) -> Result<(), ServerError> {
+    let db: &DatabaseConnection = &*self.db;
+    let transaction = db.begin().await.map_err(ExternalError::from)?;
 
-        let namespace_junc_result = UserNamespaceJunctionEntity::find()
-            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
-            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::UserId.eq(user_id))
-            .one(&transaction)
-            .await;
+    let namespace_junc_result = UserNamespaceJunctionEntity::find()
+        .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
+        .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::UserId.eq(user_id))
+        .one(&transaction)
+        .await;
 
-        let namespace_junc = match namespace_junc_result {
-            Ok(Some(junction)) => junction,
-            Ok(None) => {
-                transaction.rollback().await.map_err(ExternalError::from)?;
-                return Err(ServerError::QueryError(QueryError::UserNamespaceJunctionNotFound));
-            },
-            Err(err) => {
-                transaction.rollback().await.map_err(ExternalError::from)?;
-                return Err(ServerError::from(ExternalError::DB(err)));
-            },
-        };
-
-        let namespace_result = NamespaceEntity::find()
-            .filter(<NamespaceEntity as EntityTrait>::Column::Id.eq(namespace_id))
-            .one(&transaction)
-            .await;
-
-        let namespace = match namespace_result {
-            Ok(Some(namespace)) => namespace,
-            Ok(None) => {
-                transaction.rollback().await.map_err(ExternalError::from)?;
-                return Err(ServerError::QueryError(QueryError::NamespaceNotFound));
-            },
-            Err(err) => {
-                transaction.rollback().await.map_err(ExternalError::from)?;
-                return Err(ServerError::from(ExternalError::from(err)));
-            },
-        };
-
-        if namespace_junc.user_id != user_id {
+    let namespace_junc = match namespace_junc_result {
+        Ok(Some(junction)) => junction,
+        Ok(None) => {
             transaction.rollback().await.map_err(ExternalError::from)?;
-            return Err(ServerError::RequestError(RequestError::PermissionDenied));
-        };
-
-        if let Err(err) = namespace.delete(&transaction).await {
+            return Err(ServerError::QueryError(QueryError::UserNamespaceJunctionNotFound));
+        },
+        Err(err) => {
             transaction.rollback().await.map_err(ExternalError::from)?;
-            return Err(ServerError::from(ExternalError::from(err)));
-        };
+            return Err(ServerError::from(ExternalError::DB(err)));
+        },
+    };
 
-        transaction.commit().await.map_err(ExternalError::from)?;
+    let namespace_result = NamespaceEntity::find()
+        .filter(<NamespaceEntity as EntityTrait>::Column::Id.eq(namespace_id))
+        .one(&transaction)
+        .await;
 
-        Ok(())
-    }
+    let namespace = match namespace_result {
+        Ok(Some(namespace)) => namespace,
+        Ok(None) => {
+            transaction.rollback().await.map_err(ExternalError::from)?;
+            return Err(ServerError::QueryError(QueryError::NamespaceNotFound));
+        },
+        Err(err) => {
+            transaction.rollback().await.map_err(ExternalError::from)?;
+            return Err(ServerError::from(ExternalError::DB(err)));
+        },
+    };
+
+    if namespace_junc.user_id != user_id {
+        transaction.rollback().await.map_err(ExternalError::from)?;
+        return Err(ServerError::RequestError(RequestError::PermissionDenied));
+    };
+
+    if let Err(err) = namespace.delete(&transaction).await {
+        transaction.rollback().await.map_err(ExternalError::from)?;
+        return Err(ServerError::from(ExternalError::DB(err)));
+    };
+
+    transaction.commit().await.map_err(ExternalError::from)?;
+
+    Ok(())
+}
 
     pub async fn get_errors_by_namespace_id(
         &self,
