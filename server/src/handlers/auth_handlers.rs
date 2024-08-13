@@ -165,7 +165,7 @@ impl AuthHandler {
         let VerifyUserDTO { password } = password.into_inner();
 
         match auth_services.verify_user(user_id, password).await {
-            Ok(_) => Ok(HttpResponse::Ok().json(true)),
+            Ok(()) => Ok(HttpResponse::Ok().finish()),
             Err(err) => Err(err),
         }
     }
