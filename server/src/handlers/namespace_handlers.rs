@@ -93,7 +93,7 @@ impl NamespaceHandler {
         let user_id = extract_user_id_from_jwt_header(headers, secret_key)?;
 
         match namespace_services.delete_namespace(*namespace_id, user_id).await {
-            Ok(id) => Ok(HttpResponse::Ok().json(id)),
+            Ok(()) => Ok(HttpResponse::Ok().finish()),
             Err(err) => Err(err)
         }
     }
