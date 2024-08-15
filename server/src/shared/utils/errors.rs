@@ -47,6 +47,7 @@ impl ResponseError for ServerError {
             },
             ServerError::RequestError(ref err) => {
                 let status = match err {
+                    RequestError::RateLimitExceeded => StatusCode::TOO_MANY_REQUESTS,
                     RequestError::NamespaceLimitReached => StatusCode::FORBIDDEN,
                     RequestError::InvalidCookies => StatusCode::UNAUTHORIZED,
                     RequestError::MissingCookie => StatusCode::UNAUTHORIZED,
@@ -172,6 +173,9 @@ pub enum RequestError {
 
     #[error("Invalid cookies")]
     InvalidCookies,
+
+    #[error("Rate limit exceeded")]
+    RateLimitExceeded,
 }
 
 impl From<ExternalError> for ServerError {

@@ -17,7 +17,7 @@ impl ErrorHandler {
     pub async fn create_error(
         req: HttpRequest,
         error_services: web::Data<Arc<ErrorService>>,
-        namespace_manager: web::Data<Addr<NamespaceServer>>,
+        // namespace_manager: web::Data<Addr<NamespaceServer>>,
         new_error: web::Json<CreateErrorRequest>,
     ) -> Result<HttpResponse, ServerError> {
         let error_dto = new_error.into_inner();
@@ -30,12 +30,15 @@ impl ErrorHandler {
         };
         let client_id = Uuid::parse_str(client_id).unwrap();
         
-        match error_services.create_error(error_dto, client_id).await {
-            Ok(error_dto) => {
-                namespace_manager.do_send(NewError(error_dto.clone()));
-                Ok(HttpResponse::Ok().finish())
-            },
-            Err(err) => Err(err)
+        let result = error_services.create_error(error_dto.clone(), client_id).await;
+
+        // if let Ok(_) = result {
+        //     namespace_manager.do_send(NewError(error_dto));
+        // }
+
+        match result {
+            Ok(_) => Ok(HttpResponse::Ok().finish()),
+            Err(err) => Err(err),
         }
     }
 

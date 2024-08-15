@@ -5,6 +5,7 @@ use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, QueryOrder, Quer
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
+use log::{error, info};
 
 use crate::config::Config;
 use shared_types::tag_dtos::{TagDTO, ShortTagDTO, CreateTagRequestDTO};
@@ -48,7 +49,6 @@ impl ErrorService {
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
             .ok_or(ServerError::QueryError(QueryError::NamespaceNotFound))?;
 
-
         let create_error = ErrorModel {
             id: Uuid::new_v4(),
             user_affected: error.user_affected,
@@ -61,12 +61,11 @@ impl ErrorService {
             created_at: now,
             updated_at: now,
         };
-        
+
         ErrorEntity::insert(create_error.clone().into_active_model())
             .exec(&*self.db)
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
-
 
         let mut return_tags: Vec<CreateTagRequestDTO> = Vec::new();
 
@@ -87,7 +86,7 @@ impl ErrorService {
                     .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
             }
         }
-        
+
         Ok(CreateErrorDTO {
             id: create_error.id,
             message: create_error.message,
