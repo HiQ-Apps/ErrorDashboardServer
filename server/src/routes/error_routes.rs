@@ -1,7 +1,10 @@
+use std::{vec, sync::Arc};
 use actix_web::web;
+use actix_cors::Cors;
 
 use crate::handlers::error_handlers::ErrorHandler;
-use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware};
+use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware, rate_limit_middleware::RateLimiterMiddleware};
+use crate::shared::utils::rate_limit::DynamicStripedRateLimiter;
 
 pub fn configure(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
     cfg.service(
@@ -15,9 +18,21 @@ pub fn configure(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
 }
 
 pub fn sdk_configure(cfg: &mut web::ServiceConfig, client_sdk_middleware: &ClientAuthMiddleware) {
+    let cors = Cors::default()
+        .allow_any_origin()
+        .allowed_methods(vec!["POST"])
+        .allowed_headers(vec!["Content-Type", "client_id", "client_secret"])
+        .max_age(3600);
+
+    // Adjust as we scale
+    let stripe = DynamicStripedRateLimiter::new(8);
+    let rate_limiter_middleware = RateLimiterMiddleware::new(Arc::clone(&stripe));
+    
     cfg.service(
         web::scope("/sdk/error")
             .wrap(client_sdk_middleware.clone())
+            .wrap(rate_limiter_middleware)
+            .wrap(cors)
             .route("/", web::post().to(ErrorHandler::create_error))
     );
 }

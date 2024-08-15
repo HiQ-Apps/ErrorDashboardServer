@@ -60,7 +60,6 @@ where
     }
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        println!("client middleware called");
         let headers = req.headers().clone();
 
         let client_id = headers.get("client_id").and_then(|h| h.to_str().ok()).map(|s| s.to_string());

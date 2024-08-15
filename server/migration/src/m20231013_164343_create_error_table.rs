@@ -13,7 +13,6 @@ pub enum Errors {
     Message,
     StackTrace,
     Resolved,
-    Tags,
     CreatedAt,
     UpdatedAt
 }
