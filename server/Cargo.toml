@@ -1,0 +1,44 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2021"
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+shared_types = { path = "../shared_types" }
+
+actix-web = "4"
+actix-service = "2.0.2"
+anyhow = "1.0.75"
+bcrypt = "0.15.0"
+chrono = { version = "0.4.26", features = ["serde"] }
+dotenv = "0.15"
+env_logger = "0.10.0"
+futures = "0.3.28"
+jsonwebtoken = "8.3.0"
+log = "0.4.20"
+tokio = { version = "1", features = ["full"] }
+tokio-postgres = "0.7.8"
+sea-orm = { version = "0.12.2", features = ["sqlx-postgres", "runtime-tokio-native-tls", "with-chrono", "macros"] }
+serde = { version = "1.0.183", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.4.1", features = ["v4", "serde"] }
+async-trait = "0.1.80"
+thiserror = "1.0.60"
+actix-web-actors = "4.3.0"
+futures-util = "0.3.30"
+actix = "0.13.3"
+serde_valid = "0.21.0"
+actix-cors = "0.7.0"
+chrono-tz = "0.9.0"
+cargo-watch = "8.5.2"
+actix-files = "0.6.6"
+shuttle-service = "0.47.0"
+shuttle-runtime = "0.47.0"
+shuttle-actix-web = "0.47.0"
+
+[[bin]]
+name = "server"
+path = "src/main.rs"
