@@ -9,4 +9,4 @@
 .vscode/
 Secrets.toml
 
-.json
+*.json

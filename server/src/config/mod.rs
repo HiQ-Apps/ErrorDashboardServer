@@ -5,6 +5,8 @@ use std::{str::FromStr, fmt::Display};
 pub struct Config {
     pub environment: String,
     pub secret_key: String,
+    pub google_secret_key: String,
+    pub google_client_id: String,
     pub hash_cost: String,
     pub jwt_issuer: String,
     pub jwt_audience: String,
@@ -23,6 +25,8 @@ impl Config {
         Ok(Config {
             environment,
             secret_key: get_secret_var(&secrets, "SECRET_KEY")?,
+            google_secret_key: get_secret_var(&secrets, "GOOGLE_SECRET_KEY")?,
+            google_client_id: get_secret_var(&secrets, "GOOGLE_CLIENT_ID")?,
             hash_cost: get_secret_var(&secrets, "HASH_COST")?,
             jwt_issuer: get_secret_var(&secrets, "JWT_ISSUER")?,
             jwt_audience: get_secret_var(&secrets, "JWT_AUDIENCE")?,

@@ -9,8 +9,10 @@ use sea_orm::TransactionError;
 use serde_json::Error as JsonError;
 use serde_valid::Error as ValidationError;
 use thiserror::Error;
+use tokio::sync::oneshot::error;
 use uuid::Error as UuidError;
 use std::io::Error as IoError;
+use reqwest::Error as ReqwestError;
 
 // Group enum'd errors into a single enum
 #[derive(Debug, Error)]
@@ -39,7 +41,7 @@ impl ResponseError for ServerError {
                 let status = match err {
                     QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound | QueryError::UserProfileNotFound => StatusCode::NOT_FOUND,
                     QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists => StatusCode::CONFLICT,
-                    QueryError::PasswordIncorrect => StatusCode::UNAUTHORIZED,
+                    QueryError::PasswordIncorrect | QueryError::OAuthTypeError => StatusCode::UNAUTHORIZED,
                     QueryError::InvalidTimestamp => StatusCode::BAD_REQUEST,
                     _ => StatusCode::BAD_REQUEST,
                 };
@@ -107,15 +109,27 @@ pub enum ExternalError {
 
     #[error("IO error: {0}")]
     Io(IoError),
+
+    #[error("Request error: {0}")]
+    Reqwest(ReqwestError),
 }
 
 #[derive(Debug, Error)]
 pub enum QueryError {
+    #[error("OAuth2 error")]
+    OAuthTypeError,
+
+    #[error("Password not found")]
+    PasswordNotFound,
+
     #[error("User profile not found")]
     UserProfileNotFound,
 
     #[error("User not found")]
     UserNotFound,
+
+    #[error("Password not set")]
+    PasswordNotSet,
 
     #[error("User already exists")]
     UserExists,
@@ -200,6 +214,12 @@ impl From<RequestError> for ServerError {
 impl From<ActixError> for ExternalError {
     fn from(error: ActixError) -> Self {
         ExternalError::Actix(error)
+    }
+}
+
+impl From<ReqwestError> for ExternalError {
+    fn from(value: ReqwestError) -> Self {
+        ExternalError::Reqwest(value)
     }
 }
 

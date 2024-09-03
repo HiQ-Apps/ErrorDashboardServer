@@ -6,6 +6,7 @@ use uuid::Uuid;
 use crate::models::refresh_token_model::Entity as RefreshTokenEntity;
 use crate::models::user_profile_model::Entity as UserProfileEntity;
 
+
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "users")]
 pub struct Model {
@@ -15,8 +16,9 @@ pub struct Model {
     pub username: String,
     #[sea_orm(unique)]
     pub email: String,
-    pub password: String,
+    pub password: Option<String>,
     pub user_profile_id: Uuid,
+    pub o_auth_provider: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -66,7 +68,8 @@ impl ActiveModelBehavior for ActiveModel {
             user_profile_id: ActiveValue::Set(Uuid::new_v4()),
             username: ActiveValue::Set(String::new()),
             email: ActiveValue::Set(String::new()),
-            password: ActiveValue::Set(String::new()),
+            password: ActiveValue::Set(Some(String::new())),
+            o_auth_provider: ActiveValue::Set(String::new()),
             created_at: ActiveValue::Set(Utc::now()),
             updated_at: ActiveValue::Set(Utc::now()),
         }

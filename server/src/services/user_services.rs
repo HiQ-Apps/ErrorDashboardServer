@@ -111,6 +111,7 @@ impl UserService {
             user_profile_id: ActiveValue::Set(user.user_profile_id),
             username: ActiveValue::Unchanged(user.username),
             password: ActiveValue::Unchanged(user.password),
+            o_auth_provider: ActiveValue::Unchanged(user.o_auth_provider),
             created_at: ActiveValue::Set(user.created_at),
             updated_at: ActiveValue::Unchanged(user.updated_at),
         };
@@ -146,7 +147,7 @@ impl UserService {
         if let Some(ref password) = update_user_profile.password {
             if !password.is_empty() {
                 let hashed_password = hash(password, hash_cost).map_err(|err| ServerError::ExternalError(ExternalError::Bcrypt(err)))?;
-                active_user.password = ActiveValue::Set(hashed_password);
+                active_user.password = ActiveValue::Set(Some(hashed_password));
                 user_updated = true;
             }
         }
