@@ -76,6 +76,26 @@ pub struct UserResponseDTO {
     pub access_token: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct GoogleUserInfoDTO {
+    // Google user ID
+    pub sub: String,
+    // User's email address
+    pub email: String,
+    // Whether the email is verified
+    pub email_verified: bool,
+    // Full name
+    pub name: String,      
+    // First name   
+    pub given_name: String,
+    // Last name
+    pub family_name: String,
+    // URL to the user's profile picture
+    pub picture: String,
+}
+
+
 impl From<UserLoginServiceDTO> for UserResponseDTO {
     fn from(service_dto: UserLoginServiceDTO) -> Self {
         UserResponseDTO {
