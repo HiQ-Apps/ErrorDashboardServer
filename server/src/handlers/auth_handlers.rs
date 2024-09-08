@@ -4,7 +4,7 @@ use oauth2::{AuthorizationCode, TokenResponse, basic::BasicClient};
 use reqwest::Client;
 use std::sync::Arc;
 
-use crate::config::Config;
+use crate::{config::Config, shared::utils::errors::QueryError};
 use crate::services::{AuthService, UserService};
 use crate::shared::utils::errors::{ServerError, RequestError};
 use crate::shared::utils::jwt::{extract_user_id_from_jwt_cookie, extract_user_id_from_jwt_header};
@@ -66,7 +66,7 @@ impl AuthHandler {
         }
     }
 
-    pub async fn google_callback_handler(
+    pub async fn google_callback(
         auth_service: web::Data<Arc<AuthService>>,
         oauth_client: web::Data<BasicClient>,
         query: web::Query<CallbackQuery>,
@@ -91,6 +91,17 @@ impl AuthHandler {
                 }
             }
             Err(_) => HttpResponse::Unauthorized().body("OAuth Callback failed"),
+        }
+    }
+    
+    pub async fn google_register(
+        auth_services: web::Data<Arc<AuthService>>,
+        oauth_client: web::Data<BasicClient>,
+    ) -> Result<HttpResponse, ServerError> {
+
+        match auth_services.google_login(oauth_client.get_ref().clone()).await {
+            Ok(auth_url_response) => Ok(auth_url_response),
+            Err(err) => Err(err),
         }
     }
 

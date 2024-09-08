@@ -2,6 +2,8 @@ use actix_web::HttpResponse;
 use bcrypt::{verify, hash};
 use chrono::Utc;
 use oauth2::basic::BasicClient;
+use oauth2::reqwest::async_http_client;
+use oauth2::{AuthorizationCode, TokenResponse};
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, TransactionTrait};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -120,7 +122,10 @@ impl AuthService {
             .finish())
     }
 
-    pub async fn google_callback(&self, user_info: GoogleUserInfoDTO) -> Result<UserLoginServiceDTO, ServerError> {
+    pub async fn google_callback(
+        &self,
+        user_info: GoogleUserInfoDTO,
+    ) -> Result<UserLoginServiceDTO, ServerError> {
         let db = &*self.db;
 
         // Attempt to find the user by email
@@ -132,74 +137,61 @@ impl AuthService {
 
         // Check if the user exists
         if let Some(user) = found_user {
-            // Generate access and refresh tokens for the existing user
-            let access_token = create_access_token(user.clone(), &self.configs)?;
-            let refresh_token_dto = create_refresh_token(user.id, &self.configs)?;
-
-            // Fetch the user's profile
-            let user_profile = UserProfileEntity::find()
-                .filter(<UserProfileEntity as EntityTrait>::Column::UserId.eq(user.id))
-                .one(db)
-                .await
-                .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
-                .ok_or(ServerError::QueryError(QueryError::UserProfileNotFound))?;
-
-            // Prepare the response DTO
-            let user_response = UserLoginServiceDTO {
-                user: ShortUserDTO {
-                    id: user.id,
-                    username: user.username,
-                    email: user.email,
-                },
-                user_profile: ShortUserProfileDTO {
-                    first_name: user_profile.first_name,
-                    last_name: user_profile.last_name,
-                    avatar_color: user_profile.avatar_color,
-                    updated_at: Utc::now(),
-                },
-                access_token,
-                refresh_token: refresh_token_dto,
-            };
-            Ok(user_response)
+            // If the user exists, log them in
+            self.login_existing_user(user).await
         } else {
-            Err(ServerError::QueryError(QueryError::UserNotFound))
+            // If the user does not exist, register them
+            self.google_register(user_info).await
         }
     }
 
     pub async fn google_register(
         &self,
         user_info: GoogleUserInfoDTO,
-    ) -> Result<HttpResponse, ServerError> {
+    ) -> Result<UserLoginServiceDTO, ServerError> {
         let db = &*self.db;
-        let user_id = Uuid::new_v4();
-        let now = Utc::now();
-        let configs = &*self.configs;
-
-        let transaction = db.begin().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
-
-        let existing_user = UserEntity::find()
+        
+        let found_user = UserEntity::find()
             .filter(<UserEntity as EntityTrait>::Column::Email.eq(user_info.email.clone()))
             .one(db)
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
-        if existing_user.is_some() {
-            return Err(ServerError::QueryError(QueryError::UserExists));
+        if let Some(user) = found_user {
+            self.login_existing_user(user).await
+        } 
+        else {
+            self.register_new_user(user_info).await
         }
+    }
+
+    pub async fn register_new_user(
+        &self,
+        user_info: GoogleUserInfoDTO,
+    ) -> Result<UserLoginServiceDTO, ServerError> {
+        let db = &*self.db;
+        let user_id = Uuid::new_v4();
+        let now = Utc::now();
+
+        let transaction = db.begin().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
         let new_profile_id = Uuid::new_v4();
-        let given_name = user_info.given_name.clone();
-        let family_name = user_info.family_name.clone();
-
         let new_user_profile = UserProfileModel {
             id: new_profile_id,
             user_id,
-            first_name: Some(user_info.given_name),
-            last_name: Some(user_info.family_name),
+            first_name: Some(user_info.given_name.clone()),
+            last_name: Some(user_info.family_name.clone()),
             avatar_color: "#098585".to_string(),
             created_at: now,
             updated_at: now,
         };
+
+        if let Err(err) = UserProfileEntity::insert(new_user_profile.into_active_model())
+            .exec(&transaction)
+            .await {
+            transaction.rollback().await.map_err(|rollback_err| ServerError::ExternalError(ExternalError::DB(rollback_err)))?;
+            return Err(ServerError::ExternalError(ExternalError::DB(err)));
+        }
 
         let new_user = UserModel {
             id: user_id,
@@ -213,41 +205,87 @@ impl AuthService {
         };
 
         let new_user_clone = new_user.clone();
-
-        if let Err(err) = UserProfileEntity::insert(new_user_profile.into_active_model())
-            .exec(&transaction)
-            .await {
-                transaction.rollback().await.map_err(|rollback_err| ServerError::ExternalError(ExternalError::DB(rollback_err)))?;
-                return Err(ServerError::ExternalError(ExternalError::DB(err)));
-            }
+        let response_user = new_user.clone();
 
         if let Err(err) = UserEntity::insert(new_user.into_active_model())
             .exec(&transaction)
             .await {
-                transaction.rollback().await.map_err(|rollback_err| ServerError::ExternalError(ExternalError::DB(rollback_err)))?;
-                return Err(ServerError::ExternalError(ExternalError::DB(err)));
-            }
+            transaction.rollback().await.map_err(|rollback_err| ServerError::ExternalError(ExternalError::DB(rollback_err)))?;
+            return Err(ServerError::ExternalError(ExternalError::DB(err)));
+        }
 
-        let access_token = create_access_token(new_user_clone.clone(), &configs)?;
-        let refresh_token_dto = create_refresh_token(new_user_clone.id, &configs)?;
+        transaction.commit().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
-        Ok(HttpResponse::Ok().json(UserLoginServiceDTO {
+        let refresh_token_dto = create_refresh_token(new_user_clone.id.clone(), &self.configs)?;
+        let access_token = create_access_token(new_user_clone, &self.configs)?;
+
+        Ok(UserLoginServiceDTO {
             user: ShortUserDTO {
-                id: user_id,
-                username: user_info.email.clone(),
-                email: user_info.email.clone(),
+                id: response_user.id,
+                username: response_user.username,
+                email: response_user.email,
             },
             user_profile: ShortUserProfileDTO {
-                first_name: Some(given_name),
-                last_name: Some(family_name),
+                first_name: Some(user_info.given_name),
+                last_name: Some(user_info.family_name),
                 avatar_color: "#098585".to_string(),
                 updated_at: now,
             },
             access_token,
             refresh_token: refresh_token_dto,
-        }))
+        })
     }
 
+    pub async fn login_existing_user(
+        &self,
+        user: UserModel,
+    ) -> Result<UserLoginServiceDTO, ServerError> {
+        let access_token = create_access_token(user.clone(), &self.configs)?;
+        let refresh_token_dto = create_refresh_token(user.id, &self.configs)?;
+
+        let user_profile = UserProfileEntity::find()
+            .filter(<UserProfileEntity as EntityTrait>::Column::UserId.eq(user.id))
+            .one(&*self.db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
+            .ok_or(ServerError::QueryError(QueryError::UserProfileNotFound))?;
+
+        Ok(UserLoginServiceDTO {
+            user: ShortUserDTO {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+            },
+            user_profile: ShortUserProfileDTO {
+                first_name: user_profile.first_name,
+                last_name: user_profile.last_name,
+                avatar_color: user_profile.avatar_color,
+                updated_at: Utc::now(),
+            },
+            access_token,
+            refresh_token: refresh_token_dto,
+        })
+    }
+
+
+    pub async fn fetch_google_user_info(access_token: &str) -> Result<GoogleUserInfoDTO, ServerError> {
+        let user_info_url = "https://www.googleapis.com/oauth2/v1/userinfo?alt=json";
+        let client = reqwest::Client::new();
+        let res = client
+            .get(user_info_url)
+            .bearer_auth(access_token)
+            .send()
+            .await
+            .map_err(|_| ServerError::ExternalError(ExternalError::OAuth2))?;
+
+        if res.status().is_success() {
+            let user_info = res.json::<GoogleUserInfoDTO>().await
+                .map_err(|_| ServerError::ExternalError(ExternalError::OAuth2))?;
+            Ok(user_info)
+        } else {
+            Err(ServerError::ExternalError(ExternalError::OAuth2))
+        }
+    }
 
     pub async fn register(
         &self,

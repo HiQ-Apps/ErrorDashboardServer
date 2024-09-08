@@ -10,7 +10,8 @@ pub fn configure_without_auth(cfg: &mut web::ServiceConfig) {
             .route("/register", web::post().to(AuthHandler::register))
             .route("/refresh", web::get().to(AuthHandler::refresh_access_token))
             .route("/login/google", web::get().to(AuthHandler::google_login))
-            .route("/login/google/callback", web::get().to(AuthHandler::google_callback_handler))
+            .route("/login/google/callback", web::get().to(AuthHandler::google_callback))
+            .route("/register/google", web::get().to(AuthHandler::google_register))
     );
 }
 

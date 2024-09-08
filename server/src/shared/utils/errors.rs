@@ -10,6 +10,7 @@ use serde_json::Error as JsonError;
 use serde_valid::Error as ValidationError;
 use thiserror::Error;
 use tokio::sync::oneshot::error;
+use oauth2::ErrorResponseType as OAuth2Error;
 use uuid::Error as UuidError;
 use std::io::Error as IoError;
 use reqwest::Error as ReqwestError;
@@ -49,6 +50,7 @@ impl ResponseError for ServerError {
             },
             ServerError::RequestError(ref err) => {
                 let status = match err {
+                    RequestError::OAuthCallbackFailed => StatusCode::INTERNAL_SERVER_ERROR,
                     RequestError::RateLimitExceeded => StatusCode::TOO_MANY_REQUESTS,
                     RequestError::NamespaceLimitReached => StatusCode::FORBIDDEN,
                     RequestError::InvalidCookies => StatusCode::UNAUTHORIZED,
@@ -112,6 +114,9 @@ pub enum ExternalError {
 
     #[error("Request error: {0}")]
     Reqwest(ReqwestError),
+
+    #[error("OAuth2 error")]
+    OAuth2
 }
 
 #[derive(Debug, Error)]
@@ -182,14 +187,17 @@ pub enum RequestError {
     #[error("Invalid query parameter")]
     InvalidQueryParameter,
 
-    #[error("Missing cookie")]
-    MissingCookie,
-
     #[error("Invalid cookies")]
     InvalidCookies,
 
+    #[error("Missing cookie")]
+    MissingCookie,
+
     #[error("Rate limit exceeded")]
     RateLimitExceeded,
+
+    #[error("Invalid cookies")]
+    OAuthCallbackFailed
 }
 
 impl From<ExternalError> for ServerError {
