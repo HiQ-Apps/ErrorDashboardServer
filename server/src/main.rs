@@ -12,19 +12,16 @@ mod shared {
 mod libs;
 
 use env_logger;
-use actix::Actor;
 use actix_web::web;
 use log::{error, info};
 use std::sync::Arc;
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_runtime::SecretStore;
-use tokio::task::spawn_local;
 
 use crate::libs::oauth_client::create_oauth_client;
 use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware};
 use crate::routes::{auth_routes, error_routes, namespace_routes, user_routes, tag_routes, static_routes};
 use crate::services::init_services;
-use crate::managers::namespace_manager::NamespaceServer;
 use config::Config;
 
 #[shuttle_runtime::main]
