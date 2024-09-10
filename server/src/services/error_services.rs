@@ -5,7 +5,6 @@ use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, QueryOrder, Quer
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
-use log::{error, info};
 
 use crate::config::Config;
 use shared_types::tag_dtos::{TagDTO, ShortTagDTO, CreateTagRequestDTO};

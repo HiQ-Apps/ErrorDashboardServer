@@ -1,14 +1,11 @@
 
 use actix_web::{web, HttpResponse, HttpRequest, Result, cookie::{Cookie, SameSite, time::Duration}};
 use oauth2::{AuthorizationCode, TokenResponse, basic::BasicClient};
-use reqwest::Client;
 use std::sync::Arc;
 
-use crate::{config::Config, shared::utils::errors::QueryError};
-use crate::services::{AuthService, UserService};
-use crate::shared::utils::errors::{ServerError, RequestError};
+use crate::{config::Config, services::{AuthService, UserService}};
+use crate::shared::utils::errors::{ServerError, RequestError, QueryError};
 use crate::shared::utils::jwt::{extract_user_id_from_jwt_cookie, extract_user_id_from_jwt_header};
-use crate::libs::oauth_client::fetch_google_user_info;
 use shared_types::auth_dtos::{VerifyUserDTO, CallbackQuery};
 use shared_types::user_dtos::{UserCreateDTO, UserLoginDTO, UserLoginServiceDTO, UserResponseDTO, GoogleUserInfoDTO};
 
@@ -57,20 +54,20 @@ impl AuthHandler {
         }
     }
 
-    pub async fn google_login(auth_services: web::Data<Arc<AuthService>>, oauth_client: web::Data<BasicClient>) -> HttpResponse {
+    pub async fn google_login(auth_services: web::Data<Arc<AuthService>>, oauth_client: web::Data<BasicClient>) -> Result<HttpResponse, ServerError> {
         let login = auth_services.google_login(oauth_client.get_ref().clone()).await;
 
         match login {
-            Ok(login_url) => login_url,
-            Err(_) => HttpResponse::InternalServerError().finish(),
+            Ok(login_url) => Ok(login_url),
+            Err(_) => Err(ServerError::RequestError(RequestError::OAuthCallbackFailed)),
         }
     }
 
     pub async fn google_callback(
-        auth_service: web::Data<Arc<AuthService>>,
+        auth_services: web::Data<Arc<AuthService>>,
         oauth_client: web::Data<BasicClient>,
         query: web::Query<CallbackQuery>,
-    ) -> HttpResponse {
+    ) -> Result<HttpResponse, ServerError> {
         let token_result = oauth_client.get_ref()
             .exchange_code(AuthorizationCode::new(query.code.clone()))
             .request_async(oauth2::reqwest::async_http_client)
@@ -80,30 +77,20 @@ impl AuthHandler {
             Ok(token) => {
                 let access_token = token.access_token().secret();
 
-                match fetch_google_user_info(access_token).await {
+                match auth_services.fetch_google_user_info(access_token).await {
                     Ok(user_info) => {
-                        match auth_service.google_callback(user_info).await {
-                            Ok(user_dto) => HttpResponse::Ok().json(user_dto),
-                            Err(err) => HttpResponse::InternalServerError().body(format!("Error: {:?}", err)),
+                        match auth_services.google_callback(user_info).await {
+                            Ok(user_dto) => Ok(HttpResponse::Ok().append_header(("Location", "/")).json(user_dto)),
+                            Err(err) => Err(ServerError::from(err)),
                         }
                     }
-                    Err(_) => HttpResponse::InternalServerError().body("Failed to fetch user info"),
+                    Err(_) => Err(ServerError::RequestError(RequestError::OAuthCallbackFailed)),
                 }
             }
-            Err(_) => HttpResponse::Unauthorized().body("OAuth Callback failed"),
+            Err(_) => Err(ServerError::RequestError(RequestError::OAuthCallbackFailed)),
         }
     }
-    
-    pub async fn google_register(
-        auth_services: web::Data<Arc<AuthService>>,
-        oauth_client: web::Data<BasicClient>,
-    ) -> Result<HttpResponse, ServerError> {
 
-        match auth_services.google_login(oauth_client.get_ref().clone()).await {
-            Ok(auth_url_response) => Ok(auth_url_response),
-            Err(err) => Err(err),
-        }
-    }
 
     pub async fn register(
         auth_services: web::Data<Arc<AuthService>>,

@@ -5,8 +5,10 @@ use oauth2::basic::BasicClient;
 use oauth2::reqwest::async_http_client;
 use oauth2::{AuthorizationCode, TokenResponse};
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, TransactionTrait};
+use shared_types::auth_dtos::RefreshTokenDTO;
 use std::sync::Arc;
 use uuid::Uuid;
+use tracing::info;
 
 use shared_types::user_dtos::{GoogleUserInfoDTO, ShortUserDTO, ShortUserProfileDTO, UserLoginServiceDTO};
 use crate::config::Config;
@@ -122,29 +124,6 @@ impl AuthService {
             .finish())
     }
 
-    pub async fn google_callback(
-        &self,
-        user_info: GoogleUserInfoDTO,
-    ) -> Result<UserLoginServiceDTO, ServerError> {
-        let db = &*self.db;
-
-        // Attempt to find the user by email
-        let found_user = UserEntity::find()
-            .filter(<UserEntity as EntityTrait>::Column::Email.eq(user_info.email.clone()))
-            .one(db)
-            .await
-            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
-
-        // Check if the user exists
-        if let Some(user) = found_user {
-            // If the user exists, log them in
-            self.login_existing_user(user).await
-        } else {
-            // If the user does not exist, register them
-            self.google_register(user_info).await
-        }
-    }
-
     pub async fn google_register(
         &self,
         user_info: GoogleUserInfoDTO,
@@ -162,6 +141,25 @@ impl AuthService {
         } 
         else {
             self.register_new_user(user_info).await
+        }
+    }
+
+        pub async fn google_callback(
+        &self,
+        user_info: GoogleUserInfoDTO,
+    ) -> Result<UserLoginServiceDTO, ServerError> {
+        let db = &*self.db;
+
+        let found_user = UserEntity::find()
+            .filter(<UserEntity as EntityTrait>::Column::Email.eq(user_info.email.clone()))
+            .one(db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+        if let Some(user) = found_user {
+            self.login_existing_user(user).await
+        } else {
+            self.google_register(user_info).await
         }
     }
 
@@ -216,8 +214,18 @@ impl AuthService {
 
         transaction.commit().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
-        let refresh_token_dto = create_refresh_token(new_user_clone.id.clone(), &self.configs)?;
-        let access_token = create_access_token(new_user_clone, &self.configs)?;
+        // let refresh_token_dto = create_refresh_token(new_user_clone.id.clone(), &self.configs)?;
+        // let access_token = create_access_token(new_user_clone, &self.configs)?;
+
+        let access_token = "access_token".to_string();
+        let refresh_token_dto = RefreshTokenDTO {
+            refresh_token: "refresh_token".to_string(),
+            issued_at: Utc::now(),
+            expires_at: Utc::now(),
+            jwt_iss: "jwt_iss".to_string(),
+            jwt_aud: "jwt_aud".to_string(),
+            revoked: false,
+        };
 
         Ok(UserLoginServiceDTO {
             user: ShortUserDTO {
@@ -268,8 +276,9 @@ impl AuthService {
     }
 
 
-    pub async fn fetch_google_user_info(access_token: &str) -> Result<GoogleUserInfoDTO, ServerError> {
-        let user_info_url = "https://www.googleapis.com/oauth2/v1/userinfo?alt=json";
+    pub async fn fetch_google_user_info(&self, access_token: &str) -> Result<GoogleUserInfoDTO, ServerError> {
+        info!("Access token: {}", access_token);
+        let user_info_url = "https://www.googleapis.com/oauth2/v2/userinfo";
         let client = reqwest::Client::new();
         let res = client
             .get(user_info_url)
