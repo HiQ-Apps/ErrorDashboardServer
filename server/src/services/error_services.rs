@@ -1,14 +1,14 @@
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 use chrono_tz::Tz;
 use sea_orm::sea_query::Query;
-use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, QueryOrder, QuerySelect, Condition, DatabaseConnection};
+use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, QueryOrder, QuerySelect, Condition, DatabaseConnection, JoinType};
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
 use shared_types::tag_dtos::{TagDTO, ShortTagDTO, CreateTagRequestDTO};
-use shared_types::error_dtos::{AggregateErrorDTO, CreateErrorDTO, CreateErrorRequest, ErrorDTO, ErrorMetaDTO, UpdateErrorDTO};
+use shared_types::error_dtos::{AggregateErrorDTO, CreateErrorDTO, CreateErrorRequest, ErrorDTO, ErrorMetaDTO, UpdateErrorDTO, GroupedAggregateErrorCountDTO};
 use crate::models::error_model::{Entity as ErrorEntity, Model as ErrorModel};
 use crate::models::error_tag_model::{Entity as TagEntity, Model as TagModel, ActiveModel as ActiveTagModel};
 use crate::models::namespace_model::Entity as NamespaceEntity;
@@ -302,5 +302,66 @@ impl ErrorService {
         }).collect();
 
         Ok(error_meta)
+    }
+
+    pub async fn get_error_metrics_pie_chart(
+        &self, 
+        namespace_id: Uuid, 
+        group_by: String
+    ) -> Result<Vec<GroupedAggregateErrorCountDTO>, ServerError> {
+        let db: &DatabaseConnection = &*self.db;
+
+        let aggregated_errors = if group_by == "tags" {
+            let tags = TagEntity::find()
+                .filter(
+                    <TagEntity as EntityTrait>::Column::ErrorId.in_subquery(
+                        Query::select()
+                            .column(<ErrorEntity as EntityTrait>::Column::Id)
+                            .from(ErrorEntity)
+                            .and_where(<ErrorEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
+                            .to_owned()
+                    )
+                )
+                .all(db)
+                .await
+                .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+            let mut tag_map: HashMap<String, i64> = HashMap::new();
+
+            for tag in tags {
+                let tag_key = tag.tag_key.clone();
+                let tag_value = tag.tag_value.clone();
+                let tag_key_value = format!("{}:{}", tag_key, tag_value);
+
+                *tag_map.entry(tag_key_value).or_insert(0) += 1;
+            }
+
+            tag_map.into_iter()
+                .map(|(group_key, count)| GroupedAggregateErrorCountDTO { group_key, count })
+                .collect()
+
+        } else {
+            let errors = <ErrorEntity as EntityTrait>::find()
+                .filter(<ErrorEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
+                .all(db)
+                .await
+                .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+            let mut error_map: HashMap<String, i64> = HashMap::new();
+
+            for error in errors {
+                let group_key = match group_by.as_str() {
+                    "message" => error.message.clone(),
+                    _ => error.message.clone(),
+                };
+                *error_map.entry(group_key).or_insert(0) += 1;
+            }
+
+            error_map.into_iter()
+                .map(|(group_key, count)| GroupedAggregateErrorCountDTO { group_key, count })
+                .collect()
+        };
+
+        Ok(aggregated_errors)
     }
 }

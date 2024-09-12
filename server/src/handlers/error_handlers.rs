@@ -1,14 +1,11 @@
-use actix::Addr;
 use actix_web::{web, HttpRequest, HttpResponse, Result};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::{managers::namespace_manager::NamespaceServer, shared::utils::errors::RequestError};
-use crate::handlers::ws_handlers::NewError;
+use crate::shared::utils::errors::RequestError;
 use crate::services::error_services::ErrorService;
 use crate::shared::utils::errors::ServerError;
-use shared_types::{error_dtos::{CreateErrorRequest, UpdateErrorDTO}, extra_dtos::{ErrorMetadataQueryParams, TimeParams}};
-
+use shared_types::{error_dtos::{CreateErrorRequest, UpdateErrorDTO}, extra_dtos::{ErrorPieChartQueryParams, ErrorMetadataQueryParams, TimeParams}};
 
 
 pub struct ErrorHandler;
@@ -95,5 +92,18 @@ impl ErrorHandler {
         ).await.map_err(|err| ServerError::from(err))?;
 
         Ok(HttpResponse::Ok().json(result))  
+    }
+
+    pub async fn get_error_metrics_pie_chart(
+        namespace_services: web::Data<Arc<ErrorService>>,
+        namespace_id: web::Path<Uuid>,
+        query_params: web::Query<ErrorPieChartQueryParams>, 
+    ) -> Result<HttpResponse, ServerError> {
+        let result = namespace_services.get_error_metrics_pie_chart(
+            *namespace_id,
+            query_params.group_by.clone(),
+        ).await.map_err(|err| ServerError::from(err))?;
+
+        Ok(HttpResponse::Ok().json(result))
     }
 }
