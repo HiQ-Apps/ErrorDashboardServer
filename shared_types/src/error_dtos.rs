@@ -120,6 +120,14 @@ pub struct ErrorMetaDTO {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
+pub struct GroupedAggregateErrorCountDTO {
+    pub group_key: String,
+    pub count: i64
+}
+
+
+#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateErrorRequest {
     pub user_affected: String,
     pub stack_trace: String,
