@@ -8,6 +8,7 @@ pub enum Users {
     Email,
     Password,
     UserProfileId,
+    OAuthProvider,
     CreatedAt,
     UpdatedAt,
 }
@@ -26,8 +27,9 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Users::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(Users::Username).string().not_null())
                     .col(ColumnDef::new(Users::Email).string().unique_key().not_null())
-                    .col(ColumnDef::new(Users::Password).string().not_null())
+                    .col(ColumnDef::new(Users::Password).string())
                     .col(ColumnDef::new(Users::UserProfileId).uuid())
+                    .col(ColumnDef::new(Users::OAuthProvider).string())
                     .col(ColumnDef::new(Users::CreatedAt).timestamp_with_time_zone().not_null())
                     .col(ColumnDef::new(Users::UpdatedAt).timestamp_with_time_zone())
                     .to_owned(),

@@ -1,11 +1,16 @@
+use actix_web::HttpResponse;
 use bcrypt::{verify, hash};
 use chrono::Utc;
+use oauth2::basic::BasicClient;
+use oauth2::reqwest::async_http_client;
+use oauth2::{AuthorizationCode, TokenResponse};
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, TransactionTrait};
+use shared_types::auth_dtos::RefreshTokenDTO;
 use std::sync::Arc;
 use uuid::Uuid;
+use tracing::info;
 
-use shared_types::user_dtos::{ShortUserDTO, UserLoginServiceDTO, ShortUserProfileDTO};
-
+use shared_types::user_dtos::{GoogleUserInfoDTO, ShortUserDTO, ShortUserProfileDTO, UserLoginServiceDTO};
 use crate::config::Config;
 use crate::models::user_profile_model::{Model as UserProfileModel, Entity as UserProfileEntity};
 use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
@@ -39,9 +44,16 @@ impl AuthService {
             .await
             .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
 
+        
         match found_user {
             Some(user) => {
-                let is_valid = verify(&user_password, &user.password).map_err(|err| ServerError::from(ExternalError::Bcrypt(err)))?;
+                if user.o_auth_provider != "Custom" {
+                    return Err(ServerError::QueryError(QueryError::OAuthTypeError));
+                }
+
+                let hashed_password = user.password.clone().ok_or(ServerError::QueryError(QueryError::PasswordNotFound))?;
+
+                let is_valid = verify(&user_password, &hashed_password).map_err(|err| ServerError::from(ExternalError::Bcrypt(err)))?;
 
                 if is_valid {
                     let access_token = create_access_token(user.clone(), &self.configs)?;
@@ -100,6 +112,189 @@ impl AuthService {
         }
     }
 
+    pub async fn google_login(&self, oauth_client: BasicClient ) -> Result<HttpResponse, ServerError> {
+        let (auth_url, _csrf_token) = oauth_client
+            .authorize_url(oauth2::CsrfToken::new_random)
+            .add_scope(oauth2::Scope::new("https://www.googleapis.com/auth/userinfo.profile".to_string()))
+            .add_scope(oauth2::Scope::new("https://www.googleapis.com/auth/userinfo.email".to_string()))
+            .url();
+
+        Ok(HttpResponse::Found()
+            .append_header(("Location", auth_url.to_string()))
+            .finish())
+    }
+
+    pub async fn google_register(
+        &self,
+        user_info: GoogleUserInfoDTO,
+    ) -> Result<UserLoginServiceDTO, ServerError> {
+        let db = &*self.db;
+        
+        let found_user = UserEntity::find()
+            .filter(<UserEntity as EntityTrait>::Column::Email.eq(user_info.email.clone()))
+            .one(db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+        if let Some(user) = found_user {
+            self.login_existing_user(user).await
+        } 
+        else {
+            self.register_new_user(user_info).await
+        }
+    }
+
+        pub async fn google_callback(
+        &self,
+        user_info: GoogleUserInfoDTO,
+    ) -> Result<UserLoginServiceDTO, ServerError> {
+        let db = &*self.db;
+
+        let found_user = UserEntity::find()
+            .filter(<UserEntity as EntityTrait>::Column::Email.eq(user_info.email.clone()))
+            .one(db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+        if let Some(user) = found_user {
+            self.login_existing_user(user).await
+        } else {
+            self.google_register(user_info).await
+        }
+    }
+
+    pub async fn register_new_user(
+        &self,
+        user_info: GoogleUserInfoDTO,
+    ) -> Result<UserLoginServiceDTO, ServerError> {
+        let db = &*self.db;
+        let user_id = Uuid::new_v4();
+        let now = Utc::now();
+
+        let transaction = db.begin().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+        let new_profile_id = Uuid::new_v4();
+        let new_user_profile = UserProfileModel {
+            id: new_profile_id,
+            user_id,
+            first_name: Some(user_info.given_name.clone()),
+            last_name: Some(user_info.family_name.clone()),
+            avatar_color: "#098585".to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+
+        if let Err(err) = UserProfileEntity::insert(new_user_profile.into_active_model())
+            .exec(&transaction)
+            .await {
+            transaction.rollback().await.map_err(|rollback_err| ServerError::ExternalError(ExternalError::DB(rollback_err)))?;
+            return Err(ServerError::ExternalError(ExternalError::DB(err)));
+        }
+
+        let new_user = UserModel {
+            id: user_id,
+            username: user_info.email.clone(),
+            email: user_info.email.clone(),
+            password: None,
+            user_profile_id: new_profile_id,
+            o_auth_provider: "Google".to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+
+        let new_user_clone = new_user.clone();
+        let response_user = new_user.clone();
+
+        if let Err(err) = UserEntity::insert(new_user.into_active_model())
+            .exec(&transaction)
+            .await {
+            transaction.rollback().await.map_err(|rollback_err| ServerError::ExternalError(ExternalError::DB(rollback_err)))?;
+            return Err(ServerError::ExternalError(ExternalError::DB(err)));
+        }
+
+        transaction.commit().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+        // let refresh_token_dto = create_refresh_token(new_user_clone.id.clone(), &self.configs)?;
+        // let access_token = create_access_token(new_user_clone, &self.configs)?;
+
+        let access_token = "access_token".to_string();
+        let refresh_token_dto = RefreshTokenDTO {
+            refresh_token: "refresh_token".to_string(),
+            issued_at: Utc::now(),
+            expires_at: Utc::now(),
+            jwt_iss: "jwt_iss".to_string(),
+            jwt_aud: "jwt_aud".to_string(),
+            revoked: false,
+        };
+
+        Ok(UserLoginServiceDTO {
+            user: ShortUserDTO {
+                id: response_user.id,
+                username: response_user.username,
+                email: response_user.email,
+            },
+            user_profile: ShortUserProfileDTO {
+                first_name: Some(user_info.given_name),
+                last_name: Some(user_info.family_name),
+                avatar_color: "#098585".to_string(),
+                updated_at: now,
+            },
+            access_token,
+            refresh_token: refresh_token_dto,
+        })
+    }
+
+    pub async fn login_existing_user(
+        &self,
+        user: UserModel,
+    ) -> Result<UserLoginServiceDTO, ServerError> {
+        let access_token = create_access_token(user.clone(), &self.configs)?;
+        let refresh_token_dto = create_refresh_token(user.id, &self.configs)?;
+
+        let user_profile = UserProfileEntity::find()
+            .filter(<UserProfileEntity as EntityTrait>::Column::UserId.eq(user.id))
+            .one(&*self.db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
+            .ok_or(ServerError::QueryError(QueryError::UserProfileNotFound))?;
+
+        Ok(UserLoginServiceDTO {
+            user: ShortUserDTO {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+            },
+            user_profile: ShortUserProfileDTO {
+                first_name: user_profile.first_name,
+                last_name: user_profile.last_name,
+                avatar_color: user_profile.avatar_color,
+                updated_at: Utc::now(),
+            },
+            access_token,
+            refresh_token: refresh_token_dto,
+        })
+    }
+
+
+    pub async fn fetch_google_user_info(&self, access_token: &str) -> Result<GoogleUserInfoDTO, ServerError> {
+        info!("Access token: {}", access_token);
+        let user_info_url = "https://www.googleapis.com/oauth2/v2/userinfo";
+        let client = reqwest::Client::new();
+        let res = client
+            .get(user_info_url)
+            .bearer_auth(access_token)
+            .send()
+            .await
+            .map_err(|_| ServerError::ExternalError(ExternalError::OAuth2))?;
+
+        if res.status().is_success() {
+            let user_info = res.json::<GoogleUserInfoDTO>().await
+                .map_err(|_| ServerError::ExternalError(ExternalError::OAuth2))?;
+            Ok(user_info)
+        } else {
+            Err(ServerError::ExternalError(ExternalError::OAuth2))
+        }
+    }
 
     pub async fn register(
         &self,
@@ -135,7 +330,8 @@ impl AuthService {
             id: uid,
             username: user_name,
             email: user_email,
-            password: hashed_pass,
+            password: Some(hashed_pass),
+            o_auth_provider: "Custom".to_string(),
             user_profile_id: initialize_user_profile.id,
             created_at: now,
             updated_at: now,
@@ -213,17 +409,21 @@ impl AuthService {
 
         match found_user {
             Some(user) => {
-                let is_valid = verify(&user_pass, &user.password).map_err(|err| ServerError::from(ExternalError::Bcrypt(err)))?;
-                if is_valid {
-                    Ok(())
+                if let Some(stored_password) = &user.password {
+                    let is_valid = verify(&user_pass, stored_password)
+                        .map_err(|err| ServerError::from(ExternalError::Bcrypt(err)))?;
+                    if is_valid {
+                        Ok(())
+                    } else {
+                        Err(ServerError::QueryError(QueryError::PasswordIncorrect))
+                    }
                 } else {
-                    Err(ServerError::QueryError(QueryError::PasswordIncorrect))
+                    Err(ServerError::QueryError(QueryError::PasswordNotSet))
                 }
             },
             None => Err(ServerError::QueryError(QueryError::UserNotFound))
         }
     }
-
 
     pub async fn find_by_token(&self, token: &str) -> Result<Option<RefreshTokenModel>, ServerError> {
         RefreshTokenEntity::find()

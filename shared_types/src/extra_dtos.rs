@@ -21,6 +21,14 @@ pub struct ErrorMetadataQueryParams {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
+pub struct ErrorPieChartQueryParams {
+    pub group_by: String,
+    pub group_key: String,
+}
+
+
+#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct PaginationParams {
     pub offset: u64,
     pub limit: u64,

@@ -9,20 +9,19 @@ mod managers;
 mod shared {
     pub mod utils;
 }
+mod libs;
 
 use env_logger;
-use actix::Actor;
 use actix_web::web;
 use log::{error, info};
 use std::sync::Arc;
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_runtime::SecretStore;
-use tokio::task::spawn_local;
 
+use crate::libs::oauth_client::create_oauth_client;
 use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware};
 use crate::routes::{auth_routes, error_routes, namespace_routes, user_routes, tag_routes, static_routes};
 use crate::services::init_services;
-use crate::managers::namespace_manager::NamespaceServer;
 use config::Config;
 
 #[shuttle_runtime::main]
@@ -65,6 +64,8 @@ async fn main(
 
     println!("Starting server...");
 
+    let oauth_client = create_oauth_client(&config);
+
     let (namespace_service, user_service, auth_service, error_service, tag_service) =
         match init_services(db_pool.clone(), config.clone()) {
             Ok(services) => services,
@@ -91,6 +92,7 @@ async fn main(
             .app_data(web::Data::new(auth_service.clone()))
             .app_data(web::Data::new(error_service.clone()))
             .app_data(web::Data::new(tag_service.clone()))
+            .app_data(web::Data::new(oauth_client.clone()))
             // .app_data(web::Data::new(namespace_manager.clone()))
             .configure(static_routes::configure)
             .configure(auth_routes::configure_without_auth)

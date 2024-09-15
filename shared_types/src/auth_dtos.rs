@@ -40,3 +40,10 @@ pub struct RefreshTokenServiceDTO {
 pub struct VerifyUserDTO {
     pub password: String
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct CallbackQuery {
+    pub code: String,
+    pub state: String,
+}
