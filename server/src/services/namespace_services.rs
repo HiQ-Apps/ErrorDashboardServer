@@ -10,12 +10,13 @@ use log::info;
 use shared_types::namespace_dtos::{UpdateNamespaceDTO, ShortNamespaceDTO, GetNamespaceResponseDTO};
 use shared_types::error_dtos::{AggregatedResult, GetAggregatedLineErrorDTO, AggregateIndividualErrorDTO, GetAggregatedMessageErrorDTO, GetAggregatedStatusErrorDTO, TagAggregatedErrorDTO};
 use shared_types::tag_dtos::ShortTagNoIdDTO;
-use crate::config::Config;
+use crate::config::{self, Config};
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
 use crate::models::error_model::Entity as ErrorEntity;
 use crate::models::error_tag_model::Entity as TagEntity;
 use crate::models::user_namespace_junction_model::{Entity as UserNamespaceJunctionEntity, Model as UserNamespaceJunctionModel};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError, RequestError};
+use crate::shared::utils::mailing::send_email;
 
 
 pub struct NamespaceService {
@@ -81,7 +82,7 @@ impl NamespaceService {
         }
 
         transaction.commit().await.map_err(ExternalError::from)?;
-
+        
         Ok(uid)
     }
 
@@ -236,6 +237,8 @@ impl NamespaceService {
 pub async fn delete_namespace(&self, namespace_id: Uuid, user_id: Uuid) -> Result<(), ServerError> {
     let db: &DatabaseConnection = &*self.db;
     let transaction = db.begin().await.map_err(ExternalError::from)?;
+
+    println!("Namespace being deleted");
 
     let namespace_junc_result = UserNamespaceJunctionEntity::find()
         .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
