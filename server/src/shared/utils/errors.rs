@@ -44,8 +44,8 @@ impl ResponseError for ServerError {
             ServerError::QueryError(ref err) => {
                 let status = match err {
                     QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound | QueryError::UserProfileNotFound => StatusCode::NOT_FOUND,
-                    QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists => StatusCode::CONFLICT,
-                    QueryError::PasswordIncorrect | QueryError::OAuthTypeError => StatusCode::UNAUTHORIZED,
+                    QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists | QueryError::NotFound => StatusCode::CONFLICT,
+                    QueryError::PasswordIncorrect | QueryError::OAuthTypeError | QueryError::NamespaceAlertUserJunctionNotFound => StatusCode::UNAUTHORIZED,
                     QueryError::InvalidTimestamp => StatusCode::BAD_REQUEST,
                     _ => StatusCode::BAD_REQUEST,
                 };
@@ -163,8 +163,14 @@ pub enum QueryError {
     #[error("User-Namespace junction not found")]
     UserNamespaceJunctionNotFound,
 
+    #[error("User-Namespace junction not found")]
+    NamespaceAlertUserJunctionNotFound,
+
     #[error("User-Namespace junction already exists")]
     UserNamespaceJunctionExists,
+
+    #[error("Not Found")]
+    NotFound,
 
     #[error("Error not found")]
     ErrorNotFound,

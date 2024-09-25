@@ -11,6 +11,9 @@ pub use auth_services::*;
 pub mod tag_services;
 pub use tag_services::*;
 
+pub mod namespace_alerts_services;
+pub use namespace_alerts_services::*;
+
 pub mod namespace_services;
 pub use namespace_services::*;
 
@@ -20,10 +23,22 @@ pub use error_services::*;
 use crate::config::Config;
 use crate::shared::utils::errors::ServerError;
 
-pub fn init_services(db_pool: Arc<DatabaseConnection>, config: Arc<Config>) -> Result<(namespace_services::NamespaceService, user_services::UserService, auth_services::AuthService, error_services::ErrorService, tag_services::TagService), Box<dyn Error>> {
+pub struct Services {
+    pub namespace_service: namespace_services::NamespaceService,
+    pub namespace_alerts_services: namespace_alerts_services::NamespaceAlertsService,
+    pub user_service: user_services::UserService,
+    pub auth_service: auth_services::AuthService,
+    pub error_service: error_services::ErrorService,
+    pub tag_service: tag_services::TagService,
+}
+
+pub fn init_services(db_pool: Arc<DatabaseConnection>, config: Arc<Config>) -> Result<Services, Box<dyn Error>> {
     let namespace_service = namespace_services::NamespaceService::new(Arc::clone(&db_pool), Arc::clone(&config))
         .map_err(|_| ServerError::ServiceInitError("Namespace service failed to initialize".to_string()))?;
 
+    let namespace_alerts_services = namespace_alerts_services::NamespaceAlertsService::new(Arc::clone(&db_pool), Arc::clone(&config))
+        .map_err(|_| ServerError::ServiceInitError("Namespace alerts service failed to initialize".to_string()))?;
+    
     let user_service = user_services::UserService::new(Arc::clone(&db_pool), Arc::clone(&config))
         .map_err(|_| ServerError::ServiceInitError("User services failed to initialize".to_string()))?;
 
@@ -36,5 +51,5 @@ pub fn init_services(db_pool: Arc<DatabaseConnection>, config: Arc<Config>) -> R
     let tag_service = tag_services::TagService::new(Arc::clone(&db_pool), Arc::clone(&config))
         .map_err(|_| ServerError::ServiceInitError("Tag services failed to initialize".to_string()))?;
 
-    Ok((namespace_service, user_service, auth_service, error_service, tag_service))
+    Ok(Services { namespace_service, namespace_alerts_services, user_service, auth_service, error_service, tag_service } )
 }
