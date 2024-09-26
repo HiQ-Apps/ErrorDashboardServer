@@ -7,6 +7,8 @@ mod m20231013_164343_create_error_table;
 mod m20231015_093305_create_user_namespace_junction_table;
 mod m20240616_024612_create_error_tags;
 mod m20240622_185137_create_user_profile;
+mod m20240916_025827_create_namespace_alerts;
+mod m20240924_003716_create_namespace_alert_junction;
 
 pub struct Migrator;
 
@@ -21,6 +23,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20231015_093305_create_user_namespace_junction_table::Migration),
             Box::new(m20240616_024612_create_error_tags::Migration),
             Box::new(m20240622_185137_create_user_profile::Migration),
+            Box::new(m20240916_025827_create_namespace_alerts::Migration),
+            Box::new(m20240924_003716_create_namespace_alert_junction::Migration),
         ]
     }
 }

@@ -2,8 +2,6 @@ use actix_web::HttpResponse;
 use bcrypt::{verify, hash};
 use chrono::Utc;
 use oauth2::basic::BasicClient;
-use oauth2::reqwest::async_http_client;
-use oauth2::{AuthorizationCode, TokenResponse};
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, TransactionTrait};
 use shared_types::auth_dtos::RefreshTokenDTO;
 use std::sync::Arc;
@@ -15,6 +13,7 @@ use crate::config::Config;
 use crate::models::user_profile_model::{Model as UserProfileModel, Entity as UserProfileEntity};
 use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
 use crate::models::refresh_token_model::{Entity as RefreshTokenEntity, Model as RefreshTokenModel};
+use crate::shared::utils::mailing::send_email;
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError, RequestError};
 use crate::shared::utils::jwt::{create_access_token, create_refresh_token, refresh_access_token_util};
 
@@ -277,7 +276,6 @@ impl AuthService {
 
 
     pub async fn fetch_google_user_info(&self, access_token: &str) -> Result<GoogleUserInfoDTO, ServerError> {
-        info!("Access token: {}", access_token);
         let user_info_url = "https://www.googleapis.com/oauth2/v2/userinfo";
         let client = reqwest::Client::new();
         let res = client
@@ -393,6 +391,8 @@ impl AuthService {
             access_token,
             refresh_token: refresh_token_dto,
         };
+
+        send_email(configs, &user.email, "Welcome to Error Dashboard", "Hey user, thanks for signing up to my application! Feel free to contact this email for anything in regards to the error dashboard. I hope you have a nice day!").map_err(|err| ServerError::from(err))?;
 
         Ok(user_response)
     }

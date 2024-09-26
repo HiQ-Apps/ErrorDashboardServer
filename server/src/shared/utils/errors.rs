@@ -4,6 +4,7 @@ use anyhow::Error as AnyhowError;
 use bcrypt::BcryptError;
 use chrono::ParseError;
 use jsonwebtoken::errors::Error as JwtError;
+use lettre::address::AddressError;
 use sea_orm::error::{DbErr, SqlErr};
 use sea_orm::TransactionError;
 use serde_json::Error as JsonError;
@@ -14,6 +15,8 @@ use oauth2::ErrorResponseType as OAuth2Error;
 use uuid::Error as UuidError;
 use std::io::Error as IoError;
 use reqwest::Error as ReqwestError;
+use lettre::error::Error as LettreError;
+use lettre::transport::smtp::Error as SmtpError;
 
 // Group enum'd errors into a single enum
 #[derive(Debug, Error)]
@@ -40,9 +43,11 @@ impl ResponseError for ServerError {
         match self {
             ServerError::QueryError(ref err) => {
                 let status = match err {
-                    QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound | QueryError::UserProfileNotFound => StatusCode::NOT_FOUND,
-                    QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists => StatusCode::CONFLICT,
-                    QueryError::PasswordIncorrect | QueryError::OAuthTypeError => StatusCode::UNAUTHORIZED,
+                    QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound | QueryError::UserProfileNotFound 
+                    | QueryError::NamespaceAlertNotFound | QueryError::NotFound | QueryError::NamespaceAlertUserJunctionNotFound => StatusCode::NOT_FOUND,
+                    QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists | QueryError::UserAlreadySubscribed => StatusCode::CONFLICT,
+                    QueryError::PasswordIncorrect | QueryError::OAuthTypeError | QueryError::UserNotNamespaceMember
+                     => StatusCode::UNAUTHORIZED,
                     QueryError::InvalidTimestamp => StatusCode::BAD_REQUEST,
                     _ => StatusCode::BAD_REQUEST,
                 };
@@ -116,7 +121,16 @@ pub enum ExternalError {
     Reqwest(ReqwestError),
 
     #[error("OAuth2 error")]
-    OAuth2
+    OAuth2,
+
+    #[error("Lettre error: {0}")]
+    Lettre(LettreError),
+
+    #[error("Invalid Lettre address: {0}")]
+    Address(AddressError),
+
+    #[error("SMTP error: {0}")]
+    Smtp(SmtpError),
 }
 
 #[derive(Debug, Error)]
@@ -151,8 +165,23 @@ pub enum QueryError {
     #[error("User-Namespace junction not found")]
     UserNamespaceJunctionNotFound,
 
+    #[error("User-Namespace junction not found")]
+    NamespaceAlertUserJunctionNotFound,
+    
+    #[error("Namespace alert not found")]
+    NamespaceAlertNotFound,
+
     #[error("User-Namespace junction already exists")]
     UserNamespaceJunctionExists,
+
+    #[error("User already subscribed to namespace alerts")]
+    UserAlreadySubscribed,
+
+    #[error("Not Found")]
+    NotFound,
+
+    #[error("User not namespace member")]
+    UserNotNamespaceMember,
 
     #[error("Error not found")]
     ErrorNotFound,
@@ -203,6 +232,12 @@ pub enum RequestError {
 impl From<ExternalError> for ServerError {
     fn from(err: ExternalError) -> Self {
         ServerError::ExternalError(err)
+    }
+}
+
+impl From<LettreError> for ExternalError {
+    fn from(err: LettreError) -> Self {
+        ExternalError::Lettre(err)
     }
 }
 

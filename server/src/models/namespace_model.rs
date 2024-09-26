@@ -34,7 +34,7 @@ impl RelationTrait for Relation {
             Self::ErrorEntity => Entity::has_many(ErrorEntity).into(),
             Self::UserNamespaceJunction => Entity::has_many(UserNamespaceJunctionEntity)
                 .from(Column::Id)
-                .to(<UserNamespaceJunctionEntity as sea_orm::EntityTrait>::Column::Id)
+                .to(<UserNamespaceJunctionEntity as EntityTrait>::Column::Id)
                 .into(),
         }
     }

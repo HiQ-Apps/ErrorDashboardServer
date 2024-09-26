@@ -20,7 +20,7 @@ use shuttle_runtime::SecretStore;
 
 use crate::libs::oauth_client::create_oauth_client;
 use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware};
-use crate::routes::{auth_routes, error_routes, namespace_routes, user_routes, tag_routes, static_routes};
+use crate::routes::{auth_routes, error_routes, namespace_routes, namespace_alert_routes, user_routes, tag_routes, static_routes};
 use crate::services::init_services;
 use config::Config;
 
@@ -66,7 +66,7 @@ async fn main(
 
     let oauth_client = create_oauth_client(&config);
 
-    let (namespace_service, user_service, auth_service, error_service, tag_service) =
+    let services =
         match init_services(db_pool.clone(), config.clone()) {
             Ok(services) => services,
             Err(e) => {
@@ -75,11 +75,12 @@ async fn main(
             }
         };
 
-    let namespace_service = Arc::new(namespace_service);
-    let user_service = Arc::new(user_service);
-    let auth_service = Arc::new(auth_service);
-    let error_service = Arc::new(error_service);
-    let tag_service = Arc::new(tag_service);
+    let namespace_service = Arc::new(services.namespace_service);
+    let namespace_alert_service = Arc::new(services.namespace_alerts_services);
+    let user_service = Arc::new(services.user_service);
+    let auth_service = Arc::new(services.auth_service);
+    let error_service = Arc::new(services.error_service);
+    let tag_service = Arc::new(services.tag_service);
 
     // let namespace_manager = NamespaceServer::new().start();
 
@@ -88,6 +89,7 @@ async fn main(
         cfg.app_data(web::Data::new(Arc::clone(&db_pool)))
             .app_data(web::Data::new(Arc::clone(&config)))
             .app_data(web::Data::new(namespace_service.clone()))
+            .app_data(web::Data::new(namespace_alert_service.clone()))
             .app_data(web::Data::new(user_service.clone()))
             .app_data(web::Data::new(auth_service.clone()))
             .app_data(web::Data::new(error_service.clone()))
@@ -99,6 +101,7 @@ async fn main(
             .configure(|cfg| auth_routes::configure_with_auth(cfg, &jwt_middleware))
             .configure(|cfg| user_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| namespace_routes::configure(cfg, &jwt_middleware))
+            .configure(|cfg| namespace_alert_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| error_routes::sdk_configure(cfg, &sdk_middleware))
             .configure(|cfg| error_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| tag_routes::configure(cfg, &jwt_middleware));

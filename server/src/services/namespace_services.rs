@@ -16,6 +16,7 @@ use crate::models::error_model::Entity as ErrorEntity;
 use crate::models::error_tag_model::Entity as TagEntity;
 use crate::models::user_namespace_junction_model::{Entity as UserNamespaceJunctionEntity, Model as UserNamespaceJunctionModel};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError, RequestError};
+use crate::shared::utils::mailing::send_email;
 
 
 pub struct NamespaceService {
@@ -81,7 +82,7 @@ impl NamespaceService {
         }
 
         transaction.commit().await.map_err(ExternalError::from)?;
-
+        
         Ok(uid)
     }
 
