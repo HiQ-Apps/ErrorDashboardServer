@@ -43,9 +43,11 @@ impl ResponseError for ServerError {
         match self {
             ServerError::QueryError(ref err) => {
                 let status = match err {
-                    QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound | QueryError::UserProfileNotFound => StatusCode::NOT_FOUND,
-                    QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists | QueryError::NotFound => StatusCode::CONFLICT,
-                    QueryError::PasswordIncorrect | QueryError::OAuthTypeError | QueryError::NamespaceAlertUserJunctionNotFound => StatusCode::UNAUTHORIZED,
+                    QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound | QueryError::UserProfileNotFound 
+                    | QueryError::NamespaceAlertNotFound | QueryError::NotFound | QueryError::NamespaceAlertUserJunctionNotFound => StatusCode::NOT_FOUND,
+                    QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists | QueryError::UserAlreadySubscribed => StatusCode::CONFLICT,
+                    QueryError::PasswordIncorrect | QueryError::OAuthTypeError | QueryError::UserNotNamespaceMember
+                     => StatusCode::UNAUTHORIZED,
                     QueryError::InvalidTimestamp => StatusCode::BAD_REQUEST,
                     _ => StatusCode::BAD_REQUEST,
                 };
@@ -165,12 +167,21 @@ pub enum QueryError {
 
     #[error("User-Namespace junction not found")]
     NamespaceAlertUserJunctionNotFound,
+    
+    #[error("Namespace alert not found")]
+    NamespaceAlertNotFound,
 
     #[error("User-Namespace junction already exists")]
     UserNamespaceJunctionExists,
 
+    #[error("User already subscribed to namespace alerts")]
+    UserAlreadySubscribed,
+
     #[error("Not Found")]
     NotFound,
+
+    #[error("User not namespace member")]
+    UserNotNamespaceMember,
 
     #[error("Error not found")]
     ErrorNotFound,

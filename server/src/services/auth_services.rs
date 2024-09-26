@@ -276,7 +276,6 @@ impl AuthService {
 
 
     pub async fn fetch_google_user_info(&self, access_token: &str) -> Result<GoogleUserInfoDTO, ServerError> {
-        info!("Access token: {}", access_token);
         let user_info_url = "https://www.googleapis.com/oauth2/v2/userinfo";
         let client = reqwest::Client::new();
         let res = client

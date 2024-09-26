@@ -55,7 +55,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(NamespaceAlerts::Line).integer())
                     .col(ColumnDef::new(NamespaceAlerts::Message).string())
                     .col(ColumnDef::new(NamespaceAlerts::StackTrace).string())
-                    .col(ColumnDef::new(NamespaceAlerts::CountThreshold).string())
+                    .col(ColumnDef::new(NamespaceAlerts::CountThreshold).integer())
                     .col(ColumnDef::new(NamespaceAlerts::TimeWindow).big_integer())
                     .col(ColumnDef::new(NamespaceAlerts::UnresolvedTimeThreshold).big_integer())
                     .col(ColumnDef::new(NamespaceAlerts::RateThreshold).integer())

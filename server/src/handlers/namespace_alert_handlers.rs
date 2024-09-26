@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::config::Config;
 use crate::shared::utils::errors::ServerError;
-use shared_types::namespace_alert_dtos::{CreateNamespaceAlertRequestDTO, NamespaceAlertSubscriptionRequestDTO};
+use shared_types::namespace_alert_dtos::{CreateNamespaceAlertRequestDTO, NamespaceAlertSubscriptionRequestDTO, UpdateNamespaceAlertRequestDTO};
 use crate::services::namespace_alerts_services::NamespaceAlertsService;
 
 pub struct NamespaceAlertHandler;
@@ -17,7 +17,7 @@ impl NamespaceAlertHandler {
     ) -> Result<HttpResponse, ServerError> {
         let new_namespace_alert = new_namespace_alert.into_inner();
         match namespace_alert_services.create_namespace_alert(new_namespace_alert).await {
-            Ok(_) => Ok(HttpResponse::Ok().finish()),
+            Ok(id) => Ok(HttpResponse::Ok().json(id)),
             Err(err) => Err(err),
         }
     }
@@ -73,5 +73,16 @@ impl NamespaceAlertHandler {
         }
     }
 
+    pub async fn update_namespace_alert(
+        namespace_alert_services:web::Data<Arc<NamespaceAlertsService>>,
+        alert_id: web::Path<Uuid>,
+        updated_alert: web::Json<UpdateNamespaceAlertRequestDTO>) -> Result<HttpResponse, ServerError> {
+        let updated_alert = updated_alert.into_inner();
+        
+        match namespace_alert_services.update_namespace_alert(alert_id.into_inner(), updated_alert).await {
+            Ok(_) => Ok(HttpResponse::Ok().finish()),
+            Err(err) => Err(err),
+        }
+    }
 }
 

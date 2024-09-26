@@ -16,7 +16,7 @@ pub struct Model {
     pub alert_method: String,
     pub error_name: Option<String>,
     pub path: Option<String>,
-    pub line: Option<String>,
+    pub line: Option<i32>,
     pub message: Option<String>,
     pub stack_trace: Option<String>,
     pub count_threshold: Option<i32>,
@@ -54,7 +54,7 @@ impl Related<NamespaceEntity> for Entity {
 impl ActiveModelBehavior for ActiveModel {
     fn new() -> Self {
         Self {
-            id: ActiveValue::Set(Uuid::new_v4()),
+            id: ActiveValue::NotSet,
             namespace_id: ActiveValue::Set(Uuid::new_v4()),
             alert_method: ActiveValue::Set(String::new()),
             error_name: ActiveValue::Set(None),

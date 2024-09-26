@@ -52,9 +52,9 @@ impl Related<UserEntity> for Entity {
 impl ActiveModelBehavior for ActiveModel {
     fn new() -> Self {
         Self {
-            id: ActiveValue::Set(Uuid::new_v4()),
-            namespace_alert_id: ActiveValue::Set(Uuid::new_v4()),
-            user_id: ActiveValue::Set(Uuid::new_v4()),
+            id: ActiveValue::NotSet,
+            namespace_alert_id: ActiveValue::NotSet,
+            user_id: ActiveValue::NotSet,
         }
     }
 }

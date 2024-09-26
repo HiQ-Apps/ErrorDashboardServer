@@ -28,7 +28,7 @@ impl MigrationTrait for Migration {
                 .col(ColumnDef::new(NamespaceAlertUserJunction::NamespaceAlertId).uuid().not_null())
                 .foreign_key(
                     ForeignKey::create()
-                        .name("fk_junction_user")
+                        .name("fk_junction_user_alert")
                         .from(NamespaceAlertUserJunction::Table, NamespaceAlertUserJunction::UserId)
                         .to(Users::Table, Users::Id)
                         .on_delete(ForeignKeyAction::Cascade)
