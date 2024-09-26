@@ -10,7 +10,7 @@ use log::info;
 use shared_types::namespace_dtos::{UpdateNamespaceDTO, ShortNamespaceDTO, GetNamespaceResponseDTO};
 use shared_types::error_dtos::{AggregatedResult, GetAggregatedLineErrorDTO, AggregateIndividualErrorDTO, GetAggregatedMessageErrorDTO, GetAggregatedStatusErrorDTO, TagAggregatedErrorDTO};
 use shared_types::tag_dtos::ShortTagNoIdDTO;
-use crate::config::{self, Config};
+use crate::config::Config;
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
 use crate::models::error_model::Entity as ErrorEntity;
 use crate::models::error_tag_model::Entity as TagEntity;
