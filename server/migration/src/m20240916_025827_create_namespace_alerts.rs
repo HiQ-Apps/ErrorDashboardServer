@@ -50,7 +50,6 @@ impl MigrationTrait for Migration {
                         .on_update(ForeignKeyAction::Cascade)
                     )
                     .col(ColumnDef::new(NamespaceAlerts::AlertMethod).string().not_null())
-                    .col(ColumnDef::new(NamespaceAlerts::ErrorName).string())
                     .col(ColumnDef::new(NamespaceAlerts::Path).string())
                     .col(ColumnDef::new(NamespaceAlerts::Line).integer())
                     .col(ColumnDef::new(NamespaceAlerts::Message).string())

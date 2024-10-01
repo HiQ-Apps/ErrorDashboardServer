@@ -29,7 +29,6 @@ impl NamespaceAlertsService {
             id: uid,
             namespace_id: new_namespace_alert.namespace_id,
             alert_method: new_namespace_alert.alert_method,
-            error_name: new_namespace_alert.error_name,
             path: new_namespace_alert.path,
             line: new_namespace_alert.line,
             message: new_namespace_alert.message,
@@ -85,7 +84,6 @@ impl NamespaceAlertsService {
                 id: alert.id,
                 namespace_id: alert.namespace_id,
                 alert_method: alert.alert_method.clone(),
-                error_name: alert.error_name.clone(),
                 path: alert.path.clone(),
                 line: alert.line.clone(),
                 message: alert.message.clone(),
@@ -130,7 +128,6 @@ impl NamespaceAlertsService {
                 id: alert.id,
                 namespace_id: alert.namespace_id,
                 alert_method: alert.alert_method.clone(),
-                error_name: alert.error_name.clone(),
                 path: alert.path.clone(),
                 line: alert.line.clone(),
                 message: alert.message.clone(),
@@ -226,10 +223,6 @@ impl NamespaceAlertsService {
 
         if let Some(alert_method) = updated_namespace_alert.alert_method {
             updated_alert.alert_method = ActiveValue::Set(alert_method);
-        }
-
-        if let Some(error_name) = updated_namespace_alert.error_name {
-            updated_alert.error_name = ActiveValue::Set(Some(error_name));
         }
 
         if let Some(path) = updated_namespace_alert.path {

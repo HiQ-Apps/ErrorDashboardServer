@@ -1,6 +1,4 @@
-use std::{vec, sync::Arc};
 use actix_web::web;
-use actix_cors::Cors;
 
 use crate::handlers::namespace_alert_handlers::NamespaceAlertHandler;
 use crate::middlewares::auth_middleware::JwtMiddleware;

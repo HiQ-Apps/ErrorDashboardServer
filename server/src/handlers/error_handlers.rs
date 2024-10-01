@@ -106,4 +106,17 @@ impl ErrorHandler {
 
         Ok(HttpResponse::Ok().json(result))
     }
+
+    pub async fn get_unique_error_meta_by_namespace(
+        namespace_services: web::Data<Arc<ErrorService>>,
+        namespace_id: web::Path<Uuid>,
+        filter_request: web::Query<String>,
+    ) -> Result<HttpResponse, ServerError> {
+        let filter = filter_request.into_inner();
+        let namespace_id = namespace_id.into_inner();
+
+        let result = namespace_services.get_unique_error_meta_by_namespace(namespace_id, filter).await.map_err(|err| ServerError::from(err))?;
+
+        Ok(HttpResponse::Ok().json(result))
+    }
 }

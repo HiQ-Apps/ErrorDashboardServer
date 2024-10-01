@@ -15,6 +15,7 @@ pub fn configure(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
             .route("/aggregate/namespace/{namespace_id}", web::get().to(ErrorHandler::get_aggregate_errors_by_date))
             .route("/aggregate/details/namespace/{namespace_id}", web::get().to(ErrorHandler::get_error_metadata_by_group))
             .route("/aggregate/details/namespace/{namespace_id}/pie", web::get().to(ErrorHandler::get_error_metrics_pie_chart))
+            .route("/unique/meta/namespace/{namespace_id}", web::get().to(ErrorHandler::get_unique_error_meta_by_namespace))
     );
 }
 

@@ -9,7 +9,6 @@ use serde_valid::Validate;
 pub struct CreateNamespaceAlertRequestDTO {
     pub namespace_id: Uuid,
     pub alert_method: String,
-    pub error_name: Option<String>,
     pub path: Option<String>,
     pub line: Option<i32>,
     pub message: Option<String>,
@@ -27,7 +26,6 @@ pub struct NamespaceAlertDTO {
     pub id: Uuid,
     pub namespace_id: Uuid,
     pub alert_method: String,
-    pub error_name: Option<String>,
     pub path: Option<String>,
     pub line: Option<i32>,
     pub message: Option<String>,
@@ -47,7 +45,6 @@ pub struct ShortNamespaceAlertDTO {
     pub id: Uuid,
     pub namespace_id: Uuid,
     pub alert_method: String,
-    pub error_name: Option<String>,
     pub path: Option<String>,
     pub line: Option<i32>,
     pub message: Option<String>,
@@ -61,26 +58,10 @@ pub struct ShortNamespaceAlertDTO {
 
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
-pub struct DeleteNamespaceAlertRequestDTO {
-    pub id: Uuid,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
-pub struct GetNamespaceAlertByNamespaceIdRequestDTO {
-    pub id: Uuid,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
-pub struct GetNamespaceAlertByUserIdRequestDTO {
-    pub id: Uuid,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateNamespaceAlertRequestDTO {
     pub namespace_id: Uuid,
     pub alert_method: Option<String>,
-    pub error_name: Option<String>,
     pub path: Option<String>,
     pub line: Option<i32>,
     pub message: Option<String>,
