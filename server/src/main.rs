@@ -22,6 +22,7 @@ use crate::libs::oauth_client::create_oauth_client;
 use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware};
 use crate::routes::{auth_routes, error_routes, namespace_routes, namespace_alert_routes, user_routes, tag_routes, static_routes};
 use crate::services::init_services;
+use crate::shared::utils::role::initialize_role_rules;
 use config::Config;
 
 #[shuttle_runtime::main]
@@ -84,10 +85,13 @@ async fn main(
 
     // let namespace_manager = NamespaceServer::new().start();
 
+    let role_rules = Arc::new(initialize_role_rules());
+
     // Return a closure that configures the service
     let config = move |cfg: &mut web::ServiceConfig| {
         cfg.app_data(web::Data::new(Arc::clone(&db_pool)))
             .app_data(web::Data::new(Arc::clone(&config)))
+            .app_data(web::Data::new(Arc::clone(&role_rules)))
             .app_data(web::Data::new(namespace_service.clone()))
             .app_data(web::Data::new(namespace_alert_service.clone()))
             .app_data(web::Data::new(user_service.clone()))

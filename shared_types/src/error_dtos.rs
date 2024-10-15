@@ -148,3 +148,4 @@ pub struct AggregateErrorDTO {
     pub count: i64,
     pub time: DateTime<Utc>,
 }
+

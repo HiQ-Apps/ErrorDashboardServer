@@ -8,7 +8,8 @@ pub enum UserNamespaceJunction {
     Table,
     Id,
     UserId,
-    NamespaceId
+    NamespaceId,
+    Role,
 }
 
 #[derive(DeriveMigrationName)]
@@ -41,6 +42,7 @@ impl MigrationTrait for Migration {
                         .on_delete(ForeignKeyAction::Cascade)
                         .on_update(ForeignKeyAction::Cascade),
                 )
+                .col(ColumnDef::new(UserNamespaceJunction::Role).string().not_null())
                 .to_owned(),
             ).await
     }

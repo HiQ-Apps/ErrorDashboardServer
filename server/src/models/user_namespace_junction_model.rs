@@ -13,6 +13,7 @@ pub struct Model {
     pub id: Uuid,
     pub namespace_id: Uuid,
     pub user_id: Uuid,
+    pub role: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -52,6 +53,7 @@ impl ActiveModelBehavior for ActiveModel {
             id: ActiveValue::Set(Uuid::new_v4()),
             namespace_id: ActiveValue::Set(Uuid::new_v4()),
             user_id: ActiveValue::Set(Uuid::new_v4()),
+            role: ActiveValue::Set(String::new())
         }
     }
 }

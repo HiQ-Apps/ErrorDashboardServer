@@ -34,6 +34,15 @@ pub struct ShortUserDTO {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
+pub struct MemberListDTO {
+    pub id: Uuid,
+    pub username: String,
+    pub email: String,
+    pub role: String
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct ShortUserProfileDTO {
     pub avatar_color: String,
     pub first_name: Option<String>,
