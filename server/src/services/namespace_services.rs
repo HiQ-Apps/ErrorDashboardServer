@@ -595,7 +595,6 @@ pub async fn delete_namespace(&self, namespace_id: Uuid, user_id: Uuid) -> Resul
 
     }
 
-    // Comparing the weight of user role and target role before for mutation actions between users
     pub async fn compare_user_namespace_perms(&self, requester_id: Uuid, target_id: Uuid, namespace_id: Uuid, rules: &RoleRules ) -> Result<bool, ServerError> {
         let db = &*self.db;
         let requester_junction = UserNamespaceJunctionEntity::find()
@@ -610,7 +609,6 @@ pub async fn delete_namespace(&self, namespace_id: Uuid, user_id: Uuid) -> Resul
             .one(db)
             .await;
 
-        // compare the roles of the requester and target, then check the weight of the role
         match (requester_junction, target_junction) {
             (Ok(Some(requester)), Ok(Some(target))) => {
                 let requester_role = requester.role;
