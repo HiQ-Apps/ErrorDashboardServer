@@ -1,3 +1,4 @@
+use uuid::Uuid;
 use chrono::NaiveDate;
 use serde::{Serialize, Deserialize};
 use serde_valid::Validate;
@@ -40,4 +41,9 @@ pub struct TimeParams {
     pub start_time: NaiveDate,
     pub time_interval_minutes: i64,
     pub timezone: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+pub struct IdRequestDTO {
+    pub id: Uuid,
 }

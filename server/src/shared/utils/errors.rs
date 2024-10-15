@@ -43,10 +43,13 @@ impl ResponseError for ServerError {
         match self {
             ServerError::QueryError(ref err) => {
                 let status = match err {
-                    QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound | QueryError::UserProfileNotFound 
-                    | QueryError::NamespaceAlertNotFound | QueryError::NotFound | QueryError::NamespaceAlertUserJunctionNotFound => StatusCode::NOT_FOUND,
-                    QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists | QueryError::UserAlreadySubscribed => StatusCode::CONFLICT,
-                    QueryError::PasswordIncorrect | QueryError::OAuthTypeError | QueryError::UserNotNamespaceMember
+                    QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound 
+                    | QueryError::UserProfileNotFound | QueryError::NamespaceAlertNotFound | QueryError::NotFound
+                    | QueryError::NamespaceAlertUserJunctionNotFound => StatusCode::NOT_FOUND,
+                    QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists 
+                    | QueryError::UserAlreadySubscribed => StatusCode::CONFLICT,
+                    QueryError::PasswordIncorrect | QueryError::OAuthTypeError | QueryError::UserNotNamespaceMember 
+                    | QueryError::InvalidRole
                      => StatusCode::UNAUTHORIZED,
                     QueryError::InvalidTimestamp => StatusCode::BAD_REQUEST,
                     _ => StatusCode::BAD_REQUEST,
@@ -191,6 +194,9 @@ pub enum QueryError {
 
     #[error("Tag not found")]
     InvalidTag,
+
+    #[error("Invalid role")]
+    InvalidRole,
 }
 
 #[derive(Debug, Error)]

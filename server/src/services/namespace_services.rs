@@ -2,21 +2,24 @@ use chrono::Utc;
 use bcrypt::{hash, DEFAULT_COST};
 use futures::stream::{FuturesUnordered, TryStreamExt};
 use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel, DatabaseConnection, QuerySelect, TransactionTrait};
+use shared_types::user_dtos::MemberListDTO;
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 use log::info;
 
-use shared_types::namespace_dtos::{UpdateNamespaceDTO, ShortNamespaceDTO, GetNamespaceResponseDTO};
+use shared_types::namespace_dtos::{GetNamespaceResponseDTO, GetNamespacesByUserResponseDTO, InviteUserRequestDTO, ShortNamespaceDTO, UpdateNamespaceDTO};
 use shared_types::error_dtos::{AggregatedResult, GetAggregatedLineErrorDTO, AggregateIndividualErrorDTO, GetAggregatedMessageErrorDTO, GetAggregatedStatusErrorDTO, TagAggregatedErrorDTO};
 use shared_types::tag_dtos::ShortTagNoIdDTO;
 use crate::config::Config;
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
+use crate::models::user_model::Entity as UserEntity;
 use crate::models::error_model::Entity as ErrorEntity;
 use crate::models::error_tag_model::Entity as TagEntity;
 use crate::models::user_namespace_junction_model::{Entity as UserNamespaceJunctionEntity, Model as UserNamespaceJunctionModel};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError, RequestError};
 use crate::shared::utils::mailing::send_email;
+use crate::shared::utils::role::{string_to_role, Permission, Role, RoleRules};
 
 
 pub struct NamespaceService {
@@ -73,6 +76,7 @@ impl NamespaceService {
             id: Uuid::new_v4(),
             user_id,
             namespace_id: uid,
+            role: "owner".to_string(),
         }
         .into_active_model();
 
@@ -111,7 +115,7 @@ impl NamespaceService {
         }
     }
     
-    pub async fn get_namespaces_by_user_id(&self, user_id: Uuid, offset: u64, limit: u64) -> Result<Vec<ShortNamespaceDTO>, ServerError> {
+    pub async fn get_namespaces_by_user_id(&self, user_id: Uuid, offset: u64, limit: u64) -> Result<Vec<GetNamespacesByUserResponseDTO>, ServerError> {
         let junction_result = UserNamespaceJunctionEntity::find()
             .filter(<UserNamespaceJunctionEntity as sea_orm::EntityTrait>::Column::UserId.eq(user_id))
             .all(&*self.db)
@@ -131,11 +135,12 @@ impl NamespaceService {
                         .await
                         .map_err(ExternalError::from)?;
 
-                    let short_namespaces = namespaces.into_iter().map(|namespace| ShortNamespaceDTO {
+                    let short_namespaces = namespaces.into_iter().map(|namespace| GetNamespacesByUserResponseDTO {
                         id: namespace.id,
                         active: namespace.active,
                         service_name: namespace.service_name,
                         environment_type: namespace.environment_type,
+                        role: junctions.iter().find(|junc| junc.namespace_id == namespace.id).unwrap().role.clone(),
                     }).collect();
 
                     Ok(short_namespaces)
@@ -504,4 +509,197 @@ pub async fn delete_namespace(&self, namespace_id: Uuid, user_id: Uuid) -> Resul
             }
         }
     }
+
+    pub async fn invite_user_to_namespace(&self, namespace_id: Uuid, invite_data: InviteUserRequestDTO) -> Result<(), ServerError> {
+        let db = &*self.db;
+
+        let user_namespace_junction = UserNamespaceJunctionModel {
+            id: Uuid::new_v4(),
+            user_id: invite_data.user_id,
+            namespace_id,
+            role: invite_data.role,
+        };
+
+        if let Err(err) = UserNamespaceJunctionEntity::insert(user_namespace_junction.into_active_model()).exec(db).await {
+            return Err(ServerError::from(ExternalError::from(err)));
+        }
+
+        Ok(())
+    }
+
+    pub async fn remove_user_from_namespace(&self, user_id: Uuid, namespace_id: Uuid) -> Result<(), ServerError> {
+        let db = &*self.db;
+
+        let found_instance = UserNamespaceJunctionEntity::find()
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::UserId.eq(user_id))
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
+            .one(db)
+            .await;
+
+        let found_instance = match found_instance {
+            Ok(Some(instance)) => instance,
+            Ok(None) => {
+                return Err(ServerError::QueryError(QueryError::UserNamespaceJunctionNotFound,
+                ));
+            }
+            Err(err) => return Err(ServerError::from(ExternalError::from(err))),
+        };
+
+        found_instance.delete(db).await.map_err(ExternalError::from)?;
+        Ok(())
+    }
+
+    pub async fn check_namespace_membership(&self, user_id: Uuid, namespace_id: Uuid) -> Result<bool, ServerError>{
+        let db = &*self.db;
+        let result = UserNamespaceJunctionEntity::find()
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::UserId.eq(user_id))
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
+            .one(db)
+            .await;
+
+        match result {
+            Ok(Some(_)) => Ok(true),
+            Ok(None) => Ok(false),
+            Err(err) => Err(ServerError::from(ExternalError::from(err))),
+        }
+    }
+
+    // Does the user have the required permissions to do a specific action in a namespace?
+    pub async fn check_user_namespace_perms(&self, user_id: Uuid, namespace_id: Uuid, rules: &RoleRules, action: Permission) -> Result<bool, ServerError> {
+        let db = &*self.db;
+        let result = UserNamespaceJunctionEntity::find()
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::UserId.eq(user_id))
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
+            .one(db)
+            .await;
+        
+        match result {
+            Ok(Some(junction)) => {
+                let role = junction.role;
+                let perms = string_to_role(&role);
+
+                match perms {
+                    Some(role) => {
+                        let role_perms = rules.role_rules.get(&role).unwrap();
+                        if role_perms.permissions.contains(&action) {
+                            return Ok(true);
+                        }
+                        return Err(ServerError::RequestError(RequestError::PermissionDenied));
+                    },
+                    None => return Err(ServerError::RequestError(RequestError::PermissionDenied)),
+                };
+            },
+            Ok(None) => Err(ServerError::QueryError(QueryError::UserNamespaceJunctionNotFound)),
+            Err(err) => Err(ServerError::from(ExternalError::from(err))),
+        }
+
+    }
+
+    pub async fn compare_user_namespace_perms(&self, requester_id: Uuid, target_id: Uuid, namespace_id: Uuid, rules: &RoleRules ) -> Result<bool, ServerError> {
+        let db = &*self.db;
+        let requester_junction = UserNamespaceJunctionEntity::find()
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::UserId.eq(requester_id))
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
+            .one(db)
+            .await;
+
+        let target_junction = UserNamespaceJunctionEntity::find()
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::UserId.eq(target_id))
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
+            .one(db)
+            .await;
+
+        match (requester_junction, target_junction) {
+            (Ok(Some(requester)), Ok(Some(target))) => {
+                let requester_role = requester.role;
+                let target_role = target.role;
+
+                let requester_perms = string_to_role(&requester_role);
+                let target_perms = string_to_role(&target_role);
+
+                match (requester_perms, target_perms) {
+                    (Some(requester_role), Some(target_role)) => {
+                        let requester_weight = rules.role_rules.get(&requester_role).unwrap().weight;
+                        let target_weight = rules.role_rules.get(&target_role).unwrap().weight;
+
+                        if requester_weight >= target_weight {
+                            return Ok(true);
+                        }
+                        return Err(ServerError::RequestError(RequestError::PermissionDenied));
+                    },
+                    _ => return Err(ServerError::RequestError(RequestError::PermissionDenied)),
+                }
+            },
+            _ => return Err(ServerError::QueryError(QueryError::UserNamespaceJunctionNotFound)),
+        }
+
+    }
+
+    pub async fn get_namespace_members(&self, namespace_id: Uuid) -> Result<Vec<MemberListDTO>, ServerError> {
+        let db = &*self.db;
+        let junctions = UserNamespaceJunctionEntity::find()
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
+            .all(db)
+            .await
+            .map_err(ExternalError::from)?;
+
+        let user_ids: Vec<Uuid> = junctions.iter().map(|junc| junc.user_id).collect();
+        let users = UserEntity::find()
+            .filter(<UserEntity as EntityTrait>::Column::Id.is_in(user_ids))
+            .all(db)
+            .await
+            .map_err(ExternalError::from)?;
+
+        let user_namespace_junction = junctions.into_iter().map(|junc| (junc.user_id, junc.role)).collect::<HashMap<Uuid, String>>();
+        
+        let users_dto: Vec<MemberListDTO> = users.into_iter().map(|user| {
+            MemberListDTO {
+                id: user.id,
+                email: user.email,
+                username: user.username,
+                role: user_namespace_junction.get(&user.id)
+                    .cloned()
+                    .unwrap_or_else(|| "unknown".to_string()),
+            }
+        }).collect();
+
+        Ok(users_dto)
+    }
+
+    pub async fn get_user_role_in_namespace(&self, user_id: Uuid, namespace_id: Uuid) -> Result<String, ServerError> {
+        let db = &*self.db;
+        let result = UserNamespaceJunctionEntity::find()
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::UserId.eq(user_id))
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
+            .one(db)
+            .await;
+
+        match result {
+            Ok(Some(junction)) => Ok(junction.role),
+            Ok(None) => Err(ServerError::QueryError(QueryError::UserNamespaceJunctionNotFound)),
+            Err(err) => Err(ServerError::from(ExternalError::from(err))),
+        }
+    }
+
+    pub async fn update_user_role_in_namespace(&self, user_id: Uuid, namespace_id: Uuid, new_role: String) -> Result<(), ServerError> {
+        let db = &*self.db;
+        let result = UserNamespaceJunctionEntity::find()
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::UserId.eq(user_id))
+            .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
+            .one(db)
+            .await;
+
+        let junction = match result {
+            Ok(Some(junction)) => junction,
+            Ok(None) => return Err(ServerError::QueryError(QueryError::UserNamespaceJunctionNotFound)),
+            Err(err) => return Err(ServerError::from(ExternalError::from(err))),
+        };
+
+        let mut junction_active = junction.into_active_model();
+        junction_active.role = ActiveValue::Set(new_role);
+
+        junction_active.update(db).await.map_err(ExternalError::from)?;
+        Ok(())
+    }
 }
+

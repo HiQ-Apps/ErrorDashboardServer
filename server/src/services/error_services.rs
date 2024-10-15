@@ -364,4 +364,27 @@ impl ErrorService {
 
         Ok(aggregated_errors)
     }
+
+    pub async fn get_unique_error_meta_by_namespace(&self, namespace_id: Uuid, filter: String) -> Result<Vec<String>, ServerError>{
+        let db: &DatabaseConnection = &*self.db;
+
+        let errors = ErrorEntity::find()
+            .filter(<ErrorEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
+            .all(db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+        let unique_meta = errors.into_iter().map(|error| {
+            match filter.as_str() {
+                "message" => error.message,
+                "path" => error.path,
+                "line" => error.line.to_string(),
+                "stack_trace" => error.stack_trace,
+                _ => error.message,
+            }
+        }).collect();
+        
+        Ok(unique_meta)
+    }
+
 }

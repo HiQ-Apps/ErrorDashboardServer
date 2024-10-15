@@ -21,7 +21,6 @@ pub struct GetNamespaceResponseDTO {
     pub client_secret: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>
-
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
@@ -56,4 +55,28 @@ pub struct ShortNamespaceDTO {
     pub active: bool,
     pub service_name: String,
     pub environment_type: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct GetNamespacesByUserResponseDTO {
+    pub id: Uuid,
+    pub active: bool,
+    pub service_name: String,
+    pub environment_type: String,
+    pub role: String
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct InviteUserRequestDTO {
+    pub user_id: Uuid,
+    pub role: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateUserRoleRequestDTO {
+    pub user_id: Uuid,
+    pub role: String,
 }
