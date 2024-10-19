@@ -13,7 +13,7 @@ use crate::config::Config;
 use crate::models::user_profile_model::{Model as UserProfileModel, Entity as UserProfileEntity};
 use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
 use crate::models::refresh_token_model::{Entity as RefreshTokenEntity, Model as RefreshTokenModel};
-use crate::shared::utils::mailing::send_email;
+use crate::shared::utils::mailing::{send_email, EmailContent};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError, RequestError};
 use crate::shared::utils::jwt::{create_access_token, create_refresh_token, refresh_access_token_util};
 
@@ -392,7 +392,14 @@ impl AuthService {
             refresh_token: refresh_token_dto,
         };
 
-        send_email(configs, &user.email, "Welcome to Error Dashboard", "Hey user, thanks for signing up to my application! Feel free to contact this email for anything in regards to the error dashboard. I hope you have a nice day!").map_err(|err| ServerError::from(err))?;
+        let content = EmailContent {
+            greeting: "Welcome".to_string(),
+            main_message: "Welcome to Higuard's Error Dashboard.".to_string(),
+            body: format!("Welcome {}, thanks for signing up to my application! Feel free to contact this email for anything in regards to the error dashboard. If this isn't you, ignore this. Keep your ID", user.email),
+            dynamic_content: format!("Your ID is: {}", uid).into(),
+        };
+
+        send_email(configs, &user.email, "Higuard Registration", &content).map_err(|err| ServerError::from(err))?;
 
         Ok(user_response)
     }

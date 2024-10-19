@@ -702,4 +702,3 @@ pub async fn delete_namespace(&self, namespace_id: Uuid, user_id: Uuid) -> Resul
         Ok(())
     }
 }
-
