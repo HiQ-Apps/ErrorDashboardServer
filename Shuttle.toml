@@ -1,3 +1,5 @@
-name = "higuard-error-dashboard"
-description = "Error Dashboard"
-domain = "higuard.dev"
+[build]
+assets = [
+    "server",
+    "shared_types"
+]
