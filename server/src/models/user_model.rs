@@ -19,6 +19,7 @@ pub struct Model {
     pub password: Option<String>,
     pub user_profile_id: Uuid,
     pub o_auth_provider: String,
+    pub verified: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -55,6 +56,7 @@ impl ActiveModel {
         self.username = ActiveValue::Set(new_values.username);
         self.email = ActiveValue::Set(new_values.email);
         self.password = ActiveValue::Set(new_values.password);
+        self.verified = ActiveValue::Set(new_values.verified);
         self.created_at = ActiveValue::Set(new_values.created_at);
         self.updated_at = ActiveValue::Set(new_values.updated_at);
     }
@@ -69,6 +71,7 @@ impl ActiveModelBehavior for ActiveModel {
             username: ActiveValue::Set(String::new()),
             email: ActiveValue::Set(String::new()),
             password: ActiveValue::Set(Some(String::new())),
+            verified: ActiveValue::Set(false),
             o_auth_provider: ActiveValue::Set(String::new()),
             created_at: ActiveValue::Set(Utc::now()),
             updated_at: ActiveValue::Set(Utc::now()),

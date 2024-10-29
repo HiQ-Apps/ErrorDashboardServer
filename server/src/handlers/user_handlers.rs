@@ -19,6 +19,15 @@ impl UserHandler {
         }
     }
 
+    pub async fn verify_user(
+        user_services: web::Data<Arc<UserService>>,
+        user_id: web::Path<Uuid>,
+    ) -> Result<HttpResponse, ServerError> {
+        match user_services.verify_user(user_id.into_inner()).await {
+            Ok(()) => Ok(HttpResponse::Found().append_header(("Location", "/")).finish()),
+            Err(err) => Err(err)
+        }
+    }
 
     pub async fn get_user_profile(
         user_services: web::Data<Arc<UserService>>,

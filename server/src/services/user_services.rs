@@ -84,6 +84,51 @@ impl UserService {
         }
     }
 
+    pub async fn verify_user(&self, uid: Uuid) -> Result<(), ServerError> {
+        let db = &*self.db;
+        let now = Utc::now();
+        let configs = &*self.configs;
+        let transaction = db.begin().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+        let hash_cost = configs.hash_cost.parse().unwrap_or(bcrypt::DEFAULT_COST);
+
+        let update_query = UserEntity::find()
+            .filter(<UserEntity as EntityTrait>::Column::Id.eq(uid))
+            .one(db)
+            .await
+            .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+
+        let user = match update_query {
+            Some(user) => user,
+            None => return Err(ServerError::from(QueryError::UserNotFound)),
+        };
+
+        let hashed_password = hash(&user.password.unwrap_or_default(), hash_cost).map_err(|err| ServerError::ExternalError(ExternalError::Bcrypt(err)))?;
+
+        let active_user = UserActiveModel {
+            id: ActiveValue::Set(user.id),
+            email: ActiveValue::Set(user.email),
+            user_profile_id: ActiveValue::Set(user.user_profile_id),
+            username: ActiveValue::Set(user.username),
+            password: ActiveValue::Set(Some(hashed_password)),
+            verified: ActiveValue::Set(true),
+            o_auth_provider: ActiveValue::Set(user.o_auth_provider),
+            created_at: ActiveValue::Set(user.created_at),
+            updated_at: ActiveValue::Set(now),
+        };
+
+        let updated_user = match active_user.update(&transaction).await {
+            Ok(user) => user,
+            Err(err) => {
+                transaction.rollback().await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+                return Err(ServerError::from(ExternalError::DB(err)))
+            }
+        };
+
+        transaction.commit().await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+
+        Ok(())
+    }
+
     pub async fn update_user_profile(&self, uid: Uuid, update_user_profile: UpdateUserProfileDTO) -> Result<ShortUserProfileDTO, ServerError> {
         let db = &*self.db;
         let now = Utc::now();
@@ -132,6 +177,7 @@ impl UserService {
             user_profile_id: ActiveValue::Set(user.user_profile_id),
             username: ActiveValue::Unchanged(user.username),
             password: ActiveValue::Unchanged(user.password),
+            verified: ActiveValue::Unchanged(user.verified),
             o_auth_provider: ActiveValue::Unchanged(user.o_auth_provider),
             created_at: ActiveValue::Set(user.created_at),
             updated_at: ActiveValue::Unchanged(user.updated_at),

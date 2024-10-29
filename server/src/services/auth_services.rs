@@ -195,6 +195,7 @@ impl AuthService {
             username: user_info.email.clone(),
             email: user_info.email.clone(),
             password: None,
+            verified: false,
             user_profile_id: new_profile_id,
             o_auth_provider: "Google".to_string(),
             created_at: now,
@@ -330,6 +331,7 @@ impl AuthService {
             email: user_email,
             password: Some(hashed_pass),
             o_auth_provider: "Custom".to_string(),
+            verified: false,
             user_profile_id: initialize_user_profile.id,
             created_at: now,
             updated_at: now,
@@ -392,10 +394,12 @@ impl AuthService {
             refresh_token: refresh_token_dto,
         };
 
+        let dynamic_verify_url = format!("https://higuard-error-dashboard-evgy.shuttle.app/api/users/{}/verify", uid);
+
         let content = EmailContent {
             greeting: "Welcome".to_string(),
             main_message: "Welcome to Higuard's Error Dashboard.".to_string(),
-            body: format!("Welcome {}, thanks for signing up to my application! Feel free to contact this email for anything in regards to the error dashboard. If this isn't you, ignore this. Keep your ID", user.email),
+            body: format!("Welcome {}, thanks for signing up to my application! Feel free to contact this email for anything in regards to the error dashboard. If this isn't you, ignore this. Please verify by clicking the following URL: <a href=\"{}\" style=\"color: #1a73e8;\">Verify your account</a>", user.email, dynamic_verify_url),
             dynamic_content: format!("Your ID is: {}", uid).into(),
         };
 
