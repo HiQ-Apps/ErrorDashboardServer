@@ -63,6 +63,27 @@ impl UserService {
         }
     }
 
+    pub async fn check_user_verification(&self, uid: Uuid) -> Result<bool, ServerError> {
+        let db = &*self.db;
+
+        let user_query = UserEntity::find()
+            .filter(<UserEntity as EntityTrait>::Column::Id.eq(uid))
+            .one(db)
+            .await
+            .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+
+        let user = match user_query {
+            Some(user_query) => user_query,
+            None => return Err(ServerError::from(QueryError::UserNotFound))
+        };
+
+        if !user.verified {
+            return Err(ServerError::from(QueryError::UserNotVerified))
+        } else {
+            return Ok(true)
+        }
+    }
+
     pub async fn update_user_profile(&self, uid: Uuid, update_user_profile: UpdateUserProfileDTO) -> Result<ShortUserProfileDTO, ServerError> {
         let db = &*self.db;
         let now = Utc::now();
