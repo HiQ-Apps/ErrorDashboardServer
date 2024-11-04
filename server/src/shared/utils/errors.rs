@@ -49,7 +49,7 @@ impl ResponseError for ServerError {
                     QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists 
                     | QueryError::UserAlreadySubscribed => StatusCode::CONFLICT,
                     QueryError::PasswordIncorrect | QueryError::OAuthTypeError | QueryError::UserNotNamespaceMember 
-                    | QueryError::InvalidRole
+                    | QueryError::InvalidRole | QueryError::UserNotVerified
                      => StatusCode::UNAUTHORIZED,
                     QueryError::InvalidTimestamp => StatusCode::BAD_REQUEST,
                     _ => StatusCode::BAD_REQUEST,
@@ -197,6 +197,9 @@ pub enum QueryError {
 
     #[error("Invalid role")]
     InvalidRole,
+
+    #[error("User not verified")]
+    UserNotVerified
 }
 
 #[derive(Debug, Error)]

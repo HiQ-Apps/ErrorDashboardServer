@@ -1,6 +1,6 @@
 use bcrypt::hash;
 use chrono::Utc;
-use sea_orm::{entity::prelude::*, EntityTrait, ActiveValue, TransactionTrait};
+use sea_orm::{entity::prelude::*, EntityTrait, ActiveValue, TransactionTrait, IntoActiveModel, ConnectionTrait};
 use shared_types::user_dtos::{ShortUserDTO, ShortUserProfileDTO, UpdateUserProfileDTO};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -9,6 +9,7 @@ use crate::config::Config;
 use crate::models::user_model::{Entity as UserEntity, ActiveModel as UserActiveModel};
 use crate::models::user_profile_model::{Entity as UserProfileEntity, ActiveModel as UserProfileActiveModel};
 use crate::shared::utils::errors::{ServerError, QueryError, ExternalError};
+use crate::shared::utils::mailing::{send_email, EmailContent};
 
 
 pub struct UserService {
@@ -82,6 +83,67 @@ impl UserService {
         } else {
             return Ok(true)
         }
+    }
+
+    pub async fn forgot_password(&self, email: String) -> Result<(), ServerError> {
+        let db = &*self.db;
+        let configs = &*self.configs;
+
+        let user_query = UserEntity::find()
+            .filter(<UserEntity as EntityTrait>::Column::Email.eq(email))
+            .one(db)
+            .await
+            .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+
+        let user = match user_query {
+            Some(user_query) => user_query,
+            None => return Err(ServerError::from(QueryError::UserNotFound))
+        };
+
+        let dynamic_forget_pass_url = format!("https://higuard-error-dashboard-evgy.shuttle.app/forget-password/{}", user.id);
+
+        let content = EmailContent {
+            greeting: "Password Change".to_string(),
+            main_message: "Forgot your password?".to_string(),
+            body: format!("It seems you're trying to update your password, if this is not you, please disregard this message. Otherwise, please click this link to update your password: <a href=\"{}\" style=\"color: #1a73e8;\"> Forgot my password </a>", dynamic_forget_pass_url),
+            dynamic_content: None,
+        };
+
+        send_email(configs, &user.email, "Higuard Password Change", &content).map_err(|err| ServerError::from(err))?;
+
+        Ok(())
+    }
+
+    pub async fn update_password(&self, uid: Uuid, password: String) -> Result<(), ServerError> {
+        let db = &*self.db;
+        let configs = &*self.configs;
+        let now = Utc::now();
+        let hash_cost = configs.hash_cost.parse().unwrap_or(bcrypt::DEFAULT_COST);
+
+        let hashed_pass = hash(password, hash_cost).map_err(|err| ServerError::ExternalError(ExternalError::Bcrypt(err)))?;
+
+        let user_query = UserEntity::find()
+            .filter(<UserEntity as EntityTrait>::Column::Id.eq(uid))
+            .one(db)
+            .await
+            .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+
+        let user = match user_query {
+            Some(user) => user,
+            None => return Err(ServerError::from(QueryError::UserNotFound))
+        };
+
+
+        let mut active_user = user.into_active_model();
+
+        active_user.password = ActiveValue::Set(Some(hashed_pass));
+        active_user.updated_at = ActiveValue::Set(now);
+
+        if let Err(err) = active_user.update(db).await {
+            return Err(ServerError::ExternalError(ExternalError::DB(err)));
+        }
+
+        Ok(())
     }
 
     pub async fn verify_user(&self, uid: Uuid) -> Result<(), ServerError> {

@@ -105,6 +105,9 @@ where
                     Ok(()) => Ok(res),
                     Err(err) => Err(E::from(err)),
                 }
+                // add verification check
+                
+
             } else {
                 Err(E::from(ServerError::HttpError(StatusCode::UNAUTHORIZED, "No Authorization header or access_token cookie found.".to_string())))
             }

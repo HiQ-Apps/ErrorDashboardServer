@@ -39,6 +39,30 @@ impl UserHandler {
         }
     }
 
+    pub async fn forgot_password(
+        user_services: web::Data<Arc<UserService>>,
+        email: web::Query<String>,
+    ) -> Result<HttpResponse, ServerError> {
+        let email = email.into_inner();
+        match user_services.forgot_password(email).await {
+            Ok(()) => Ok(HttpResponse::Ok().finish()),
+            Err(err) => Err(err)
+        }
+    }
+
+    pub async fn update_password(
+        user_services: web::Data<Arc<UserService>>,
+        updated_password: web::Json<String>,
+        user_id: web::Path<Uuid>,
+    ) -> Result<HttpResponse, ServerError> {
+        let user_id = user_id.into_inner();
+        let updated_password = updated_password.into_inner();
+        match user_services.update_password(user_id, updated_password).await {
+            Ok(()) => Ok(HttpResponse::Ok().finish()),
+            Err(err) => Err(err)
+        }
+    }
+
     pub async fn update_user_profile(
         user_services: web::Data<Arc<UserService>>,
         user_id: web::Path<Uuid>,

@@ -399,7 +399,7 @@ impl AuthService {
         let content = EmailContent {
             greeting: "Welcome".to_string(),
             main_message: "Welcome to Higuard's Error Dashboard.".to_string(),
-            body: format!("Welcome {}, thanks for signing up to my application! Feel free to contact this email for anything in regards to the error dashboard. If this isn't you, ignore this. Please verify by clicking the following URL: <a href=\"{}\" style=\"color: #1a73e8;\">Verify your account</a>", user.email, dynamic_verify_url),
+            body: format!("Welcome {}, thanks for signing up to my application! Feel free to contact this email for anything in regards to the error dashboard. If this isn't you, ignore this. Please verify by clicking the following link: <a href=\"{}\" style=\"color: #1a73e8;\">Verify your account</a>", user.email, dynamic_verify_url),
             dynamic_content: format!("Your ID is: {}", uid).into(),
         };
 
