@@ -18,7 +18,7 @@ pub fn configure_without_auth(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/users")
         .route("/{id}/verify", web::put().to(UserHandler::verify_user))
-        .route("/{id}/password", web::post().to(UserHandler::update_password))
-        .route("/{id}/password", web::put().to(UserHandler::forgot_password))
+        .route("/{id}/{email}/reset-password", web::put().to(UserHandler::update_password))
+        .route("/forgot-password", web::post().to(UserHandler::forgot_password))
        );
 }

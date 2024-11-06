@@ -1,7 +1,7 @@
 use bcrypt::hash;
 use chrono::Utc;
 use sea_orm::{entity::prelude::*, EntityTrait, ActiveValue, TransactionTrait, IntoActiveModel, ConnectionTrait};
-use shared_types::user_dtos::{ShortUserDTO, ShortUserProfileDTO, UpdateUserProfileDTO};
+use shared_types::user_dtos::{ResetPasswordRequestDTO, ShortUserDTO, ShortUserProfileDTO, UpdateUserProfileDTO};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -85,12 +85,12 @@ impl UserService {
         }
     }
 
-    pub async fn forgot_password(&self, email: String) -> Result<(), ServerError> {
+    pub async fn forgot_password(&self, req: ResetPasswordRequestDTO) -> Result<(), ServerError> {
         let db = &*self.db;
         let configs = &*self.configs;
 
         let user_query = UserEntity::find()
-            .filter(<UserEntity as EntityTrait>::Column::Email.eq(email))
+            .filter(<UserEntity as EntityTrait>::Column::Email.eq(req.email))
             .one(db)
             .await
             .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
@@ -100,7 +100,8 @@ impl UserService {
             None => return Err(ServerError::from(QueryError::UserNotFound))
         };
 
-        let dynamic_forget_pass_url = format!("https://higuard-error-dashboard-evgy.shuttle.app/forget-password/{}", user.id);
+        // let dynamic_forget_pass_url = format!("https://higuard-error-dashboard-evgy.shuttle.app/forget-password/{}", user.id);
+        let dynamic_forget_pass_url = format!("http://localhost:8000/forget-password/{}", user.id);
 
         let content = EmailContent {
             greeting: "Password Change".to_string(),
@@ -114,7 +115,7 @@ impl UserService {
         Ok(())
     }
 
-    pub async fn update_password(&self, uid: Uuid, password: String) -> Result<(), ServerError> {
+    pub async fn update_password(&self, uid: Uuid, email: String, password: String) -> Result<(), ServerError> {
         let db = &*self.db;
         let configs = &*self.configs;
         let now = Utc::now();
@@ -133,6 +134,9 @@ impl UserService {
             None => return Err(ServerError::from(QueryError::UserNotFound))
         };
 
+        if user.email != email {
+            return Err(ServerError::from(QueryError::UserNotFound))
+        }
 
         let mut active_user = user.into_active_model();
 
