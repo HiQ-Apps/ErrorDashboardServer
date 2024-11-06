@@ -394,7 +394,7 @@ impl AuthService {
             refresh_token: refresh_token_dto,
         };
 
-        let dynamic_verify_url = format!("https://higuard-error-dashboard-evgy.shuttle.app/api/users/{}/verify", uid);
+        let dynamic_verify_url = format!("https://higuard-error-dashboard-evgy.shuttle.app/user/{}/verify", uid);
 
         let content = EmailContent {
             greeting: "Welcome".to_string(),

@@ -11,12 +11,13 @@ pub fn configure_without_auth(cfg: &mut web::ServiceConfig) {
             .route("/refresh", web::get().to(AuthHandler::refresh_access_token))
             .route("/login/google", web::get().to(AuthHandler::google_login))
             .route("/login/google/callback", web::get().to(AuthHandler::google_callback))
-    );
-}
-
-pub fn configure_with_auth(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
-    cfg.service(
-        web::scope("api/verified/auth")
+            .route("/logout", web::post().to(AuthHandler::logout))
+        );
+    }
+    
+    pub fn configure_with_auth(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
+        cfg.service(
+            web::scope("api/verified/auth")
             .wrap(jwt_middleware.clone())
             .route("/check", web::post().to(AuthHandler::verify_user))
     );

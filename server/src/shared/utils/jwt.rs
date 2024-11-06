@@ -26,11 +26,23 @@ pub async fn validate_jwt(token: &str, secret_key: &str, validation: &Validation
         .one(db).await
         .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
 
+    if found_user.is_none() {
+        return Err(ServerError::from(QueryError::UserNotFound));
+    }
+
+
     match found_user {
-        Some(_user) => Ok(()),
+        Some(user) => {
+            if user.verified == false {
+                return Err(ServerError::from(QueryError::UserNotVerified));
+            } else {
+                Ok(())
+            }
+        },
         None => Err(ServerError::from(QueryError::UserNotFound)),
     }
 }
+
 
 pub async fn validate_namespace_secret_jwt(client_id: Uuid, client_secret: String, db: &DatabaseConnection) -> Result<bool, ServerError> {
     let found_namespace = NamespaceEntity::find()

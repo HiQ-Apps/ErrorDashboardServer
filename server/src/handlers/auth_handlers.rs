@@ -54,6 +54,25 @@ impl AuthHandler {
         }
     }
 
+    pub async fn logout() -> Result<HttpResponse, ServerError> {
+        Ok(HttpResponse::Ok()
+            .cookie(Cookie::build("refreshToken", "")
+                .http_only(true)
+                .path("/")
+                .secure(false)
+                .same_site(SameSite::Lax)
+                .max_age(Duration::days(1))
+                .finish())
+            .cookie(Cookie::build("accessToken", "")
+                .http_only(true)
+                .path("/")
+                .secure(false)
+                .same_site(SameSite::Lax)
+                .max_age(Duration::days(1))
+                .finish())
+            .finish())
+    }
+
     pub async fn google_login(auth_services: web::Data<Arc<AuthService>>, oauth_client: web::Data<BasicClient>) -> Result<HttpResponse, ServerError> {
         let login = auth_services.google_login(oauth_client.get_ref().clone()).await;
 
