@@ -50,6 +50,11 @@ pub struct ShortUserProfileDTO {
     pub updated_at: DateTime<Utc>
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct ResetPasswordRequestDTO {
+    pub email: String,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
@@ -65,6 +70,19 @@ pub struct UpdateUserProfileDTO {
 #[serde(rename_all = "camelCase")]
 pub struct UserLoginDTO {
     pub email: String,
+    pub password: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct ResetPasswordPath {
+    pub id: Uuid,
+    pub email: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct PasswordDTO {
     pub password: String,
 }
 

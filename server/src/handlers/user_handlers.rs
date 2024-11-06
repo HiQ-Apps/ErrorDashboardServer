@@ -2,7 +2,7 @@ use actix_web::{web, HttpResponse, Result};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use shared_types::user_dtos::UpdateUserProfileDTO;
+use shared_types::user_dtos::{PasswordDTO, ResetPasswordPath, ResetPasswordRequestDTO, UpdateUserProfileDTO, UserLoginDTO};
 use crate::shared::utils::errors::ServerError;
 use crate::services::UserService;
 
@@ -35,6 +35,34 @@ impl UserHandler {
     ) -> Result<HttpResponse, ServerError> {
         match user_services.get_user_profile(id.into_inner()).await {
             Ok(user_profile) => Ok(HttpResponse::Ok().json(user_profile)),
+            Err(err) => Err(err)
+        }
+    }
+
+    pub async fn forgot_password(
+        user_services: web::Data<Arc<UserService>>,
+        email: web::Json<ResetPasswordRequestDTO>,
+    ) -> Result<HttpResponse, ServerError> {
+        let email = email.into_inner();
+        match user_services.forgot_password(email).await {
+            Ok(()) => Ok(HttpResponse::Ok().finish()),
+            Err(err) => Err(err)
+        }
+    }
+
+    pub async fn update_password(
+        user_services: web::Data<Arc<UserService>>,
+        reset_password: web::Json<PasswordDTO>,
+        user_params: web::Path<ResetPasswordPath>
+    ) -> Result<HttpResponse, ServerError> {
+        let updated_password = reset_password.into_inner();
+        let user_params = user_params.into_inner();
+        let password = updated_password.password;
+        let user_id = user_params.id;
+        let email = user_params.email;
+
+        match user_services.update_password(user_id, email, password).await {
+            Ok(()) => Ok(HttpResponse::Ok().finish()),
             Err(err) => Err(err)
         }
     }

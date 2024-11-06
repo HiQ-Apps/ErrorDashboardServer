@@ -41,7 +41,7 @@ pub async fn validate_namespace_secret_jwt(client_id: Uuid, client_secret: Strin
 
     match found_namespace {
         Some(namespace) => {
-            verify(client_secret, &namespace.client_secret.to_string())
+            let _ = verify(client_secret, &namespace.client_secret.to_string())
                 .map_err(|err| ServerError::from(ExternalError::Bcrypt(err)));
             Ok(true)
         },

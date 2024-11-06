@@ -18,7 +18,6 @@ use std::sync::Arc;
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_runtime::SecretStore;
 
-use crate::libs::oauth_client::create_oauth_client;
 use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware};
 use crate::routes::{auth_routes, error_routes, namespace_routes, namespace_alert_routes, user_routes, tag_routes, static_routes};
 use crate::services::init_services;
@@ -65,8 +64,6 @@ async fn main(
 
     println!("Starting server...");
 
-    let oauth_client = create_oauth_client(&config);
-
     let services =
         match init_services(db_pool.clone(), config.clone()) {
             Ok(services) => services,
@@ -98,7 +95,6 @@ async fn main(
             .app_data(web::Data::new(auth_service.clone()))
             .app_data(web::Data::new(error_service.clone()))
             .app_data(web::Data::new(tag_service.clone()))
-            .app_data(web::Data::new(oauth_client.clone()))
             // .app_data(web::Data::new(namespace_manager.clone()))
             .configure(static_routes::configure)
             .configure(auth_routes::configure_without_auth)
