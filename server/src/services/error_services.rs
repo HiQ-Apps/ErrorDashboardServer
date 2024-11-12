@@ -9,6 +9,7 @@ use uuid::Uuid;
 use crate::config::Config;
 use shared_types::tag_dtos::{TagDTO, ShortTagDTO, CreateTagRequestDTO};
 use shared_types::error_dtos::{AggregateErrorDTO, CreateErrorDTO, CreateErrorRequest, ErrorDTO, ErrorMetaDTO, UpdateErrorDTO, GroupedAggregateErrorCountDTO};
+use crate::managers::namespace_manager::{NamespaceServer};
 use crate::models::error_model::{Entity as ErrorEntity, Model as ErrorModel};
 use crate::models::error_tag_model::{Entity as TagEntity, Model as TagModel, ActiveModel as ActiveTagModel};
 use crate::models::namespace_model::Entity as NamespaceEntity;

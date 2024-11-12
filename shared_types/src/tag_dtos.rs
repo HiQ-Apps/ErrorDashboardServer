@@ -45,9 +45,6 @@ pub struct CreateTagRequestDTO {
     pub error_id: Uuid,
 }
 
-
-
-
 #[derive(Hash, Eq, PartialEq, Debug, Serialize, Deserialize, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct ShortTagNoIdDTO {

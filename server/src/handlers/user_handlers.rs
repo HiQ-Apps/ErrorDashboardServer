@@ -24,7 +24,7 @@ impl UserHandler {
         user_id: web::Path<Uuid>,
     ) -> Result<HttpResponse, ServerError> {
         match user_services.verify_user(user_id.into_inner()).await {
-            Ok(()) => Ok(HttpResponse::Found().append_header(("Location", "/")).finish()),
+            Ok(()) => Ok(HttpResponse::Ok().finish()),
             Err(err) => Err(err)
         }
     }

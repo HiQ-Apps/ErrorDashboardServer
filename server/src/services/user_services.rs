@@ -100,9 +100,8 @@ impl UserService {
             None => return Err(ServerError::from(QueryError::UserNotFound))
         };
 
-        // let dynamic_forget_pass_url = format!("https://higuard-error-dashboard-evgy.shuttle.app/forget-password/{}", user.id);
-        let dynamic_forget_pass_url = format!("http://localhost:8000/forget-password/{}", user.id);
-
+        let dynamic_forget_pass_url = format!("https://higuard-error-dashboard-evgy.shuttle.app/forget-password/{}", user.id);
+        
         let content = EmailContent {
             greeting: "Password Change".to_string(),
             main_message: "Forgot your password?".to_string(),
