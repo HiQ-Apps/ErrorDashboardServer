@@ -14,6 +14,7 @@ mod libs;
 use env_logger;
 use actix_web::web;
 use log::{error, info};
+use managers::namespace_manager::NamespaceServer;
 use std::sync::Arc;
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_runtime::SecretStore;
@@ -80,7 +81,7 @@ async fn main(
     let error_service = Arc::new(services.error_service);
     let tag_service = Arc::new(services.tag_service);
 
-    // let namespace_manager = NamespaceServer::new().start();
+    let namespace_manager = Arc::new(NamespaceServer::new());
 
     let role_rules = Arc::new(initialize_role_rules());
 
@@ -95,12 +96,12 @@ async fn main(
             .app_data(web::Data::new(auth_service.clone()))
             .app_data(web::Data::new(error_service.clone()))
             .app_data(web::Data::new(tag_service.clone()))
-            // .app_data(web::Data::new(namespace_manager.clone()))
+            .app_data(web::Data::new(namespace_manager.clone()))
             .configure(static_routes::configure)
             .configure(auth_routes::configure_without_auth)
-            .configure(user_routes::configure_without_auth)
+            .configure(namespace_routes::configure_without_auth)
             .configure(|cfg| auth_routes::configure_with_auth(cfg, &jwt_middleware))
-            .configure(|cfg| user_routes::configure_with_auth(cfg, &jwt_middleware))
+            .configure(|cfg| user_routes::configure_user_routes(cfg, &jwt_middleware))
             .configure(|cfg| namespace_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| namespace_alert_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| error_routes::sdk_configure(cfg, &sdk_middleware))

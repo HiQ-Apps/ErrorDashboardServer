@@ -1,61 +1,25 @@
-use actix::{Actor, Addr, AsyncContext, ActorContext, Handler, Message, StreamHandler};
-use actix_web_actors::ws;
-use actix_web_actors::ws::WebsocketContext;
+use actix_ws::{Message, Session};
+use tokio::sync::mpsc;
 use uuid::Uuid;
+use std::sync::Arc;
 
-use shared_types::error_dtos::CreateErrorDTO;
-use crate::managers::namespace_manager::{NamespaceServer, Subscribe, Unsubscribe};
+use crate::managers::namespace_manager::NamespaceServer;
 
-#[derive(Debug, Clone)]
-pub struct WsNamespaceSession {
-    pub namespace_id: Uuid,
-    pub addr: Addr<NamespaceServer>,
-}
+pub async fn namespace_error_ws_session(
+    mut session: Session,
+    namespace_id: Uuid,
+    namespace_server: Arc<NamespaceServer>,
+) {
+    let (tx, mut rx) = mpsc::unbounded_channel();
 
-impl Actor for WsNamespaceSession {
-    type Context = WebsocketContext<Self>;
+    namespace_server.subscribe(namespace_id, tx.clone()).await;
 
-    fn started(&mut self, ctx: &mut Self::Context) {
-        self.addr.do_send(Subscribe {
-            namespace_id: self.namespace_id,
-            addr: ctx.address(),
-        });
-    }
-
-    fn stopping(&mut self, ctx: &mut Self::Context) -> actix::Running {
-        self.addr.do_send(Unsubscribe {
-            namespace_id: self.namespace_id,
-            addr: ctx.address(),
-        });
-        actix::Running::Stop
-    }
-}
-
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsNamespaceSession {
-    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-        match msg {
-            Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
-            Ok(ws::Message::Pong(_)) => (),
-            Ok(ws::Message::Binary(_)) => (),
-            Ok(ws::Message::Close(reason)) => {
-                ctx.close(reason);
-                ctx.stop();
-            }
-            _ => (),
+    while let Some(msg) = rx.recv().await {
+        let msg_text = serde_json::to_string(&msg).unwrap();
+        if session.text(msg_text).await.is_err() {
+            break;
         }
     }
-}
 
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct NewError(pub CreateErrorDTO);
-
-impl Handler<NewError> for WsNamespaceSession {
-    type Result = ();
-
-    fn handle(&mut self, msg: NewError, ctx: &mut Self::Context) {
-        if msg.0.namespace_id == self.namespace_id {
-            ctx.text(serde_json::to_string(&msg.0).unwrap());
-        }
-    }
+    namespace_server.unsubscribe(&namespace_id, &tx).await;
 }

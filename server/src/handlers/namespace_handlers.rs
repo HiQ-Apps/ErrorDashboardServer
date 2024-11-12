@@ -1,8 +1,7 @@
 use actix::Addr;
 use actix_web::{web, HttpRequest, HttpResponse};
-use actix_web_actors::ws;
+use actix_ws::{self, Message};
 use serde::{Serialize, Deserialize};
-use std::string;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -12,10 +11,11 @@ use shared_types::error_dtos::AggregatedResult;
 use shared_types::extra_dtos::{PaginationParams, ErrorQueryParams};
 use shared_types::namespace_dtos::{CreateNamespaceDTO, InviteUserRequestDTO, UpdateNamespaceDTO, UpdateUserRoleRequestDTO};
 use crate::managers::namespace_manager::NamespaceServer;
-use crate::handlers::ws_handlers::WsNamespaceSession;
-use crate::services::namespace_services::{NamespaceService};
+use crate::services::namespace_services::NamespaceService;
+use crate::handlers::ws_handlers::namespace_error_ws_session;
 use crate::shared::utils::errors::{ExternalError, QueryError, RequestError, ServerError};
 use crate::shared::utils::jwt::extract_user_id_from_jwt_header;
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserId {
@@ -126,20 +126,20 @@ impl NamespaceHandler {
         }
     }
 
-    pub async fn ws_index(
+    pub async fn namespace_error_ws_session(
         req: HttpRequest,
         stream: web::Payload,
         namespace_id: web::Path<Uuid>,
-        manager_addr: web::Data<Addr<NamespaceServer>>,
-    ) -> Result<HttpResponse, ServerError> {
+        namespace_server: web::Data<Arc<NamespaceServer>>,
+    ) -> actix_web::Result<HttpResponse> {
         let namespace_id = namespace_id.into_inner();
-        let manager_addr = manager_addr.get_ref().clone();
+        let namespace_server = namespace_server.get_ref().clone();
 
-        let session = WsNamespaceSession {
-            namespace_id,
-            addr: manager_addr.clone(),
-        };
-        ws::start(session, &req, stream).map_err(|err| ServerError::ExternalError(ExternalError::Actix(err)))
+        let (response, session, _msg_stream) = actix_ws::handle(&req, stream)?;
+
+        actix_web::rt::spawn(namespace_error_ws_session(session, namespace_id, namespace_server));
+
+        Ok(response)
     }
 
     pub async fn invite_user_to_namespace(

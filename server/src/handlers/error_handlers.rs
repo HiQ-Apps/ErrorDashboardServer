@@ -2,7 +2,7 @@ use actix_web::{web, HttpRequest, HttpResponse, Result};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::shared::utils::errors::RequestError;
+use crate::{managers::namespace_manager::NamespaceServer, shared::utils::errors::RequestError};
 use crate::services::error_services::ErrorService;
 use crate::shared::utils::errors::ServerError;
 use shared_types::{error_dtos::{CreateErrorRequest, UpdateErrorDTO}, extra_dtos::{ErrorPieChartQueryParams, ErrorMetadataQueryParams, TimeParams}};
@@ -14,9 +14,10 @@ impl ErrorHandler {
     pub async fn create_error(
         req: HttpRequest,
         error_services: web::Data<Arc<ErrorService>>,
-        // namespace_manager: web::Data<Addr<NamespaceServer>>,
+        namespace_manager: web::Data<Arc<NamespaceServer>>,
         new_error: web::Json<CreateErrorRequest>,
     ) -> Result<HttpResponse, ServerError> {
+        println!("Creating Error");
         let error_dto = new_error.into_inner();
         let headers = req.headers();
         let client_id_header = headers.get("client_id").unwrap();
@@ -29,12 +30,11 @@ impl ErrorHandler {
         
         let result = error_services.create_error(error_dto.clone(), client_id).await;
 
-        // if let Ok(_) = result {
-        //     namespace_manager.do_send(NewError(error_dto));
-        // }
-
         match result {
-            Ok(_) => Ok(HttpResponse::Ok().finish()),
+            Ok(error) => {
+                namespace_manager.broadcast_error(error).await;
+                Ok(HttpResponse::Ok().finish())
+            },
             Err(err) => Err(err),
         }
     }
