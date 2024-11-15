@@ -1,3 +1,4 @@
+pub mod admin_routes;
 pub mod user_routes;
 pub mod auth_routes;
 pub mod namespace_routes;

@@ -1,7 +1,7 @@
 use bcrypt::hash;
 use chrono::Utc;
 use sea_orm::{entity::prelude::*, EntityTrait, ActiveValue, TransactionTrait, IntoActiveModel, ConnectionTrait};
-use shared_types::user_dtos::{ResetPasswordRequestDTO, ShortUserDTO, ShortUserProfileDTO, UpdateUserProfileDTO};
+use shared_types::user_dtos::{BaseUserDTO, GetUsersAdminResponseDTO, ResetPasswordRequestDTO, ShortUserDTO, ShortUserProfileDTO, UpdateUserProfileDTO, UserAdminDTO, UserProfileDTO};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -22,6 +22,43 @@ impl UserService {
         Ok(Self { db, configs })
     }
 
+    pub async fn get_all_users(&self) -> Result<GetUsersAdminResponseDTO, ServerError> {
+        let db = &*self.db;
+        let users = UserEntity::find().all(db).await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+        let user_profiles = UserProfileEntity::find().all(db).await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+
+        let mut user_list = Vec::new();
+
+        for user in users {
+            let user_profile = user_profiles.iter().find(|profile| profile.user_id == user.id);
+
+            if let Some(profile) = user_profile {
+                let user_profile = UserAdminDTO {
+                    user: BaseUserDTO {
+                        id: user.id,
+                        username: user.username,
+                        email: user.email,
+                        verified: user.verified,
+                        created_at: user.created_at,
+                        updated_at: user.updated_at,
+                    },
+                    user_profile: UserProfileDTO {
+                        id: user.id,
+                        first_name: profile.first_name.clone(),
+                        last_name: profile.last_name.clone(),
+                        avatar_color: profile.avatar_color.clone(),
+                        role: profile.role.clone(),
+                        created_at: profile.created_at,
+                        updated_at: profile.updated_at,
+                    }
+                };
+        
+                user_list.push(user_profile);
+            }
+        }
+
+        Ok(GetUsersAdminResponseDTO{users: user_list})
+    }
 
     pub async fn get_user(&self, uid: Uuid) -> Result<ShortUserDTO, ServerError> {
         let get_base_user_query = UserEntity::find_by_id(uid)
@@ -53,6 +90,7 @@ impl UserService {
                 let user_profile_dto = ShortUserProfileDTO {
                     first_name: user.first_name,
                     last_name: user.last_name,
+                    role: user.role,
                     avatar_color: user.avatar_color,
                     updated_at: user.updated_at,
                 };
@@ -100,7 +138,7 @@ impl UserService {
             None => return Err(ServerError::from(QueryError::UserNotFound))
         };
 
-        let dynamic_forget_pass_url = format!("https://higuard-error-dashboard-evgy.shuttle.app/forget-password/{}", user.id);
+        let dynamic_forget_pass_url = format!("{}/forget-password/{}", configs.domain, user.id);
         
         let content = EmailContent {
             greeting: "Password Change".to_string(),
@@ -118,7 +156,7 @@ impl UserService {
         let db = &*self.db;
         let configs = &*self.configs;
         let now = Utc::now();
-        let hash_cost = configs.hash_cost.parse().unwrap_or(bcrypt::DEFAULT_COST);
+        let hash_cost = configs.hash_cost.parse().unwrap();
 
         let hashed_pass = hash(password, hash_cost).map_err(|err| ServerError::ExternalError(ExternalError::Bcrypt(err)))?;
 
@@ -154,7 +192,6 @@ impl UserService {
         let now = Utc::now();
         let configs = &*self.configs;
         let transaction = db.begin().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
-        let hash_cost = configs.hash_cost.parse().unwrap_or(bcrypt::DEFAULT_COST);
 
         let update_query = UserEntity::find()
             .filter(<UserEntity as EntityTrait>::Column::Id.eq(uid))
@@ -167,21 +204,19 @@ impl UserService {
             None => return Err(ServerError::from(QueryError::UserNotFound)),
         };
 
-        let hashed_password = hash(&user.password.unwrap_or_default(), hash_cost).map_err(|err| ServerError::ExternalError(ExternalError::Bcrypt(err)))?;
-
         let active_user = UserActiveModel {
             id: ActiveValue::Set(user.id),
             email: ActiveValue::Set(user.email),
             user_profile_id: ActiveValue::Set(user.user_profile_id),
             username: ActiveValue::Set(user.username),
-            password: ActiveValue::Set(Some(hashed_password)),
+            password: ActiveValue::Set(user.password),
             verified: ActiveValue::Set(true),
             o_auth_provider: ActiveValue::Set(user.o_auth_provider),
             created_at: ActiveValue::Set(user.created_at),
             updated_at: ActiveValue::Set(now),
         };
 
-        let updated_user = match active_user.update(&transaction).await {
+        match active_user.update(&transaction).await {
             Ok(user) => user,
             Err(err) => {
                 transaction.rollback().await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
@@ -221,6 +256,7 @@ impl UserService {
             first_name: user_profile.first_name.map_or(ActiveValue::Unchanged(None), |v| ActiveValue::Unchanged(Some(v))),
             last_name: user_profile.last_name.map_or(ActiveValue::Unchanged(None), |v| ActiveValue::Unchanged(Some(v))),
             avatar_color: ActiveValue::Set(user_profile.avatar_color),
+            role: ActiveValue::Set(user_profile.role),
             created_at: ActiveValue::Set(user_profile.created_at),
             updated_at: ActiveValue::Unchanged(user_profile.updated_at),
         };
@@ -313,6 +349,7 @@ impl UserService {
             first_name: updated_user_profile.first_name,
             last_name: updated_user_profile.last_name,
             avatar_color: updated_user_profile.avatar_color,
+            role: updated_user_profile.role,
             updated_at: updated_user_profile.updated_at,
         };
 

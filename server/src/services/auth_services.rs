@@ -6,7 +6,6 @@ use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, TransactionTrait
 use shared_types::auth_dtos::RefreshTokenDTO;
 use std::sync::Arc;
 use uuid::Uuid;
-use tracing::info;
 
 use shared_types::user_dtos::{GoogleUserInfoDTO, ShortUserDTO, ShortUserProfileDTO, UserLoginServiceDTO};
 use crate::config::Config;
@@ -86,6 +85,7 @@ impl AuthService {
                         first_name: user_profile.first_name,
                         last_name: user_profile.last_name,
                         avatar_color: user_profile.avatar_color,
+                        role: user_profile.role,
                         updated_at: now
                     };
 
@@ -102,6 +102,7 @@ impl AuthService {
 
                     Ok(user_response)
                 } else {
+                    println!("Salts dont match");
                     Err(ServerError::QueryError(QueryError::PasswordIncorrect))
                 }
             },
@@ -178,6 +179,7 @@ impl AuthService {
             user_id,
             first_name: Some(user_info.given_name.clone()),
             last_name: Some(user_info.family_name.clone()),
+            role: "User".to_string(),
             avatar_color: "#098585".to_string(),
             created_at: now,
             updated_at: now,
@@ -202,7 +204,6 @@ impl AuthService {
             updated_at: now,
         };
 
-        let new_user_clone = new_user.clone();
         let response_user = new_user.clone();
 
         if let Err(err) = UserEntity::insert(new_user.into_active_model())
@@ -213,9 +214,6 @@ impl AuthService {
         }
 
         transaction.commit().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
-
-        // let refresh_token_dto = create_refresh_token(new_user_clone.id.clone(), &self.configs)?;
-        // let access_token = create_access_token(new_user_clone, &self.configs)?;
 
         let access_token = "access_token".to_string();
         let refresh_token_dto = RefreshTokenDTO {
@@ -237,6 +235,7 @@ impl AuthService {
                 first_name: Some(user_info.given_name),
                 last_name: Some(user_info.family_name),
                 avatar_color: "#098585".to_string(),
+                role: "User".to_string(),
                 updated_at: now,
             },
             access_token,
@@ -268,6 +267,7 @@ impl AuthService {
                 first_name: user_profile.first_name,
                 last_name: user_profile.last_name,
                 avatar_color: user_profile.avatar_color,
+                role: user_profile.role,
                 updated_at: Utc::now(),
             },
             access_token,
@@ -305,6 +305,8 @@ impl AuthService {
         let configs = &*self.configs;
         let issuer = &configs.jwt_issuer;
         let audience = &configs.jwt_audience;
+        let admin_email = &configs.gmail_email;
+
 
         let transaction = db.begin().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
@@ -314,12 +316,19 @@ impl AuthService {
 
         let hashed_pass = hash(user_pass, hash_cost).map_err(|err| ServerError::ExternalError(ExternalError::Bcrypt(err)))?;
 
+        let role = if user_email == *admin_email {
+            "Admin".to_string()
+        } else {
+            "User".to_string()
+        };
+
         let initialize_user_profile = UserProfileModel {
             id: Uuid::new_v4(),
             user_id: uid,
             first_name: None,
             last_name: None,
             avatar_color: "#098585".to_string(),
+            role,
             created_at: now,
             updated_at: now,
         
@@ -388,13 +397,14 @@ impl AuthService {
                 first_name: initialize_user_profile.first_name,
                 last_name: initialize_user_profile.last_name,
                 avatar_color: "#098585".to_string(),
+                role: initialize_user_profile.role,
                 updated_at: now,
             },
             access_token,
             refresh_token: refresh_token_dto,
         };
 
-        let dynamic_verify_url = format!("https://higuard-error-dashboard-evgy.shuttle.app/user/{}/verify", uid);
+        let dynamic_verify_url = format!("{}/user/{}/verify", configs.domain, uid);
 
         let content = EmailContent {
             greeting: "Welcome".to_string(),
@@ -511,6 +521,7 @@ impl AuthService {
                 first_name: found_user_profile.first_name,
                 last_name: found_user_profile.last_name,
                 avatar_color: found_user_profile.avatar_color,
+                role: found_user_profile.role,
                 updated_at: now,
             },
             access_token: refreshed_access_token,
@@ -520,4 +531,5 @@ impl AuthService {
         Ok(user_response)
         
     }
+
 }

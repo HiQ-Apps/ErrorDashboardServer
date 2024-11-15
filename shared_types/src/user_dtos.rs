@@ -7,13 +7,25 @@ use super::auth_dtos::RefreshTokenDTO;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
+pub struct BaseUserDTO {
+    pub id: Uuid,
+    pub username: String,
+    pub email: String,
+    pub verified: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct UserProfileDTO {
     pub id: Uuid,
-    pub first_name: String,
-    pub last_name: String,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
     pub avatar_color: String,
-    pub created_at: String,
-    pub updated_at: String,
+    pub role: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
@@ -47,6 +59,7 @@ pub struct ShortUserProfileDTO {
     pub avatar_color: String,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
+    pub role: String,
     pub updated_at: DateTime<Utc>
 }
 
@@ -101,6 +114,18 @@ pub struct UserResponseDTO {
     pub user: ShortUserDTO,
     pub user_profile: ShortUserProfileDTO,
     pub access_token: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct UserAdminDTO {
+    pub user: BaseUserDTO,
+    pub user_profile: UserProfileDTO,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+pub struct GetUsersAdminResponseDTO {
+    pub users: Vec<UserAdminDTO>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
