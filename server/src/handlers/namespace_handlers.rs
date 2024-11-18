@@ -1,4 +1,3 @@
-use actix::Addr;
 use actix_web::{web, HttpRequest, HttpResponse};
 use actix_ws::{self, Message};
 use serde::{Serialize, Deserialize};
@@ -13,7 +12,7 @@ use shared_types::namespace_dtos::{CreateNamespaceDTO, InviteUserRequestDTO, Upd
 use crate::managers::namespace_manager::NamespaceServer;
 use crate::services::namespace_services::NamespaceService;
 use crate::handlers::ws_handlers::namespace_error_ws_session;
-use crate::shared::utils::errors::{ExternalError, QueryError, RequestError, ServerError};
+use crate::shared::utils::errors::{QueryError, RequestError, ServerError};
 use crate::shared::utils::jwt::extract_user_id_from_jwt_header;
 
 

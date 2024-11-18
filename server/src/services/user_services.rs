@@ -355,4 +355,17 @@ impl UserService {
 
         Ok(user_profile_dto)
     }
+
+    pub async fn get_user_role_by_user_id(&self, user_id: Uuid) -> Result<String, ServerError> {
+        let user_profile = UserProfileEntity::find()
+            .filter(<UserProfileEntity as EntityTrait>::Column::UserId.eq(user_id))
+            .one(&*self.db)
+            .await
+            .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+
+        match user_profile {
+            Some(user_profile) => Ok(user_profile.role),
+            None => Err(ServerError::from(QueryError::UserNotFound))
+        }
+    }
 }

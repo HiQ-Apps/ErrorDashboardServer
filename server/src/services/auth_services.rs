@@ -317,9 +317,9 @@ impl AuthService {
         let hashed_pass = hash(user_pass, hash_cost).map_err(|err| ServerError::ExternalError(ExternalError::Bcrypt(err)))?;
 
         let role = if user_email == *admin_email {
-            "Admin".to_string()
+            "admin".to_string()
         } else {
-            "User".to_string()
+            "user".to_string()
         };
 
         let initialize_user_profile = UserProfileModel {
