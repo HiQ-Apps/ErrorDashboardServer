@@ -1,7 +1,7 @@
 use bcrypt::hash;
 use chrono::Utc;
 use sea_orm::{entity::prelude::*, EntityTrait, ActiveValue, TransactionTrait, IntoActiveModel, ConnectionTrait};
-use shared_types::user_dtos::{BaseUserDTO, GetUsersAdminResponseDTO, ResetPasswordRequestDTO, ShortUserDTO, ShortUserProfileDTO, UpdateUserProfileDTO, UserAdminDTO, UserProfileDTO};
+use shared_types::user_dtos::{BaseUserDTO, ResetPasswordRequestDTO, ShortUserDTO, ShortUserProfileDTO, UpdateUserProfileDTO, UserAdminDTO, UserProfileDTO};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -22,7 +22,7 @@ impl UserService {
         Ok(Self { db, configs })
     }
 
-    pub async fn get_all_users(&self) -> Result<GetUsersAdminResponseDTO, ServerError> {
+    pub async fn get_all_users(&self) -> Result<Vec<UserAdminDTO>, ServerError> {
         let db = &*self.db;
         let users = UserEntity::find().all(db).await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
         let user_profiles = UserProfileEntity::find().all(db).await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
@@ -57,7 +57,7 @@ impl UserService {
             }
         }
 
-        Ok(GetUsersAdminResponseDTO{users: user_list})
+        Ok(user_list)
     }
 
     pub async fn get_user(&self, uid: Uuid) -> Result<ShortUserDTO, ServerError> {

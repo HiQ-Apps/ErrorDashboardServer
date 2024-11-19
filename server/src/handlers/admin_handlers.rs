@@ -22,7 +22,7 @@ impl AdminHandler {
 
         let role = user_services.get_user_role_by_user_id(user_id).await?;
 
-        if role != "Admin" {
+        if role != "admin" {
             return Err(ServerError::QueryError(QueryError::InvalidRole));
         }
 
