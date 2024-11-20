@@ -103,13 +103,22 @@ pub fn string_to_role(role_str: &str) -> Option<Role> {
     }
 }
 
-pub fn get_perms<'a>(role_str: &str, role_rules: &'a RoleRules) -> Option<&'a RolePermission> {
+pub fn get_perms(role_str: &str, role_rules: &RoleRules) -> Option<RolePermission> {
     if let Some(role) = string_to_role(role_str) {
-        return role_rules.role_rules.get(&role);
+        return role_rules.role_rules.get(&role).cloned();
     }
     None
 }
 
 pub fn get_weight(role_str: &Role, role_rules: &RoleRules) -> Option<u8> {
     return role_rules.role_rules.get(role_str).map(|role| role.weight);
+}
+
+pub fn compare_user_perms(user_role: &str, target_role: &str, role_rules: &RoleRules) -> bool {
+    if let Some(user_perms) = get_perms(user_role, role_rules) {
+        if let Some(target_perms) = get_perms(target_role, role_rules) {
+            return user_perms.weight >= target_perms.weight;
+        }
+    }
+    false
 }

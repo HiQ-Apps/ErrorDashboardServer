@@ -14,6 +14,7 @@ pub struct Model {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub avatar_color: String,
+    pub role: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -48,6 +49,7 @@ impl ActiveModelBehavior for ActiveModel {
             first_name: ActiveValue::Unchanged(None),
             last_name: ActiveValue::Unchanged(None),
             avatar_color: ActiveValue::Set(String::new()),
+            role: ActiveValue::Set(String::new()),
             created_at: ActiveValue::Set(Utc::now()),
             updated_at: ActiveValue::Set(Utc::now()),
         }

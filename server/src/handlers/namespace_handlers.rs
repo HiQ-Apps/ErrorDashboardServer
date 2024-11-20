@@ -1,4 +1,3 @@
-use actix::Addr;
 use actix_web::{web, HttpRequest, HttpResponse};
 use actix_ws::{self, Message};
 use serde::{Serialize, Deserialize};
@@ -13,7 +12,7 @@ use shared_types::namespace_dtos::{CreateNamespaceDTO, InviteUserRequestDTO, Upd
 use crate::managers::namespace_manager::NamespaceServer;
 use crate::services::namespace_services::NamespaceService;
 use crate::handlers::ws_handlers::namespace_error_ws_session;
-use crate::shared::utils::errors::{ExternalError, QueryError, RequestError, ServerError};
+use crate::shared::utils::errors::{QueryError, RequestError, ServerError};
 use crate::shared::utils::jwt::extract_user_id_from_jwt_header;
 
 
@@ -78,14 +77,15 @@ impl NamespaceHandler {
         config: web::Data<Arc<Config>>,
         namespace_services: web::Data<Arc<NamespaceService>>,
         update_namespace_json: web::Json<UpdateNamespaceDTO>,
+        role_rules: web::Data<Arc<RoleRules>>
     ) -> Result<HttpResponse, ServerError> {
-
         let secret_key = &config.secret_key;
         let headers = req.headers();
         let user_id = extract_user_id_from_jwt_header(headers, secret_key)?;
+        let role_rules = role_rules.as_ref().as_ref();
 
         let update_namespace_dto = update_namespace_json.into_inner();
-        match namespace_services.update_namespace(user_id, update_namespace_dto).await {
+        match namespace_services.update_namespace(user_id, update_namespace_dto, role_rules.clone()).await {
             Ok(updated_namespace) => Ok(HttpResponse::Ok().json(updated_namespace)),
             Err(err) => Err(err)
         }

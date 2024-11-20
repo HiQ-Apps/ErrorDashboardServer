@@ -19,7 +19,7 @@ use crate::models::error_tag_model::Entity as TagEntity;
 use crate::models::user_namespace_junction_model::{Entity as UserNamespaceJunctionEntity, Model as UserNamespaceJunctionModel};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError, RequestError};
 use crate::shared::utils::mailing::send_email;
-use crate::shared::utils::role::{string_to_role, Permission, Role, RoleRules};
+use crate::shared::utils::role::{get_perms, string_to_role, Permission, Role, RoleRules};
 
 
 pub struct NamespaceService {
@@ -30,6 +30,20 @@ pub struct NamespaceService {
 impl NamespaceService {
     pub fn new(db: Arc<DatabaseConnection>, configs: Arc<Config>) -> Result<Self, ServerError> {
         Ok(Self { db, configs })
+    }
+
+    pub async fn get_all_namespaces(&self) -> Result<Vec<ShortNamespaceDTO>, ServerError> {
+        let db = &*self.db;
+        let namespaces = NamespaceEntity::find().all(db).await.map_err(ExternalError::from)?;
+
+        let short_namespaces = namespaces.into_iter().map(|namespace| ShortNamespaceDTO {
+            id: namespace.id,
+            active: namespace.active,
+            service_name: namespace.service_name,
+            environment_type: namespace.environment_type,
+        }).collect();
+
+        Ok(short_namespaces)
     }
 
     pub async fn create_namespace(
@@ -155,7 +169,8 @@ impl NamespaceService {
     pub async fn update_namespace(
         &self,
         user_id: Uuid,
-        update_namespace_object: UpdateNamespaceDTO) -> Result<(), ServerError> {
+        update_namespace_object: UpdateNamespaceDTO,
+        role_rules: RoleRules) -> Result<(), ServerError> {
         let db: &DatabaseConnection = &*self.db;
         let config = &*self.configs;
 
@@ -169,7 +184,20 @@ impl NamespaceService {
             .await;
 
         let namespace_junc = match namespace_junc_result {
-            Ok(Some(junction)) => junction,
+            Ok(Some(junction)) => {
+                let role_permissions = get_perms(&junction.role, &role_rules);
+                if let Some(role_permissions) = role_permissions {
+                    if !role_permissions.permissions.contains(&Permission::Update) {
+                        transaction.rollback().await.map_err(ExternalError::from)?;
+                        return Err(ServerError::RequestError(RequestError::PermissionDenied));
+                    } else {
+                        junction
+                    }
+                } else {
+                    transaction.rollback().await.map_err(ExternalError::from)?;
+                    return Err(ServerError::RequestError(RequestError::PermissionDenied));
+                }
+            },
             Ok(None) => {
                 info!("UserNamespaceJunction not found. Rolling back transaction.");
                 transaction.rollback().await.map_err(|err| ServerError::from(ExternalError::from(err)))?;

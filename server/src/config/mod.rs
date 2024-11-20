@@ -14,6 +14,7 @@ pub struct Config {
     pub db_name: String,
     pub db_host: String,
     pub db_port: u16,
+    pub domain: String,
     pub gmail_email: String,
     pub gmail_token_pass: String,
 }
@@ -33,6 +34,7 @@ impl Config {
             db_pass: get_secret_var(&secrets, "DB_PASS")?,
             db_name: get_secret_var(&secrets, "DB_NAME")?,
             db_host: get_secret_var(&secrets, "DB_HOST")?,
+            domain: get_secret_var(&secrets, "DOMAIN")?,
             db_port: get_secret_var_as::<u16>(&secrets, "DB_PORT")?,
             gmail_email: get_secret_var(&secrets, "GMAIL_EMAIL")?,
             gmail_token_pass: get_secret_var(&secrets, "GMAIL_TOKEN_PASS")?,

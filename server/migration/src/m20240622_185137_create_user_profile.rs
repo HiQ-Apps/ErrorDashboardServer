@@ -8,6 +8,7 @@ pub enum UserProfile {
     FirstName,
     LastName,
     AvatarColor,
+    Role,
     CreatedAt,
     UpdatedAt,
 }
@@ -27,6 +28,7 @@ impl MigrationTrait for Migration {
                 .col(ColumnDef::new(UserProfile::FirstName).string())
                 .col(ColumnDef::new(UserProfile::LastName).string())
                 .col(ColumnDef::new(UserProfile::AvatarColor).string().not_null())
+                .col(ColumnDef::new(UserProfile::Role).string().not_null())
                 .col(ColumnDef::new(UserProfile::CreatedAt).timestamp_with_time_zone().not_null())
                 .col(ColumnDef::new(UserProfile::UpdatedAt).timestamp_with_time_zone())
                 .to_owned(),
