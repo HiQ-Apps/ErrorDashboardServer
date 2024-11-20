@@ -20,6 +20,7 @@ pub struct BaseUserDTO {
 #[serde(rename_all = "camelCase")]
 pub struct UserProfileDTO {
     pub id: Uuid,
+    pub user_id: Uuid,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub avatar_color: String,
@@ -123,10 +124,6 @@ pub struct UserAdminDTO {
     pub user_profile: UserProfileDTO,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
-pub struct GetUsersAdminResponseDTO {
-    pub users: Vec<UserAdminDTO>
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 #[serde(rename_all = "camelCase")]

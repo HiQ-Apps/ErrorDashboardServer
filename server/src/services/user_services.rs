@@ -44,6 +44,7 @@ impl UserService {
                     },
                     user_profile: UserProfileDTO {
                         id: user.id,
+                        user_id: profile.user_id,
                         first_name: profile.first_name.clone(),
                         last_name: profile.last_name.clone(),
                         avatar_color: profile.avatar_color.clone(),
