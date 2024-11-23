@@ -71,6 +71,7 @@ impl UserService {
                     id: user.id,
                     email: user.email,
                     username: user.username,
+                    verified: user.verified,
                 };
 
                 Ok(user_dto)

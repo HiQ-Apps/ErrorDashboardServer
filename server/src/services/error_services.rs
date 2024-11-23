@@ -9,12 +9,15 @@ use uuid::Uuid;
 use crate::config::Config;
 use shared_types::tag_dtos::{TagDTO, ShortTagDTO, CreateTagRequestDTO};
 use shared_types::error_dtos::{AggregateErrorDTO, CreateErrorDTO, CreateErrorRequest, ErrorDTO, ErrorMetaDTO, UpdateErrorDTO, GroupedAggregateErrorCountDTO};
-use crate::managers::namespace_manager::{NamespaceServer};
 use crate::models::error_model::{Entity as ErrorEntity, Model as ErrorModel};
 use crate::models::error_tag_model::{Entity as TagEntity, Model as TagModel, ActiveModel as ActiveTagModel};
+use crate::models::user_model::{Entity as UserEntity};
 use crate::models::namespace_model::Entity as NamespaceEntity;
+use crate::models::namespace_alerts_model::Entity as NamespaceAlertEntity;
+use crate::models::namespace_alert_user_junction_model::Entity as NamespaceAlertUserJunctionEntity;
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError};
 use crate::shared::utils::parse::{parse_stack_trace, StackTraceInfo};
+use crate::shared::utils::mailing::{send_email, EmailContent};
 
 pub struct ErrorService {
     pub db: Arc<DatabaseConnection>,
@@ -32,22 +35,144 @@ impl ErrorService {
         namespace_client_id: Uuid,
     ) -> Result<CreateErrorDTO, ServerError> {
         let now = Utc::now();
+        let configs = &*self.configs;
 
         let mut stack_trace_info: StackTraceInfo = StackTraceInfo::default();
         let error_stack_trace = error.stack_trace.clone();
 
-        // Add  the rest later
         match parse_stack_trace(&error_stack_trace) {
-            Ok(info) => stack_trace_info = info,
-            Err(err) => println!("Failed to parse stack trace: {}", err),
+          Ok(info) => stack_trace_info = info,
+          Err(err) => println!("Failed to parse stack trace: {}", err),
         }
 
+        // Find the namespace for this error
         let found_namespace = NamespaceEntity::find()
-            .filter(<NamespaceEntity as sea_orm::EntityTrait>::Column::ClientId.eq(namespace_client_id))
-            .one(&*self.db)
+          .filter(<NamespaceEntity as sea_orm::EntityTrait>::Column::ClientId.eq(namespace_client_id))
+          .one(&*self.db)
+          .await
+          .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
+          .ok_or(ServerError::QueryError(QueryError::NamespaceNotFound))?;
+
+
+        // Find alerts for this namespace
+        let found_alerts = NamespaceAlertEntity::find()
+          .filter(<NamespaceAlertEntity as sea_orm::EntityTrait>::Column::NamespaceId.eq(found_namespace.id))
+          .all(&*self.db)
+          .await
+          .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+        // Find subscribed users for each alert
+        for alert in found_alerts {
+          let subscribed_users = NamespaceAlertUserJunctionEntity::find()
+            .filter(<NamespaceAlertUserJunctionEntity as sea_orm::EntityTrait>::Column::NamespaceAlertId.eq(alert.id))
+            .all(&*self.db)
             .await
-            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
-            .ok_or(ServerError::QueryError(QueryError::NamespaceNotFound))?;
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+            for user_alert_junction in subscribed_users {
+              // Check if the alert is an email alert
+              if alert.alert_method == "email" {
+                if let Some(count_threshold) = alert.count_threshold {
+                  let time_window = alert.time_window.unwrap();
+                  
+                  // Find all errors in the time window
+                  let errors = ErrorEntity::find()
+                    .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::NamespaceId.eq(found_namespace.id))
+                    .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::CreatedAt.gt(now - Duration::minutes(time_window)))
+                    .all(&*self.db)
+                    .await
+                    .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+                  // Check if error count is equal to threshold because we don't want to spam users after it hits the threshold
+                  if errors.len() as u32 == count_threshold as u32 {
+                    let content = EmailContent {
+                      greeting: "Alert Notice!".to_string(), 
+                      main_message: format!("An error alert has been triggered for a namespace you are subscribed to by the ID of {}", alert.namespace_id),
+                      body: format!("Please log in to your account to view the error details and resolve the issue. {}", configs.domain),
+                      dynamic_content: Some(format!("Alert Details:\nError Count Triggered: {}.\nTime Triggered: {}", count_threshold, now)),
+                    };
+
+                    // Get user email for each user and send email
+                    let find_user = UserEntity::find()
+                      .filter(<UserEntity as sea_orm::EntityTrait>::Column::Id.eq(user_alert_junction.user_id))
+                      .one(&*self.db)
+                      .await
+                      .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
+                      .ok_or(ServerError::QueryError(QueryError::UserNotFound))?;
+
+
+                      send_email(configs, &find_user.email, "Error Alert", &content).map_err(|err| ServerError::from(err))?;
+                  }
+                }
+              } else if let Some(unresolved_time_threshold) = alert.unresolved_time_threshold { 
+                  // Find all errors that are unresolved in the unresolved time threshold
+                  let errors = ErrorEntity::find()
+                    .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::NamespaceId.eq(found_namespace.id))
+                    .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::Resolved.eq(false))
+                    .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::CreatedAt.gt(now - Duration::minutes(unresolved_time_threshold)))
+                    .all(&*self.db)
+                    .await
+                    .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+                  let error_ids = errors.iter().map(|error| error.id).collect::<Vec<Uuid>>();
+
+                  // Warn users if the error has been unresolved for the threshold time
+                  if errors.len() > 0 {
+                    let content = EmailContent {
+                      greeting: "Alert Notice!".to_string(), 
+                      main_message: format!("An error alert has been triggered for a namespace you are subscribed to by the ID of {}", alert.namespace_id),
+                      body: format!("Please log in to your account to view the error details and resolve the issue. {}", configs.domain),
+                      dynamic_content: Some(format!("Alert Details:\n Errors unresolved within time: {} Errors. \nError IDs: {:?}", errors.len(), error_ids)),
+                    };
+                    
+                    let find_user = UserEntity::find()
+                      .filter(<UserEntity as sea_orm::EntityTrait>::Column::Id.eq(user_alert_junction.user_id))
+                      .one(&*self.db)
+                      .await
+                      .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
+                      .ok_or(ServerError::QueryError(QueryError::UserNotFound))?;
+              
+                     send_email(configs, &find_user.email, "Error Alert", &content).map_err(|err| ServerError::from(err))?;
+                }
+
+              } else if alert.rate_threshold.is_some() {
+                  let time_window = alert.rate_time_window.unwrap();
+
+                  // Find all errors in the time window
+                  let errors = ErrorEntity::find()
+                    .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::NamespaceId.eq(found_namespace.id))
+                    .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::CreatedAt.gt(now - Duration::minutes(time_window)))
+                    .all(&*self.db)
+                    .await
+                    .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+                  // Check if the rate at which errors are being created is greater than the threshold
+                  // Calculate rate by dividing the number of errors by the time window
+                  // Time is all calculated in milliseconds so we need to convert the time window to milliseconds
+                  let rate = errors.len() as f64 / (time_window as f64 * 60.0);
+
+                  if rate > alert.rate_threshold.unwrap() as f64 {
+                    let content = EmailContent {
+                      greeting: "Alert Notice!".to_string(), 
+                      main_message: format!("An error alert has been triggered for a namespace you are subscribed to by the ID of {}", alert.namespace_id),
+                      body: format!("Please log in to your account to view the error details and resolve the issue. {}", configs.domain),
+                      dynamic_content: Some(format!("Alert Details:\nRate: {} errors per minute. \nThreshold: {} errors per minute. \nAlert ID: {}", rate, alert.rate_threshold.unwrap(), alert.id)),
+                    };
+
+                    let find_user = UserEntity::find()
+                      .filter(<UserEntity as sea_orm::EntityTrait>::Column::Id.eq(user_alert_junction.user_id))
+                      .one(&*self.db)
+                      .await
+                      .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
+                      .ok_or(ServerError::QueryError(QueryError::UserNotFound))?;
+
+                    send_email(configs, &find_user.email, "Error Alert", &content).map_err(|err| ServerError::from(err))?;
+                  }
+              } else {
+                  continue;
+              }
+          }
+        }
 
         let create_error = ErrorModel {
             id: Uuid::new_v4(),
