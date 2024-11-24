@@ -146,7 +146,7 @@ impl NamespaceAlertsService {
         Ok(alerts)
     }
 
-    pub async fn subscribe_user_to_namespace_alert(&self, subscription_data: NamespaceAlertSubscriptionRequestDTO) -> Result<(), ServerError> {
+    pub async fn subscribe_user_to_namespace_alert(&self, subscription_data: NamespaceAlertSubscriptionRequestDTO) -> Result<String, ServerError> {
         let check_user_in_namespace = UserNamespaceJunctionEntity::find()
             .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::UserId.eq(subscription_data.user_id))
             .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(subscription_data.namespace_id))
@@ -168,7 +168,7 @@ impl NamespaceAlertsService {
         // Delete if found
         if check_user_subscription.is_some() {
             check_user_subscription.unwrap().delete(&*self.db).await.map_err(ExternalError::from)?;
-            return Ok(());
+            return Ok("Unsubscribed".to_string());
         }
 
         let namespace = NamespaceAlertUserJunctionModel {
@@ -181,7 +181,7 @@ impl NamespaceAlertsService {
             return Err(ServerError::ExternalError(ExternalError::DB(err)));
         }
         
-        Ok(())
+        Ok("Subscribed".to_string())
     }
 
     pub async fn update_namespace_alert(&self, alert_id: Uuid, updated_namespace_alert: UpdateNamespaceAlertRequestDTO) -> Result<(), ServerError> {

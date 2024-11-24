@@ -58,7 +58,7 @@ impl NamespaceAlertHandler {
     ) -> Result<HttpResponse, ServerError> {
         let subscription = subscription.into_inner();
         match namespace_alert_services.subscribe_user_to_namespace_alert(subscription).await {
-            Ok(_) => Ok(HttpResponse::Ok().finish()),
+            Ok(subscription) => Ok(HttpResponse::Ok().json(subscription)),
             Err(err) => Err(err),
         }
     }
