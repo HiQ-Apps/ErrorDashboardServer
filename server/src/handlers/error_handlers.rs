@@ -17,7 +17,6 @@ impl ErrorHandler {
         namespace_manager: web::Data<Arc<NamespaceServer>>,
         new_error: web::Json<CreateErrorRequest>,
     ) -> Result<HttpResponse, ServerError> {
-        println!("Creating Error");
         let error_dto = new_error.into_inner();
         let headers = req.headers();
         let client_id_header = headers.get("client_id").unwrap();

@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StackTraceInfo {
     pub error_type: String,
     pub error_message: String,

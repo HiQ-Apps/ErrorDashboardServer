@@ -103,7 +103,6 @@ impl AuthService {
 
                     Ok(user_response)
                 } else {
-                    println!("Salts dont match");
                     Err(ServerError::QueryError(QueryError::PasswordIncorrect))
                 }
             },
