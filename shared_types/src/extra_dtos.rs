@@ -13,6 +13,12 @@ pub struct ErrorQueryParams {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
+pub struct FilterRequest {
+    pub filter_request: String
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct ErrorMetadataQueryParams {
     pub offset: u64,
     pub limit: u64,

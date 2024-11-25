@@ -1,4 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse, Result};
+use shared_types::extra_dtos::FilterRequest;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -109,12 +110,12 @@ impl ErrorHandler {
     pub async fn get_unique_error_meta_by_namespace(
         namespace_services: web::Data<Arc<ErrorService>>,
         namespace_id: web::Path<Uuid>,
-        filter_request: web::Query<String>,
+        filter_request: web::Query<FilterRequest>,
     ) -> Result<HttpResponse, ServerError> {
         let filter = filter_request.into_inner();
         let namespace_id = namespace_id.into_inner();
 
-        let result = namespace_services.get_unique_error_meta_by_namespace(namespace_id, filter).await.map_err(|err| ServerError::from(err))?;
+        let result = namespace_services.get_unique_error_meta_by_namespace(namespace_id, filter.filter_request).await.map_err(|err| ServerError::from(err))?;
 
         Ok(HttpResponse::Ok().json(result))
     }

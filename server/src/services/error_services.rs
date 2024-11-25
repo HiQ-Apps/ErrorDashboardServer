@@ -136,11 +136,14 @@ impl ErrorService {
                   }
                 }
               } else if let Some(unresolved_time_threshold) = alert.unresolved_time_threshold { 
+                  let time_window = unresolved_time_threshold;
+                  let time_window_minutes = time_window / 60000;
+                  let time_window_start = now - Duration::minutes(time_window_minutes);
                   // Find all errors that are unresolved in the unresolved time threshold
                   let errors = ErrorEntity::find()
                     .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::NamespaceId.eq(found_namespace.id))
                     .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::Resolved.eq(false))
-                    .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::CreatedAt.gt(now - Duration::minutes(unresolved_time_threshold)))
+                    .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::CreatedAt.gt(time_window_start))
                     .all(&*self.db)
                     .await
                     .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
@@ -153,7 +156,7 @@ impl ErrorService {
                       greeting: "Alert Notice!".to_string(), 
                       main_message: format!("An error alert has been triggered for a namespace you are subscribed to by the ID of {}", alert.namespace_id),
                       body: format!("Please log in to your account to view the error details and resolve the issue. {}", configs.domain),
-                      dynamic_content: Some(format!("Alert Details:\n Errors unresolved within time: {} Errors. \nError IDs: {:?}", errors.len(), error_ids)),
+                      dynamic_content: Some(format!("Alert Details:\nErrors unresolved within time: {} Errors. \nError IDs: {:?}", errors.len(), error_ids)),
                     };
                     
                     let find_user = UserEntity::find()
@@ -168,12 +171,25 @@ impl ErrorService {
 
               } else if let Some(rate_threshold) = alert.rate_threshold {
                   let time_window = alert.rate_time_window.unwrap();
-
+                  let time_window_minutes = time_window / 60000;
+                  let time_window_start: DateTime<Utc> = now - Duration::minutes(time_window_minutes);
 
                   // Find all errors in the time window
-                  let error_count = ErrorEntity::find()
+                  let mut error_query = ErrorEntity::find()
                     .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::NamespaceId.eq(found_namespace.id))
-                    .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::CreatedAt.gt(now - Duration::minutes(time_window)))
+                    .filter(<ErrorEntity as sea_orm::EntityTrait>::Column::CreatedAt.gt(time_window_start));
+                    
+                  if let Some(alert_path) = &alert.path {
+                      error_query = error_query.filter(<ErrorEntity as sea_orm::EntityTrait>::Column::Path.eq(alert_path.clone()));
+                  }
+                  if let Some(alert_line) = &alert.line {
+                      error_query = error_query.filter(<ErrorEntity as sea_orm::EntityTrait>::Column::Line.eq(alert_line.clone()));
+                  }
+                  if let Some(alert_message) = &alert.message {
+                      error_query = error_query.filter(<ErrorEntity as sea_orm::EntityTrait>::Column::Message.eq(alert_message.clone()));
+                  }
+    
+                  let error_count = error_query 
                     .count(&*self.db)
                     .await
                     .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
@@ -532,16 +548,20 @@ impl ErrorService {
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
-        let unique_meta = errors.into_iter().map(|error| {
-            match filter.as_str() {
+        let mut unique_meta: Vec<String> = Vec::new();
+
+        for error in errors {
+            let meta = match filter.as_str() {
                 "message" => error.message,
                 "path" => error.path,
                 "line" => error.line.to_string(),
-                "stack_trace" => error.stack_trace,
+                "stackTrace" => error.stack_trace,
                 _ => error.message,
+            };
+            if !unique_meta.contains(&meta) {
+                unique_meta.push(meta);
             }
-        }).collect();
-        
+        }
         Ok(unique_meta)
     }
 
