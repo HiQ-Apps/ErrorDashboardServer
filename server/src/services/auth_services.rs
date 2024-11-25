@@ -94,6 +94,7 @@ impl AuthService {
                             id: user.id,
                             username: user.username,
                             email: user.email,
+                            verified: user.verified,
                         },
                         user_profile: user_profile_dto,
                         access_token,
@@ -102,7 +103,6 @@ impl AuthService {
 
                     Ok(user_response)
                 } else {
-                    println!("Salts dont match");
                     Err(ServerError::QueryError(QueryError::PasswordIncorrect))
                 }
             },
@@ -230,6 +230,7 @@ impl AuthService {
                 id: response_user.id,
                 username: response_user.username,
                 email: response_user.email,
+                verified: response_user.verified,
             },
             user_profile: ShortUserProfileDTO {
                 first_name: Some(user_info.given_name),
@@ -262,6 +263,7 @@ impl AuthService {
                 id: user.id,
                 username: user.username,
                 email: user.email,
+                verified: user.verified,
             },
             user_profile: ShortUserProfileDTO {
                 first_name: user_profile.first_name,
@@ -392,6 +394,7 @@ impl AuthService {
                 id: uid,
                 username: user.username.clone(),
                 email: user.email.clone(),
+                verified: user.verified,
             },
             user_profile: ShortUserProfileDTO {
                 first_name: initialize_user_profile.first_name,
@@ -516,6 +519,7 @@ impl AuthService {
                 id: found_user.id,
                 username: found_user.username,
                 email: found_user.email,
+                verified: found_user.verified,
             },
             user_profile: ShortUserProfileDTO {
                 first_name: found_user_profile.first_name,

@@ -43,6 +43,7 @@ pub struct ShortUserDTO {
     pub id: Uuid,
     pub username: String,
     pub email: String,
+    pub verified: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]

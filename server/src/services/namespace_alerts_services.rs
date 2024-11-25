@@ -2,12 +2,15 @@ use uuid::Uuid;
 use sea_orm::{DatabaseConnection, IntoActiveModel, ActiveModelTrait, EntityTrait, ActiveValue, Condition, QueryOrder, QuerySelect, QueryFilter, TransactionTrait, ColumnTrait, ModelTrait};
 use std::sync::Arc;
 
+use shared_types::user_dtos::{MemberListDTO, ShortUserProfileDTO};
 use shared_types::namespace_alert_dtos::{CreateNamespaceAlertRequestDTO, NamespaceAlertSubscriptionRequestDTO, ShortNamespaceAlertDTO, UpdateNamespaceAlertRequestDTO};
 use crate::config::Config;
 use crate::shared::utils::errors::{ExternalError, ServerError, QueryError};
 use crate::models::namespace_alerts_model::{Model as NamespaceAlertModel, Entity as NamespaceAlertEntity};
 use crate::models::namespace_alert_user_junction_model::{Model as NamespaceAlertUserJunctionModel, Entity as NamespaceAlertUserJunctionEntity};
 use crate::models::user_namespace_junction_model::Entity as UserNamespaceJunctionEntity;
+use crate::models::user_profile_model::Entity as UserProfileEntity;
+use crate::models::user_model::Entity as UserEntity;
 
 pub struct NamespaceAlertsService {
     pub db: Arc<DatabaseConnection>,
@@ -143,7 +146,7 @@ impl NamespaceAlertsService {
         Ok(alerts)
     }
 
-    pub async fn subscribe_user_to_namespace_alert(&self, subscription_data: NamespaceAlertSubscriptionRequestDTO) -> Result<(), ServerError> {
+    pub async fn subscribe_user_to_namespace_alert(&self, subscription_data: NamespaceAlertSubscriptionRequestDTO) -> Result<String, ServerError> {
         let check_user_in_namespace = UserNamespaceJunctionEntity::find()
             .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::UserId.eq(subscription_data.user_id))
             .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(subscription_data.namespace_id))
@@ -162,8 +165,10 @@ impl NamespaceAlertsService {
             .await
             .map_err(ExternalError::from)?;
 
+        // Delete if found
         if check_user_subscription.is_some() {
-            return Err(ServerError::QueryError(QueryError::UserAlreadySubscribed));
+            check_user_subscription.unwrap().delete(&*self.db).await.map_err(ExternalError::from)?;
+            return Ok("Unsubscribed".to_string());
         }
 
         let namespace = NamespaceAlertUserJunctionModel {
@@ -176,34 +181,7 @@ impl NamespaceAlertsService {
             return Err(ServerError::ExternalError(ExternalError::DB(err)));
         }
         
-        Ok(())
-    }
-
-    pub async fn unsubscribe_user_from_namespace_alert(&self, subscription_data: NamespaceAlertSubscriptionRequestDTO) -> Result<(), ServerError> {
-        let db = &*self.db;
-        
-        let check_user_in_namespace = NamespaceAlertUserJunctionEntity::find()
-            .filter(<NamespaceAlertUserJunctionEntity as EntityTrait>::Column::UserId.eq(subscription_data.user_id))
-            .filter(<NamespaceAlertUserJunctionEntity as EntityTrait>::Column::NamespaceAlertId.eq(subscription_data.namespace_alert_id))
-            .one(db)
-            .await
-            .map_err(ExternalError::from)?;
-
-        if check_user_in_namespace.is_none() {
-            return Err(ServerError::QueryError(QueryError::UserNotFound));
-        }
-
-        let namespace = NamespaceAlertUserJunctionEntity::find()
-            .filter(<NamespaceAlertUserJunctionEntity as EntityTrait>::Column::UserId.eq(subscription_data.user_id))
-            .filter(<NamespaceAlertUserJunctionEntity as EntityTrait>::Column::NamespaceAlertId.eq(subscription_data.namespace_alert_id))
-            .one(db)
-            .await
-            .map_err(ExternalError::from)?;
-
-        if let Some(namespace) = namespace {
-            namespace.delete(db).await.map_err(ExternalError::from)?;
-        }
-        Ok(())
+        Ok("Subscribed".to_string())
     }
 
     pub async fn update_namespace_alert(&self, alert_id: Uuid, updated_namespace_alert: UpdateNamespaceAlertRequestDTO) -> Result<(), ServerError> {
@@ -268,6 +246,49 @@ impl NamespaceAlertsService {
         }
 
         Ok(())
+    }
+
+    pub async fn get_subscribed_users_by_namespace_alert_id(&self, alert_id: Uuid) -> Result<Vec<MemberListDTO>, ServerError> {
+        let db = &*self.db;
+
+        let user_alerts = NamespaceAlertUserJunctionEntity::find()
+            .filter(<NamespaceAlertUserJunctionEntity as EntityTrait>::Column::NamespaceAlertId.eq(alert_id))
+            .all(db)
+            .await
+            .map_err(ExternalError::from)?;
+
+        let mut user_ids = Vec::new();
+
+        user_alerts.iter().for_each(|alert| {
+            user_ids.push(alert.user_id);
+        });
+
+        let user_profiles = UserProfileEntity::find()
+            .filter(<UserProfileEntity as EntityTrait>::Column::UserId.is_in(user_ids.clone()))
+            .all(db)
+            .await
+            .map_err(ExternalError::from)?;
+
+        let users = UserEntity::find()
+            .filter(<UserEntity as EntityTrait>::Column::Id.is_in(user_ids))
+            .all(db)
+            .await
+            .map_err(ExternalError::from)?;
+
+        let mut profiles = Vec::new();
+
+        user_profiles.iter().for_each(|profile| {
+            let user = users.iter().find(|user| user.id == profile.user_id).unwrap();
+            
+            profiles.push(MemberListDTO {
+                id: user.id,
+                email: user.email.clone(),
+                username: user.username.clone(),
+                role: profile.role.clone(),
+            });
+        });
+
+        Ok(profiles)
     }
 }
 

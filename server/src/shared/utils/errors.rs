@@ -60,15 +60,10 @@ impl ResponseError for ServerError {
                 let status = match err {
                     RequestError::OAuthCallbackFailed => StatusCode::INTERNAL_SERVER_ERROR,
                     RequestError::RateLimitExceeded => StatusCode::TOO_MANY_REQUESTS,
-                    RequestError::NamespaceLimitReached => StatusCode::FORBIDDEN,
-                    RequestError::InvalidCookies => StatusCode::UNAUTHORIZED,
-                    RequestError::MissingCookie => StatusCode::UNAUTHORIZED,
-                    RequestError::MissingUserID => StatusCode::BAD_REQUEST,
-                    RequestError::InvalidHeader => StatusCode::BAD_REQUEST,
-                    RequestError::InvalidToken => StatusCode::UNAUTHORIZED,
-                    RequestError::MissingHeader => StatusCode::BAD_REQUEST,
-                    RequestError::PermissionDenied => StatusCode::FORBIDDEN,
-                    RequestError::InvalidQueryParameter => StatusCode::BAD_REQUEST,
+                    RequestError::NamespaceLimitReached | RequestError::PermissionDenied => StatusCode::FORBIDDEN,
+                    RequestError::InvalidCookies | RequestError::InvalidToken | RequestError::MissingCookie => StatusCode::UNAUTHORIZED,
+                    RequestError::MissingUserID | RequestError::MissingHeader | RequestError::StackTraceParsingError
+                    | RequestError::InvalidHeader | RequestError::InvalidQueryParameter => StatusCode::BAD_REQUEST,
                 };
                 HttpResponse::build(status).json(format!("{}", self))
             },
@@ -235,7 +230,10 @@ pub enum RequestError {
     RateLimitExceeded,
 
     #[error("Invalid cookies")]
-    OAuthCallbackFailed
+    OAuthCallbackFailed,
+
+    #[error("Stack trace parsing error")]
+    StackTraceParsingError,
 }
 
 impl From<ExternalError> for ServerError {

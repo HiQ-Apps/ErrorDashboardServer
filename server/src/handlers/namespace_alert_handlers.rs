@@ -58,17 +58,7 @@ impl NamespaceAlertHandler {
     ) -> Result<HttpResponse, ServerError> {
         let subscription = subscription.into_inner();
         match namespace_alert_services.subscribe_user_to_namespace_alert(subscription).await {
-            Ok(_) => Ok(HttpResponse::Ok().finish()),
-            Err(err) => Err(err),
-        }
-    }
-
-    pub async fn unsubscribe_user_from_namespace_alert(
-        namespace_alert_services:web::Data<Arc<NamespaceAlertsService>>,
-        subscription: web::Json<NamespaceAlertSubscriptionRequestDTO>) -> Result<HttpResponse, ServerError> {
-        let subscription = subscription.into_inner();
-        match namespace_alert_services.unsubscribe_user_from_namespace_alert(subscription).await {
-            Ok(_) => Ok(HttpResponse::Ok().finish()),
+            Ok(subscription) => Ok(HttpResponse::Ok().json(subscription)),
             Err(err) => Err(err),
         }
     }
@@ -81,6 +71,17 @@ impl NamespaceAlertHandler {
         
         match namespace_alert_services.update_namespace_alert(alert_id.into_inner(), updated_alert).await {
             Ok(_) => Ok(HttpResponse::Ok().finish()),
+            Err(err) => Err(err),
+        }
+    }
+
+    pub async fn get_subscribed_users_by_namespace_alert_id(
+        namespace_alert_services:web::Data<Arc<NamespaceAlertsService>>,
+        alert_id: web::Path<Uuid>
+    ) -> Result<HttpResponse, ServerError> {
+        let alert_id = alert_id.into_inner();
+        match namespace_alert_services.get_subscribed_users_by_namespace_alert_id(alert_id).await {
+            Ok(users) => Ok(HttpResponse::Ok().json(users)),
             Err(err) => Err(err),
         }
     }

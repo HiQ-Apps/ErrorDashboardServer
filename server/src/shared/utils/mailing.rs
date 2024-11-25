@@ -47,7 +47,7 @@ pub fn send_email(config: &Config, recipient: &str, subject: &str, content: &Ema
         dynamic_content = match &content.dynamic_content {
             Some(value) => format!(
                 r#"<div style="background-color: #e0e0e0; padding: 10px; border-radius: 5px; text-align: center; font-weight: bold; letter-spacing: 1px; font-size: 16px;">{}</div>"#, 
-                value
+                value.replace("\n", "<br>")
             ),
             None => "".to_string(),
         },

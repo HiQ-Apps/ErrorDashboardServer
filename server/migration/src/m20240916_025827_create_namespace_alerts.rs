@@ -8,7 +8,6 @@ pub enum NamespaceAlerts {
     Id,
     NamespaceId,
     AlertMethod,
-    ErrorName,
     Path,
     Line,
     Message,
