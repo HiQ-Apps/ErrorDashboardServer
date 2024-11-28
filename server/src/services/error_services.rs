@@ -1,19 +1,23 @@
+use actix_web::Result;
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 use chrono_tz::Tz;
 use sea_orm::sea_query::Query;
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, QueryOrder, QuerySelect, Condition, DatabaseConnection, JoinType};
+use shared_types::notification_dtos::NotificationDTO;
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
+use crate::managers::notification_manager::NotificationServer;
 use shared_types::tag_dtos::{TagDTO, ShortTagDTO, CreateTagRequestDTO};
 use shared_types::error_dtos::{AggregateErrorDTO, CreateErrorDTO, CreateErrorRequest, ErrorDTO, ErrorMetaDTO, UpdateErrorDTO, GroupedAggregateErrorCountDTO};
 use crate::models::error_model::{Entity as ErrorEntity, Model as ErrorModel};
 use crate::models::error_tag_model::{Entity as TagEntity, Model as TagModel, ActiveModel as ActiveTagModel};
-use crate::models::user_model::{Entity as UserEntity};
+use crate::models::user_model::Entity as UserEntity;
 use crate::models::namespace_model::Entity as NamespaceEntity;
 use crate::models::namespace_alerts_model::Entity as NamespaceAlertEntity;
+use crate::models::notification_model::{Entity as NotificationEntity, Model as NotificationModel};
 use crate::models::namespace_alert_user_junction_model::Entity as NamespaceAlertUserJunctionEntity;
 use crate::shared::utils::errors::{ExternalError, QueryError, RequestError, ServerError};
 use crate::shared::utils::parse::{parse_stack_trace, StackTraceInfo};
@@ -33,6 +37,7 @@ impl ErrorService {
         &self,
         error: CreateErrorRequest,
         namespace_client_id: Uuid,
+        notification_manager: &Arc<NotificationServer>,
     ) -> Result<CreateErrorDTO, ServerError> {
         let now = Utc::now();
         let configs = &*self.configs;
@@ -132,7 +137,28 @@ impl ErrorService {
                       .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
                       .ok_or(ServerError::QueryError(QueryError::UserNotFound))?;
 
-                      send_email(configs, &find_user.email, "Error Alert", &content).map_err(|err| ServerError::from(err))?;
+                    let create_notification = NotificationDTO {
+                        id: Uuid::new_v4(),
+                        user_id: find_user.id,
+                        title: "Alert Notification".to_string(),
+                        text: format!("Alert {} has been triggered for a namespace you are subscribed to by the ID of {}", alert.id, alert.namespace_id),
+                        source: "HiGuard Alert System".to_string(),
+                        is_read: false,
+                        created_at: now,
+                    };
+                    let broadcast_notification = create_notification.clone();
+
+                    let notification_model = NotificationModel::from(create_notification);
+                    let active_create_notification = notification_model.into_active_model();
+
+                    NotificationEntity::insert(active_create_notification)
+                        .exec(&*self.db)
+                        .await
+                        .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+                    notification_manager.broadcast_notification(broadcast_notification).await;
+
+                    send_email(configs, &find_user.email, "Error Alert", &content).map_err(|err| ServerError::from(err))?;
                   }
                 }
               } else if let Some(unresolved_time_threshold) = alert.unresolved_time_threshold { 
@@ -166,7 +192,28 @@ impl ErrorService {
                       .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
                       .ok_or(ServerError::QueryError(QueryError::UserNotFound))?;
               
-                     send_email(configs, &find_user.email, "Error Alert", &content).map_err(|err| ServerError::from(err))?;
+                    let create_notification = NotificationDTO {
+                        id: Uuid::new_v4(),
+                        user_id: find_user.id,
+                        title: "Alert Notification".to_string(),
+                        text: format!("Alert {} has been triggered for a namespace you are subscribed to by the ID of {}", alert.id, alert.namespace_id),
+                        source: "HiGuard Alert System".to_string(),
+                        is_read: false,
+                        created_at: now,
+                    };
+                    let broadcast_notification = create_notification.clone();
+
+                    let notification_model = NotificationModel::from(create_notification);
+                    let active_create_notification = notification_model.into_active_model();
+
+                    NotificationEntity::insert(active_create_notification)
+                        .exec(&*self.db)
+                        .await
+                        .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+                    notification_manager.broadcast_notification(broadcast_notification).await;
+
+                    send_email(configs, &find_user.email, "Error Alert", &content).map_err(|err| ServerError::from(err))?;
                 }
 
               } else if let Some(rate_threshold) = alert.rate_threshold {
@@ -213,6 +260,27 @@ impl ErrorService {
                       .await
                       .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
                       .ok_or(ServerError::QueryError(QueryError::UserNotFound))?;
+
+                    let create_notification = NotificationDTO {
+                        id: Uuid::new_v4(),
+                        user_id: find_user.id,
+                        title: "Alert Notification".to_string(),
+                        text: format!("Alert {} has been triggered for a namespace you are subscribed to by the ID of {}", alert.id, alert.namespace_id),
+                        source: "HiGuard Alert System".to_string(),
+                        is_read: false,
+                        created_at: now,
+                    };
+                    let broadcast_notification = create_notification.clone();
+
+                    let notification_model = NotificationModel::from(create_notification);
+                    let active_create_notification = notification_model.into_active_model();
+
+                    NotificationEntity::insert(active_create_notification)
+                        .exec(&*self.db)
+                        .await
+                        .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+                    notification_manager.broadcast_notification(broadcast_notification).await;
 
                     send_email(configs, &find_user.email, "Error Alert", &content).map_err(|err| ServerError::from(err))?;
                   }

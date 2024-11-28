@@ -12,7 +12,7 @@ use shared_types::namespace_dtos::{CreateNamespaceDTO, InviteUserRequestDTO, Upd
 use crate::managers::namespace_manager::NamespaceServer;
 use crate::services::namespace_services::NamespaceService;
 use crate::handlers::ws_handlers::namespace_error_ws_session;
-use crate::shared::utils::errors::{QueryError, RequestError, ServerError};
+use crate::shared::utils::errors::{ExternalError, QueryError, RequestError, ServerError};
 use crate::shared::utils::jwt::extract_user_id_from_jwt_header;
 
 
@@ -131,11 +131,13 @@ impl NamespaceHandler {
         stream: web::Payload,
         namespace_id: web::Path<Uuid>,
         namespace_server: web::Data<Arc<NamespaceServer>>,
-    ) -> actix_web::Result<HttpResponse> {
+    ) -> Result<HttpResponse, ServerError> {
         let namespace_id = namespace_id.into_inner();
         let namespace_server = namespace_server.get_ref().clone();
 
-        let (response, session, _msg_stream) = actix_ws::handle(&req, stream)?;
+        let (response, session, _msg_stream) = actix_ws::handle(&req, stream).map_err(|err| {
+            ServerError::ExternalError(ExternalError::Actix(err))
+        })?;
 
         actix_web::rt::spawn(namespace_error_ws_session(session, namespace_id, namespace_server));
 

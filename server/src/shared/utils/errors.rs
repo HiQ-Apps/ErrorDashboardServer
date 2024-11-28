@@ -10,8 +10,6 @@ use sea_orm::TransactionError;
 use serde_json::Error as JsonError;
 use serde_valid::Error as ValidationError;
 use thiserror::Error;
-use tokio::sync::oneshot::error;
-use oauth2::ErrorResponseType as OAuth2Error;
 use uuid::Error as UuidError;
 use std::io::Error as IoError;
 use reqwest::Error as ReqwestError;

@@ -11,7 +11,8 @@ mod m20240916_025827_create_namespace_alerts;
 mod m20240924_003716_create_namespace_alert_junction;
 mod m20241122_093812_add_namespace_alert_index;
 mod m20241122_093930_add_error_index;
-mod m20241122_224628_add_namespace_alert_junction_index;
+mod m20241122_224628_add_namespace_alert_junction_index;mod m20241127_012219_create_notification;
+
 
 
 

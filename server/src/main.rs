@@ -11,16 +11,19 @@ mod shared {
 }
 mod libs;
 
+use actix_web_actors::ws;
 use env_logger;
 use actix_web::web;
 use log::{error, info};
 use managers::namespace_manager::NamespaceServer;
+use managers::notification_manager::NotificationServer;
+use routes::notification_routes;
 use std::sync::Arc;
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_runtime::SecretStore;
 
 use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware};
-use crate::routes::{admin_routes, auth_routes, error_routes, namespace_routes, namespace_alert_routes, user_routes, tag_routes, static_routes};
+use crate::routes::{admin_routes, auth_routes, error_routes, namespace_routes, namespace_alert_routes, user_routes, tag_routes, static_routes, ws_routes};
 use crate::services::init_services;
 use crate::shared::utils::role::initialize_role_rules;
 use config::Config;
@@ -82,7 +85,8 @@ async fn main(
     let tag_service = Arc::new(services.tag_service);
 
     let namespace_manager = Arc::new(NamespaceServer::new());
-
+    let notification_manager = Arc::new(NotificationServer::new());
+    
     let role_rules = Arc::new(initialize_role_rules());
 
     // Return a closure that configures the service
@@ -97,15 +101,17 @@ async fn main(
             .app_data(web::Data::new(error_service.clone()))
             .app_data(web::Data::new(tag_service.clone()))
             .app_data(web::Data::new(namespace_manager.clone()))
+            .app_data(web::Data::new(notification_manager.clone()))
             .configure(static_routes::configure)
             .configure(auth_routes::configure_without_auth)
-            .configure(namespace_routes::configure_without_auth)
+            .configure(ws_routes::configure_ws)
             .configure(|cfg| admin_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| auth_routes::configure_with_auth(cfg, &jwt_middleware))
+            .configure(|cfg| error_routes::sdk_configure(cfg, &sdk_middleware))
             .configure(|cfg| user_routes::configure_user_routes(cfg, &jwt_middleware))
             .configure(|cfg| namespace_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| namespace_alert_routes::configure(cfg, &jwt_middleware))
-            .configure(|cfg| error_routes::sdk_configure(cfg, &sdk_middleware))
+            .configure(|cfg| notification_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| error_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| tag_routes::configure(cfg, &jwt_middleware));
     };

@@ -3,6 +3,8 @@ use shared_types::extra_dtos::FilterRequest;
 use std::sync::Arc;
 use uuid::Uuid;
 
+use crate::managers::notification_manager::NotificationServer;
+use crate::services::NotificationService;
 use crate::{managers::namespace_manager::NamespaceServer, shared::utils::errors::RequestError};
 use crate::services::error_services::ErrorService;
 use crate::shared::utils::errors::ServerError;
@@ -15,12 +17,14 @@ impl ErrorHandler {
     pub async fn create_error(
         req: HttpRequest,
         error_services: web::Data<Arc<ErrorService>>,
+        notification_manager: web::Data<Arc<NotificationServer>>,
         namespace_manager: web::Data<Arc<NamespaceServer>>,
         new_error: web::Json<CreateErrorRequest>,
     ) -> Result<HttpResponse, ServerError> {
         let error_dto = new_error.into_inner();
         let headers = req.headers();
         let client_id_header = headers.get("client_id").unwrap();
+        let notification_manager = notification_manager.get_ref();
 
         let client_id = match client_id_header.to_str() {
             Ok(client_id) => client_id,
@@ -28,7 +32,7 @@ impl ErrorHandler {
         };
         let client_id = Uuid::parse_str(client_id).unwrap();
         
-        let result = error_services.create_error(error_dto.clone(), client_id).await;
+        let result = error_services.create_error(error_dto.clone(), client_id, notification_manager).await;
 
         match result {
             Ok(error) => {
