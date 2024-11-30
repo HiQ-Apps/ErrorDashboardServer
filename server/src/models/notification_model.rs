@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::models::user_model::Entity as UserEntity;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
-#[sea_orm(table_name = "notifications")]
+#[sea_orm(table_name = "notification")]
 pub struct Model {
     #[sea_orm(primary_key, column_type = "Uuid")]
     pub id: Uuid,

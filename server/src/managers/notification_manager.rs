@@ -49,9 +49,9 @@ impl NotificationServer {
         }
     }
 
-    pub async fn broadcast_notification(&self, notification: NotificationDTO) {
+    pub async fn broadcast_notification(&self, notification: NotificationDTO, user_id: &Uuid) {
         let sessions = self.sessions.lock().await;
-        if let Some(subscribers) = sessions.get(&notification.id) {
+        if let Some(subscribers) = sessions.get(user_id) {
             for tx in subscribers {
                 let _ = tx.send(notification.clone());
             }

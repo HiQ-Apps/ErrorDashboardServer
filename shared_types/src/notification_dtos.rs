@@ -24,3 +24,10 @@ pub struct NotificationDTO {
     pub created_at: DateTime<Utc>,
 }
 
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct GetNotificationResponse {
+    pub notifications: Vec<NotificationDTO>,
+    pub unread_count: u64,
+}

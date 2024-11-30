@@ -8,6 +8,7 @@ pub fn configure(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
         web::scope("/api/notification")
             .wrap(jwt_middleware.clone())
             .route("/", web::get().to(NotificationHandler::get_notifications_by_user_id))
+            .route("/", web::put().to(NotificationHandler::batch_seen_notifications))
             .route("/{notification_id}", web::put().to(NotificationHandler::seen_notification))
     );
 }

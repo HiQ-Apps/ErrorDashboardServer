@@ -11,6 +11,13 @@ pub struct ErrorQueryParams {
     pub group_by: Option<String>,
 }
 
+
+#[derive(Serialize, Deserialize, Debug, Clone, Validate)]
+pub struct QueryParams {
+    pub offset: u64,
+    pub limit: u64,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct FilterRequest {

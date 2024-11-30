@@ -11,19 +11,17 @@ mod shared {
 }
 mod libs;
 
-use actix_web_actors::ws;
 use env_logger;
 use actix_web::web;
 use log::{error, info};
 use managers::namespace_manager::NamespaceServer;
 use managers::notification_manager::NotificationServer;
-use routes::notification_routes;
 use std::sync::Arc;
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_runtime::SecretStore;
 
 use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware};
-use crate::routes::{admin_routes, auth_routes, error_routes, namespace_routes, namespace_alert_routes, user_routes, tag_routes, static_routes, ws_routes};
+use crate::routes::{admin_routes, auth_routes, error_routes, namespace_routes, namespace_alert_routes, user_routes, tag_routes, static_routes, ws_routes, notification_routes};
 use crate::services::init_services;
 use crate::shared::utils::role::initialize_role_rules;
 use config::Config;
@@ -83,6 +81,7 @@ async fn main(
     let auth_service = Arc::new(services.auth_service);
     let error_service = Arc::new(services.error_service);
     let tag_service = Arc::new(services.tag_service);
+    let notification_service = Arc::new(services.notification_service);
 
     let namespace_manager = Arc::new(NamespaceServer::new());
     let notification_manager = Arc::new(NotificationServer::new());
@@ -100,6 +99,7 @@ async fn main(
             .app_data(web::Data::new(auth_service.clone()))
             .app_data(web::Data::new(error_service.clone()))
             .app_data(web::Data::new(tag_service.clone()))
+            .app_data(web::Data::new(notification_service.clone()))
             .app_data(web::Data::new(namespace_manager.clone()))
             .app_data(web::Data::new(notification_manager.clone()))
             .configure(static_routes::configure)

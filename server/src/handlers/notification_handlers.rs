@@ -1,6 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use actix_ws::{self, Message};
-use serde::{Serialize, Deserialize};
+use shared_types::extra_dtos::QueryParams;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -18,12 +17,14 @@ impl NotificationHandler {
         req: HttpRequest,
         config: web::Data<Arc<Config>>,
         notification_services: web::Data<Arc<NotificationService>>,
+        query_params: web::Query<QueryParams>,
     ) -> Result<HttpResponse, ServerError> {
         let headers = req.headers();
         let secret_key = config.secret_key.clone();
         let user_id = extract_user_id_from_jwt_header(headers, &secret_key)?;
+        let query_params = query_params.into_inner();
 
-        match notification_services.get_notifications_by_user_id(user_id).await {
+        match notification_services.get_notifications_by_user_id(user_id, query_params).await {
             Ok(notifications) => Ok(HttpResponse::Ok().json(notifications)),
             Err(err) => Err(err)
         }
@@ -41,6 +42,23 @@ impl NotificationHandler {
         let notification_id = notification_id.into_inner();
 
         match notification_services.seen_notification(user_id, notification_id).await {
+            Ok(()) => Ok(HttpResponse::Ok().finish()),
+            Err(err) => Err(err)
+        }
+    }
+
+    pub async fn batch_seen_notifications(
+        req: HttpRequest,
+        config: web::Data<Arc<Config>>,
+        notification_services: web::Data<Arc<NotificationService>>,
+        notification_ids_request: web::Json<Vec<Uuid>>,
+    ) -> Result<HttpResponse, ServerError> {
+        let headers = req.headers();
+        let secret_key = config.secret_key.clone();
+        let user_id = extract_user_id_from_jwt_header(headers, &secret_key)?;
+        let notification_ids = notification_ids_request.into_inner();
+
+        match notification_services.batch_seen_notifications(user_id, notification_ids).await {
             Ok(()) => Ok(HttpResponse::Ok().finish()),
             Err(err) => Err(err)
         }
@@ -66,5 +84,19 @@ impl NotificationHandler {
         ));
 
         Ok(response)
+    }
+
+    pub async fn clear_notifications(
+        req: HttpRequest,
+        config: web::Data<Arc<Config>>,
+        notification_services: web::Data<Arc<NotificationService>>,
+    ) -> Result<HttpResponse, ServerError> {
+        let headers = req.headers();
+        let secret_key = config.secret_key.clone();
+        let user_id = extract_user_id_from_jwt_header(headers, &secret_key)?;
+        
+
+        
+        Ok(HttpResponse::Ok().finish())
     }
 }

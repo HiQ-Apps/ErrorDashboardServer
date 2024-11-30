@@ -3,7 +3,7 @@ use sea_orm_migration::prelude::*;
 use super::m20230914_054832_create_user_table::Users;
 
 #[derive(DeriveIden)]
-enum Notification {
+pub enum Notification {
     Table,
     Id,
     UserId,
