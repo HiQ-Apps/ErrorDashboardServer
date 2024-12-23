@@ -3,7 +3,7 @@ use actix_web::{web, HttpResponse, HttpRequest, Result, cookie::{Cookie, SameSit
 use oauth2::{AuthorizationCode, TokenResponse, basic::BasicClient};
 use std::sync::Arc;
 
-use crate::{config::Config, services::{AuthService, UserService}};
+use crate::{config::Config, managers::notification_manager::NotificationServer, services::{AuthService, UserService}};
 use crate::shared::utils::errors::{ServerError, RequestError, QueryError};
 use crate::shared::utils::jwt::{extract_user_id_from_jwt_cookie, extract_user_id_from_jwt_header};
 use shared_types::auth_dtos::{VerifyUserDTO, CallbackQuery};
@@ -113,11 +113,13 @@ impl AuthHandler {
 
     pub async fn register(
         auth_services: web::Data<Arc<AuthService>>,
-        new_user: web::Json<UserCreateDTO>
+        new_user: web::Json<UserCreateDTO>,
+        notification_manager: web::Data<Arc<NotificationServer>>,
     ) -> Result<HttpResponse, ServerError> {
         let UserCreateDTO { username, email, password } = new_user.into_inner();
+        let notification_manager = notification_manager.get_ref();
 
-        match auth_services.register(username, email, password).await {
+        match auth_services.register(username, email, password, notification_manager).await {
             Ok(user_service_response) => {
                 let UserLoginServiceDTO { user, user_profile, access_token, refresh_token } = user_service_response;
                 let refresh_token_value = refresh_token.refresh_token.clone();
