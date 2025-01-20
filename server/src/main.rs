@@ -21,7 +21,7 @@ use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_runtime::SecretStore;
 
 use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware};
-use crate::routes::{admin_routes, auth_routes, error_routes, namespace_routes, namespace_alert_routes, user_routes, tag_routes, static_routes, ws_routes, notification_routes};
+use crate::routes::{admin_routes, auth_routes, error_routes, feature_request_routes, namespace_routes, namespace_alert_routes, user_routes, tag_routes, static_routes, ws_routes, notification_routes};
 use crate::services::init_services;
 use crate::shared::utils::role::initialize_role_rules;
 use config::Config;
@@ -108,6 +108,7 @@ async fn main(
             .configure(|cfg| admin_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| auth_routes::configure_with_auth(cfg, &jwt_middleware))
             .configure(|cfg| error_routes::sdk_configure(cfg, &sdk_middleware))
+            .configure(|cfg| feature_request_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| user_routes::configure_user_routes(cfg, &jwt_middleware))
             .configure(|cfg| namespace_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| namespace_alert_routes::configure(cfg, &jwt_middleware))
