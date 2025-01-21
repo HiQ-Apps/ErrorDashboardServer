@@ -82,6 +82,7 @@ async fn main(
     let error_service = Arc::new(services.error_service);
     let tag_service = Arc::new(services.tag_service);
     let notification_service = Arc::new(services.notification_service);
+    let feature_request_service = Arc::new(services.feature_request_service);
 
     let namespace_manager = Arc::new(NamespaceServer::new());
     let notification_manager = Arc::new(NotificationServer::new());
@@ -100,6 +101,7 @@ async fn main(
             .app_data(web::Data::new(error_service.clone()))
             .app_data(web::Data::new(tag_service.clone()))
             .app_data(web::Data::new(notification_service.clone()))
+            .app_data(web::Data::new(feature_request_service.clone()))
             .app_data(web::Data::new(namespace_manager.clone()))
             .app_data(web::Data::new(notification_manager.clone()))
             .configure(static_routes::configure)

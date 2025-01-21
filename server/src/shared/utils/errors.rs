@@ -43,7 +43,7 @@ impl ResponseError for ServerError {
                 let status = match err {
                     QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound 
                     | QueryError::UserProfileNotFound | QueryError::NamespaceAlertNotFound | QueryError::NotFound
-                    | QueryError::NamespaceAlertUserJunctionNotFound => StatusCode::NOT_FOUND,
+                    | QueryError::NamespaceAlertUserJunctionNotFound | QueryError::FeatureRequestNotFound => StatusCode::NOT_FOUND,
                     QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists 
                     | QueryError::UserAlreadySubscribed => StatusCode::CONFLICT,
                     QueryError::PasswordIncorrect | QueryError::OAuthTypeError | QueryError::UserNotNamespaceMember 
@@ -192,7 +192,10 @@ pub enum QueryError {
     InvalidRole,
 
     #[error("User not verified")]
-    UserNotVerified
+    UserNotVerified,
+
+    #[error("Feature request not found")]
+    FeatureRequestNotFound,
 }
 
 #[derive(Debug, Error)]

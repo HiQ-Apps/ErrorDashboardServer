@@ -1,5 +1,6 @@
 pub mod error_model;
 pub mod error_tag_model;
+pub mod feature_request_model;
 pub mod refresh_token_model;
 pub mod user_model;
 pub mod user_profile_model;

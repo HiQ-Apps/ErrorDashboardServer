@@ -21,9 +21,10 @@ impl TagService {
         &self,
         tag: CreateTagDTO
     ) -> Result<(), ServerError> {
+        let db = &*self.db;
         let create_tag: ActiveTagModel = tag.into();
         TagEntity::insert(create_tag)
-            .exec(&*self.db)
+            .exec(db)
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
@@ -34,15 +35,16 @@ impl TagService {
         &self,
         tag_id: Uuid
     ) -> Result<(), ServerError> {
+        let db = &*self.db;
         let found_tag = TagEntity::find()
             .filter(<TagEntity as EntityTrait>::Column::Id.eq(tag_id))
-            .one(&*self.db)
+            .one(db)
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
         match found_tag {
             Some(tag) => {
-                tag.delete(&*self.db)
+                tag.delete(db)
                     .await
                     .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
                 Ok(())
@@ -55,9 +57,10 @@ impl TagService {
         &self,
         error_id: Uuid
     ) -> Result<Vec<TagDTO>, ServerError> {
+        let db = &*self.db;
         let tags = TagEntity::find()
             .filter(<TagEntity as EntityTrait>::Column::ErrorId.eq(error_id))
-            .all(&*self.db)
+            .all(db)
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
