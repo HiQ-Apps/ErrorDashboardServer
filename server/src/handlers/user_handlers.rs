@@ -2,7 +2,7 @@ use actix_web::{web, HttpResponse, Result};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use shared_types::user_dtos::{PasswordDTO, ResetPasswordPath, ResetPasswordRequestDTO, UpdateUserProfileDTO, UserLoginDTO};
+use shared_types::user_dtos::{PasswordDTO, ResetPasswordPath, ResetPasswordRequestDTO, UpdateUserProfileDTO};
 use crate::shared::utils::errors::ServerError;
 use crate::services::UserService;
 

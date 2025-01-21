@@ -4,10 +4,10 @@ use oauth2::{AuthorizationCode, TokenResponse, basic::BasicClient};
 use std::sync::Arc;
 
 use crate::{config::Config, managers::notification_manager::NotificationServer, services::{AuthService, UserService}};
-use crate::shared::utils::errors::{ServerError, RequestError, QueryError};
+use crate::shared::utils::errors::{ServerError, RequestError};
 use crate::shared::utils::jwt::{extract_user_id_from_jwt_cookie, extract_user_id_from_jwt_header};
 use shared_types::auth_dtos::{VerifyUserDTO, CallbackQuery};
-use shared_types::user_dtos::{UserCreateDTO, UserLoginDTO, UserLoginServiceDTO, UserResponseDTO, GoogleUserInfoDTO};
+use shared_types::user_dtos::{UserCreateDTO, UserLoginDTO, UserLoginServiceDTO, UserResponseDTO};
 
 pub struct AuthHandler;
 

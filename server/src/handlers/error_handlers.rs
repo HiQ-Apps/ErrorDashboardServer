@@ -4,7 +4,6 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::managers::notification_manager::NotificationServer;
-use crate::services::NotificationService;
 use crate::{managers::namespace_manager::NamespaceServer, shared::utils::errors::RequestError};
 use crate::services::error_services::ErrorService;
 use crate::shared::utils::errors::ServerError;

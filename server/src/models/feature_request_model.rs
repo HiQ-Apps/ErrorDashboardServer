@@ -45,7 +45,7 @@ impl From<CreateFeatureRequestDTO> for ActiveModel {
             id: ActiveValue::NotSet,
             title: ActiveValue::Set(dto.title),
             description: ActiveValue::Set(dto.description),
-            status: ActiveValue::Set(dto.status),
+            status: ActiveValue::Set("Pending".to_string()),
             created_at: ActiveValue::Set(Utc::now()),
         }
     }

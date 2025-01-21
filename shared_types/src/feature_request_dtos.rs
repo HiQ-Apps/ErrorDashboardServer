@@ -7,8 +7,6 @@ use serde_valid::Validate;
 pub struct CreateFeatureRequestDTO {
     pub title: String,
     pub description: String,
-    pub status: String,
-    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]

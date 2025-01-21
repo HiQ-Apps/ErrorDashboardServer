@@ -1,4 +1,4 @@
-use actix_ws::{Message, Session};
+use actix_ws::Session;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 use std::sync::Arc;

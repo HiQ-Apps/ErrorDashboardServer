@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use actix_ws::{self, Message};
+use actix_ws::{self};
 use serde::{Serialize, Deserialize};
 use std::sync::Arc;
 use uuid::Uuid;
