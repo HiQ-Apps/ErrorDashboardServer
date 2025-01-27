@@ -10,8 +10,6 @@ use sea_orm::TransactionError;
 use serde_json::Error as JsonError;
 use serde_valid::Error as ValidationError;
 use thiserror::Error;
-use tokio::sync::oneshot::error;
-use oauth2::ErrorResponseType as OAuth2Error;
 use uuid::Error as UuidError;
 use std::io::Error as IoError;
 use reqwest::Error as ReqwestError;
@@ -45,7 +43,7 @@ impl ResponseError for ServerError {
                 let status = match err {
                     QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound 
                     | QueryError::UserProfileNotFound | QueryError::NamespaceAlertNotFound | QueryError::NotFound
-                    | QueryError::NamespaceAlertUserJunctionNotFound => StatusCode::NOT_FOUND,
+                    | QueryError::NamespaceAlertUserJunctionNotFound | QueryError::FeatureRequestNotFound => StatusCode::NOT_FOUND,
                     QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists 
                     | QueryError::UserAlreadySubscribed => StatusCode::CONFLICT,
                     QueryError::PasswordIncorrect | QueryError::OAuthTypeError | QueryError::UserNotNamespaceMember 
@@ -194,7 +192,10 @@ pub enum QueryError {
     InvalidRole,
 
     #[error("User not verified")]
-    UserNotVerified
+    UserNotVerified,
+
+    #[error("Feature request not found")]
+    FeatureRequestNotFound,
 }
 
 #[derive(Debug, Error)]

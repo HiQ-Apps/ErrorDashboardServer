@@ -20,10 +20,3 @@ pub fn configure(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
             .route("/{id}/user-role", web::put().to(NamespaceHandler::update_user_role_in_namespace))
         );
 }
-
-pub fn configure_without_auth(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-        web::scope("/api/ws/namespace")
-            .route("/{id}/error", web::get().to(NamespaceHandler::namespace_error_ws_session))
-                    );
-}

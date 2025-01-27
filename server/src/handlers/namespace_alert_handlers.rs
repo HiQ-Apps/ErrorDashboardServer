@@ -1,9 +1,7 @@
-use actix_web::{web, HttpRequest, HttpResponse};
-use serde::{Serialize, Deserialize};
+use actix_web::{web, HttpResponse};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::config::Config;
 use crate::shared::utils::errors::ServerError;
 use shared_types::namespace_alert_dtos::{CreateNamespaceAlertRequestDTO, NamespaceAlertSubscriptionRequestDTO, UpdateNamespaceAlertRequestDTO};
 use crate::services::namespace_alerts_services::NamespaceAlertsService;

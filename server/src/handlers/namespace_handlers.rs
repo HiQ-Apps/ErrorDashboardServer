@@ -1,10 +1,11 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use actix_ws::{self, Message};
+use actix_ws::{self};
 use serde::{Serialize, Deserialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
+use crate::managers::notification_manager::NotificationServer;
 use crate::shared::utils::role::{get_weight, string_to_role, Permission, RoleRules};
 use shared_types::error_dtos::AggregatedResult;
 use shared_types::extra_dtos::{PaginationParams, ErrorQueryParams};
@@ -12,7 +13,7 @@ use shared_types::namespace_dtos::{CreateNamespaceDTO, InviteUserRequestDTO, Upd
 use crate::managers::namespace_manager::NamespaceServer;
 use crate::services::namespace_services::NamespaceService;
 use crate::handlers::ws_handlers::namespace_error_ws_session;
-use crate::shared::utils::errors::{QueryError, RequestError, ServerError};
+use crate::shared::utils::errors::{ExternalError, QueryError, RequestError, ServerError};
 use crate::shared::utils::jwt::extract_user_id_from_jwt_header;
 
 
@@ -36,14 +37,16 @@ impl NamespaceHandler {
         req: HttpRequest,
         config: web::Data<Arc<Config>>,
         namespace_services: web::Data<Arc<NamespaceService>>,
+        notification_manager: web::Data<Arc<NotificationServer>>,
         new_namespace: web::Json<CreateNamespaceDTO>,
     ) -> Result<HttpResponse, ServerError> {
         let headers = req.headers();
         let secret_key = config.secret_key.clone();
         let user_id = extract_user_id_from_jwt_header(headers, &secret_key)?;
+        let notification_manager = notification_manager.get_ref().clone();
 
         let CreateNamespaceDTO { service_name, environment_type } = new_namespace.into_inner();
-        match namespace_services.create_namespace(user_id, service_name, environment_type).await {
+        match namespace_services.create_namespace(user_id, service_name, environment_type, notification_manager).await {
             Ok(id) => Ok(HttpResponse::Ok().json(id)),
             Err(err) => Err(err)
         }
@@ -51,7 +54,7 @@ impl NamespaceHandler {
 
     pub async fn get_namespace_by_id(
         namespace_services: web::Data<Arc<NamespaceService>>,
-        namespace_id: web::Path<Uuid>
+        namespace_id: web::Path<Uuid>,
     ) -> Result<HttpResponse, ServerError> {
         match namespace_services.get_namespace_by_id(*namespace_id).await {
             Ok(namespace) => Ok(HttpResponse::Ok().json(namespace)),
@@ -77,12 +80,14 @@ impl NamespaceHandler {
         config: web::Data<Arc<Config>>,
         namespace_services: web::Data<Arc<NamespaceService>>,
         update_namespace_json: web::Json<UpdateNamespaceDTO>,
-        role_rules: web::Data<Arc<RoleRules>>
+        role_rules: web::Data<Arc<RoleRules>>,
+        notification_manager: web::Data<Arc<NotificationServer>>,
     ) -> Result<HttpResponse, ServerError> {
         let secret_key = &config.secret_key;
         let headers = req.headers();
         let user_id = extract_user_id_from_jwt_header(headers, secret_key)?;
         let role_rules = role_rules.as_ref().as_ref();
+        let notification_manager = notification_manager.get_ref().clone();
 
         let update_namespace_dto = update_namespace_json.into_inner();
         match namespace_services.update_namespace(user_id, update_namespace_dto, role_rules.clone()).await {
@@ -96,12 +101,14 @@ impl NamespaceHandler {
         config: web::Data<Arc<Config>>,
         namespace_services: web::Data<Arc<NamespaceService>>,
         namespace_id: web::Path<Uuid>,
+        notification_manager: web::Data<Arc<NotificationServer>>,
     ) -> Result<HttpResponse, ServerError> {
         let secret_key = &config.secret_key;
         let headers = req.headers();
         let user_id = extract_user_id_from_jwt_header(headers, secret_key)?;
+        let notification_manager = notification_manager.get_ref().clone();
 
-        match namespace_services.delete_namespace(*namespace_id, user_id).await {
+        match namespace_services.delete_namespace(*namespace_id, user_id, notification_manager).await {
             Ok(()) => Ok(HttpResponse::Ok().finish()),
             Err(err) => Err(err)
         }
@@ -131,11 +138,13 @@ impl NamespaceHandler {
         stream: web::Payload,
         namespace_id: web::Path<Uuid>,
         namespace_server: web::Data<Arc<NamespaceServer>>,
-    ) -> actix_web::Result<HttpResponse> {
+    ) -> Result<HttpResponse, ServerError> {
         let namespace_id = namespace_id.into_inner();
         let namespace_server = namespace_server.get_ref().clone();
 
-        let (response, session, _msg_stream) = actix_ws::handle(&req, stream)?;
+        let (response, session, _msg_stream) = actix_ws::handle(&req, stream).map_err(|err| {
+            ServerError::ExternalError(ExternalError::Actix(err))
+        })?;
 
         actix_web::rt::spawn(namespace_error_ws_session(session, namespace_id, namespace_server));
 

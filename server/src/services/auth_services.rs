@@ -3,12 +3,15 @@ use bcrypt::{verify, hash};
 use chrono::Utc;
 use oauth2::basic::BasicClient;
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, TransactionTrait};
-use shared_types::auth_dtos::RefreshTokenDTO;
 use std::sync::Arc;
 use uuid::Uuid;
 
+use shared_types::auth_dtos::RefreshTokenDTO;
+use shared_types::notification_dtos::NotificationDTO;
 use shared_types::user_dtos::{GoogleUserInfoDTO, ShortUserDTO, ShortUserProfileDTO, UserLoginServiceDTO};
 use crate::config::Config;
+use crate::managers::notification_manager::NotificationServer;
+use crate::models::notification_model::{Entity as NotificationEntity, Model as NotificationModel};
 use crate::models::user_profile_model::{Model as UserProfileModel, Entity as UserProfileEntity};
 use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
 use crate::models::refresh_token_model::{Entity as RefreshTokenEntity, Model as RefreshTokenModel};
@@ -302,6 +305,7 @@ impl AuthService {
         user_name: String,
         user_email: String,
         user_pass: String,
+        notification_manager: Arc<NotificationServer>,
     ) -> Result<UserLoginServiceDTO, ServerError> {
         let db = &*self.db;
         let configs = &*self.configs;
@@ -417,6 +421,27 @@ impl AuthService {
         };
 
         send_email(configs, &user.email, "Higuard Registration", &content).map_err(|err| ServerError::from(err))?;
+
+        let create_notification = NotificationDTO {
+            id: Uuid::new_v4(),
+            user_id: uid,
+            title: "Welcome to Higuard's Error Dashboard".to_string(),
+            source: "Higuard Support".to_string(),
+            text: "Welcome to Higuard's Error Dashboard. Please verify your account by clicking the link sent to your email to enable our features.".to_string(),
+            is_read: false,
+            created_at: now,
+        };
+        let broadcast_notification = create_notification.clone();
+        let notification_modal = NotificationModel::from(create_notification);
+        let active_notification_model = notification_modal.into_active_model();
+        
+        NotificationEntity::insert(active_notification_model)
+            .exec(db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+        notification_manager.broadcast_notification(broadcast_notification, &uid).await;
+
 
         Ok(user_response)
     }

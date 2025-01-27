@@ -8,6 +8,9 @@ pub use user_services::*;
 pub mod auth_services;
 pub use auth_services::*;
 
+pub mod feature_request_services;
+pub use feature_request_services::*;
+
 pub mod tag_services;
 pub use tag_services::*;
 
@@ -20,16 +23,21 @@ pub use namespace_services::*;
 pub mod error_services;
 pub use error_services::*;
 
+pub mod notification_services;
+pub use notification_services::*;
+
 use crate::config::Config;
 use crate::shared::utils::errors::ServerError;
 
 pub struct Services {
-    pub namespace_service: namespace_services::NamespaceService,
-    pub namespace_alerts_services: namespace_alerts_services::NamespaceAlertsService,
-    pub user_service: user_services::UserService,
     pub auth_service: auth_services::AuthService,
     pub error_service: error_services::ErrorService,
+    pub feature_request_service: feature_request_services::FeatureRequestService,
+    pub namespace_service: namespace_services::NamespaceService,
+    pub namespace_alerts_services: namespace_alerts_services::NamespaceAlertsService,
+    pub notification_service: notification_services::NotificationService,
     pub tag_service: tag_services::TagService,
+    pub user_service: user_services::UserService,
 }
 
 pub fn init_services(db_pool: Arc<DatabaseConnection>, config: Arc<Config>) -> Result<Services, Box<dyn Error>> {
@@ -51,5 +59,11 @@ pub fn init_services(db_pool: Arc<DatabaseConnection>, config: Arc<Config>) -> R
     let tag_service = tag_services::TagService::new(Arc::clone(&db_pool), Arc::clone(&config))
         .map_err(|_| ServerError::ServiceInitError("Tag services failed to initialize".to_string()))?;
 
-    Ok(Services { namespace_service, namespace_alerts_services, user_service, auth_service, error_service, tag_service } )
+    let notification_service = notification_services::NotificationService::new(Arc::clone(&db_pool), Arc::clone(&config))
+        .map_err(|_| ServerError::ServiceInitError("Notification services failed to initialize".to_string()))?;
+
+    let feature_request_service = feature_request_services::FeatureRequestService::new(Arc::clone(&db_pool), Arc::clone(&config))
+        .map_err(|_| ServerError::ServiceInitError("Feature request services failed to initialize".to_string()))?;
+
+    Ok(Services { namespace_service, namespace_alerts_services, user_service, auth_service, error_service, tag_service, notification_service, feature_request_service} )
 }

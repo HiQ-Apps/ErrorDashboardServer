@@ -12,6 +12,11 @@ mod m20240924_003716_create_namespace_alert_junction;
 mod m20241122_093812_add_namespace_alert_index;
 mod m20241122_093930_add_error_index;
 mod m20241122_224628_add_namespace_alert_junction_index;
+mod m20241127_012219_create_notification;
+mod m20241129_233747_add_notification_index;
+mod m20250120_050231_create_feature_request_table;
+
+
 
 
 
@@ -33,6 +38,9 @@ impl MigratorTrait for Migrator {
             Box::new(m20241122_093812_add_namespace_alert_index::Migration),
             Box::new(m20241122_093930_add_error_index::Migration),
             Box::new(m20241122_224628_add_namespace_alert_junction_index::Migration),
+            Box::new(m20241127_012219_create_notification::Migration),
+            Box::new(m20241129_233747_add_notification_index::Migration),
+            Box::new(m20250120_050231_create_feature_request_table::Migration),
         ]
     }
 }

@@ -1,8 +1,10 @@
 pub mod admin_handlers;
-pub mod user_handlers;
 pub mod auth_handlers;
+pub mod error_handlers;
+pub mod feature_request_handlers;
 pub mod namespace_handlers;
 pub mod namespace_alert_handlers;
-pub mod error_handlers;
+pub mod notification_handlers;
+pub mod user_handlers;
 pub mod tag_handlers;
 pub mod ws_handlers;

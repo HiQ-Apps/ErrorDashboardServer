@@ -1,5 +1,4 @@
-use actix_web::{web, HttpResponse, HttpRequest, Result, cookie::{Cookie, SameSite, time::Duration}};
-use lettre::message::header;
+use actix_web::{web, HttpResponse, HttpRequest, Result};
 use shared_types::auth_dtos::VerifyUserDTO;
 use std::sync::Arc;
 
