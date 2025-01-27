@@ -3,11 +3,11 @@ use bcrypt::{verify, hash};
 use chrono::Utc;
 use oauth2::basic::BasicClient;
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, TransactionTrait};
-use shared_types::auth_dtos::RefreshTokenDTO;
-use shared_types::notification_dtos::NotificationDTO;
 use std::sync::Arc;
 use uuid::Uuid;
 
+use shared_types::auth_dtos::RefreshTokenDTO;
+use shared_types::notification_dtos::NotificationDTO;
 use shared_types::user_dtos::{GoogleUserInfoDTO, ShortUserDTO, ShortUserProfileDTO, UserLoginServiceDTO};
 use crate::config::Config;
 use crate::managers::notification_manager::NotificationServer;
@@ -305,7 +305,7 @@ impl AuthService {
         user_name: String,
         user_email: String,
         user_pass: String,
-        notification_manager: &Arc<NotificationServer>,
+        notification_manager: Arc<NotificationServer>,
     ) -> Result<UserLoginServiceDTO, ServerError> {
         let db = &*self.db;
         let configs = &*self.configs;

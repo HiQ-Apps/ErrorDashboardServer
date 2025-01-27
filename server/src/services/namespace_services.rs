@@ -9,16 +9,18 @@ use uuid::Uuid;
 use log::info;
 
 use shared_types::namespace_dtos::{GetNamespaceResponseDTO, GetNamespacesByUserResponseDTO, InviteUserRequestDTO, ShortNamespaceDTO, UpdateNamespaceDTO};
+use shared_types::notification_dtos::NotificationDTO;
 use shared_types::error_dtos::{AggregatedResult, GetAggregatedLineErrorDTO, AggregateIndividualErrorDTO, GetAggregatedMessageErrorDTO, GetAggregatedStatusErrorDTO, TagAggregatedErrorDTO};
 use shared_types::tag_dtos::ShortTagNoIdDTO;
 use crate::config::Config;
+use crate::managers::notification_manager::{self, NotificationServer};
 use crate::models::namespace_model::{Entity as NamespaceEntity, Model as NamespaceModel};
+use crate::models::notification_model::{Entity as NotificationEntity, Model as NotificationModel};
 use crate::models::user_model::Entity as UserEntity;
 use crate::models::error_model::Entity as ErrorEntity;
 use crate::models::error_tag_model::Entity as TagEntity;
 use crate::models::user_namespace_junction_model::{Entity as UserNamespaceJunctionEntity, Model as UserNamespaceJunctionModel};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError, RequestError};
-use crate::shared::utils::mailing::send_email;
 use crate::shared::utils::role::{get_perms, string_to_role, Permission, Role, RoleRules};
 
 
@@ -51,6 +53,7 @@ impl NamespaceService {
         user_id: Uuid,
         namespace_service_name: String,
         environment_type: String,
+        notification_manager: Arc<NotificationServer>
     ) -> Result<Uuid, ServerError> {
         let db = &*self.db;
         let transaction = db.begin().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
@@ -58,6 +61,7 @@ impl NamespaceService {
         let uid = Uuid::new_v4();
         let new_client_id = Uuid::new_v4();
         let now = Utc::now();
+        let namespace_name_clone = namespace_service_name.clone();
 
         // Check if user has 10 > namespaces
         let user_namespace_count = UserNamespaceJunctionEntity::find()
@@ -100,6 +104,25 @@ impl NamespaceService {
         }
 
         transaction.commit().await.map_err(ExternalError::from)?;
+
+        let notification = NotificationDTO {
+            id: Uuid::new_v4(),
+            title: "New Namespace Created".to_string(),
+            source: "Higuard Support".to_string(),
+            user_id,
+            text: format!("You have created a new namespace: {}. You can begin sending errors now. View to documentation to get started.", namespace_name_clone),
+            is_read: false,
+            created_at: now,
+        };
+        let broadcast_notification = notification.clone();
+        let notification_model = NotificationModel::from(notification).into_active_model();
+        
+        NotificationEntity::insert(notification_model)
+            .exec(db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+
+        notification_manager.broadcast_notification(broadcast_notification, &user_id).await;
         
         Ok(uid)
     }
@@ -267,7 +290,11 @@ impl NamespaceService {
         Ok(())
     }
 
-pub async fn delete_namespace(&self, namespace_id: Uuid, user_id: Uuid) -> Result<(), ServerError> {
+    pub async fn delete_namespace(&self, 
+        namespace_id: Uuid, 
+        user_id: Uuid, 
+        notification_manager: Arc<NotificationServer>
+    ) -> Result<(), ServerError> {
     let db: &DatabaseConnection = &*self.db;
     let transaction = db.begin().await.map_err(ExternalError::from)?;
 
@@ -311,10 +338,39 @@ pub async fn delete_namespace(&self, namespace_id: Uuid, user_id: Uuid) -> Resul
         return Err(ServerError::RequestError(RequestError::PermissionDenied));
     };
 
+    // Alert all users that namespace is being deleted
+    let subscribed_users = UserNamespaceJunctionEntity::find()
+        .filter(<UserNamespaceJunctionEntity as EntityTrait>::Column::NamespaceId.eq(namespace_id))
+        .all(&transaction)
+        .await
+        .map_err(ExternalError::from)?;
+
+    for user in subscribed_users {
+        let notification = NotificationDTO {
+            id: Uuid::new_v4(),
+            title: "Namespace Deleted".to_string(),
+            source: "Higuard Support".to_string(),
+            user_id: user.user_id,
+            text: format!("The namespace {} has been deleted. You will no longer receive alerts for this namespace.", namespace.service_name),
+            is_read: false,
+            created_at: Utc::now(),
+        };
+        let notification_clone = notification.clone();
+        let notification_model = NotificationModel::from(notification).into_active_model();
+        
+        NotificationEntity::insert(notification_model)
+            .exec(db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+        
+        notification_manager.broadcast_notification(notification_clone, &user.user_id).await;
+    }
+
     if let Err(err) = namespace.delete(&transaction).await {
         transaction.rollback().await.map_err(ExternalError::from)?;
         return Err(ServerError::from(ExternalError::DB(err)));
     };
+
 
     transaction.commit().await.map_err(ExternalError::from)?;
 

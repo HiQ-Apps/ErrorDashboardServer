@@ -117,7 +117,7 @@ impl AuthHandler {
         notification_manager: web::Data<Arc<NotificationServer>>,
     ) -> Result<HttpResponse, ServerError> {
         let UserCreateDTO { username, email, password } = new_user.into_inner();
-        let notification_manager = notification_manager.get_ref();
+        let notification_manager = notification_manager.get_ref().clone();
 
         match auth_services.register(username, email, password, notification_manager).await {
             Ok(user_service_response) => {

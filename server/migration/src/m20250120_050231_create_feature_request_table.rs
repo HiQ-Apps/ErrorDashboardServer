@@ -31,7 +31,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(FeatureRequest::Title).string().not_null())
                     .col(ColumnDef::new(FeatureRequest::Description).string().not_null())
                     .col(ColumnDef::new(FeatureRequest::Status).string().not_null())
-                    .col(ColumnDef::new(FeatureRequest::CreatedAt).timestamp().not_null())
+                    .col(ColumnDef::new(FeatureRequest::CreatedAt).timestamp_with_time_zone().not_null())
                     .to_owned(),
             )
             .await
