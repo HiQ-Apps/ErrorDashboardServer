@@ -1,4 +1,5 @@
 pub mod auth_dtos;
+pub mod bug_report_dtos;
 pub mod error_dtos;
 pub mod extra_dtos;
 pub mod feature_request_dtos;
