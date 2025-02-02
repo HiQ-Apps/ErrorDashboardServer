@@ -8,6 +8,9 @@ pub use user_services::*;
 pub mod auth_services;
 pub use auth_services::*;
 
+pub mod bug_report_services;
+pub use bug_report_services::*;
+
 pub mod feature_request_services;
 pub use feature_request_services::*;
 
@@ -31,6 +34,7 @@ use crate::shared::utils::errors::ServerError;
 
 pub struct Services {
     pub auth_service: auth_services::AuthService,
+    pub bug_report_service: bug_report_services::BugReportService,
     pub error_service: error_services::ErrorService,
     pub feature_request_service: feature_request_services::FeatureRequestService,
     pub namespace_service: namespace_services::NamespaceService,
@@ -53,6 +57,9 @@ pub fn init_services(db_pool: Arc<DatabaseConnection>, config: Arc<Config>) -> R
     let auth_service = auth_services::AuthService::new(Arc::clone(&db_pool), Arc::clone(&config))
         .map_err(|_| ServerError::ServiceInitError("Auth services failed to initialize".to_string()))?;
 
+    let bug_report_service = bug_report_services::BugReportService::new(Arc::clone(&db_pool), Arc::clone(&config))
+        .map_err(|_| ServerError::ServiceInitError("Bug report services failed to initialize".to_string()))?;
+
     let error_service = error_services::ErrorService::new(Arc::clone(&db_pool), Arc::clone(&config))
         .map_err(|_| ServerError::ServiceInitError("Error services failed to initialize".to_string()))?;
 
@@ -65,5 +72,5 @@ pub fn init_services(db_pool: Arc<DatabaseConnection>, config: Arc<Config>) -> R
     let feature_request_service = feature_request_services::FeatureRequestService::new(Arc::clone(&db_pool), Arc::clone(&config))
         .map_err(|_| ServerError::ServiceInitError("Feature request services failed to initialize".to_string()))?;
 
-    Ok(Services { namespace_service, namespace_alerts_services, user_service, auth_service, error_service, tag_service, notification_service, feature_request_service} )
+    Ok(Services { namespace_service, namespace_alerts_services, user_service, auth_service, bug_report_service, error_service, tag_service, notification_service, feature_request_service} )
 }

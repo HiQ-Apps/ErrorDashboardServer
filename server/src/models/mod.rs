@@ -1,3 +1,4 @@
+pub mod bug_report_model;
 pub mod error_model;
 pub mod error_tag_model;
 pub mod feature_request_model;

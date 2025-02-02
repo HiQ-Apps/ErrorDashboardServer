@@ -1,5 +1,6 @@
 pub mod admin_routes;
 pub mod auth_routes;
+pub mod bug_report_routes;
 pub mod error_routes;
 pub mod feature_request_routes;
 pub mod namespace_routes;

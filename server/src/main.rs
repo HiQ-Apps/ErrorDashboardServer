@@ -21,7 +21,7 @@ use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_runtime::SecretStore;
 
 use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware};
-use crate::routes::{admin_routes, auth_routes, error_routes, feature_request_routes, namespace_routes, namespace_alert_routes, user_routes, tag_routes, static_routes, ws_routes, notification_routes};
+use crate::routes::{admin_routes, auth_routes, bug_report_routes, error_routes, feature_request_routes, namespace_routes, namespace_alert_routes, user_routes, tag_routes, static_routes, ws_routes, notification_routes};
 use crate::services::init_services;
 use crate::shared::utils::role::initialize_role_rules;
 use config::Config;
@@ -79,11 +79,11 @@ async fn main(
     let namespace_alert_service = Arc::new(services.namespace_alerts_services);
     let user_service = Arc::new(services.user_service);
     let auth_service = Arc::new(services.auth_service);
+    let bug_report_service = Arc::new(services.bug_report_service);
     let error_service = Arc::new(services.error_service);
     let tag_service = Arc::new(services.tag_service);
     let notification_service = Arc::new(services.notification_service);
     let feature_request_service = Arc::new(services.feature_request_service);
-
     let namespace_manager = Arc::new(NamespaceServer::new());
     let notification_manager = Arc::new(NotificationServer::new());
     
@@ -98,6 +98,7 @@ async fn main(
             .app_data(web::Data::new(namespace_alert_service.clone()))
             .app_data(web::Data::new(user_service.clone()))
             .app_data(web::Data::new(auth_service.clone()))
+            .app_data(web::Data::new(bug_report_service.clone()))
             .app_data(web::Data::new(error_service.clone()))
             .app_data(web::Data::new(tag_service.clone()))
             .app_data(web::Data::new(notification_service.clone()))
@@ -109,6 +110,7 @@ async fn main(
             .configure(ws_routes::configure_ws)
             .configure(|cfg| admin_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| auth_routes::configure_with_auth(cfg, &jwt_middleware))
+            .configure(|cfg| bug_report_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| error_routes::sdk_configure(cfg, &sdk_middleware))
             .configure(|cfg| feature_request_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| user_routes::configure_user_routes(cfg, &jwt_middleware))
