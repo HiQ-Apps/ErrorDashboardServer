@@ -5,7 +5,7 @@ use crate::middlewares::auth_middleware::JwtMiddleware;
 
 pub fn configure(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
     cfg.service(
-        web::scope("/api/bug_report")
+        web::scope("/api/bug-report")
             .route("/", web::post().to(BugReportHandler::create_bug_report))
             .route("/{id}", web::put().to(BugReportHandler::update_bug_status))
             .service(
