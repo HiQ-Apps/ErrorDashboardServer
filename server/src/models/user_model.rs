@@ -6,7 +6,6 @@ use uuid::Uuid;
 use crate::models::refresh_token_model::Entity as RefreshTokenEntity;
 use crate::models::user_profile_model::Entity as UserProfileEntity;
 
-
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "users")]
 pub struct Model {
@@ -27,14 +26,14 @@ pub struct Model {
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
     RefreshTokenEntity,
-    UserProfileEntity
+    UserProfileEntity,
 }
 
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
             Self::RefreshTokenEntity => Entity::has_many(RefreshTokenEntity).into(),
-            Self::UserProfileEntity => Entity::has_one(UserProfileEntity).into()
+            Self::UserProfileEntity => Entity::has_one(UserProfileEntity).into(),
         }
     }
 }

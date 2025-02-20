@@ -21,7 +21,7 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    UserEntity
+    UserEntity,
 }
 
 impl RelationTrait for Relation {
@@ -55,4 +55,3 @@ impl ActiveModelBehavior for ActiveModel {
         }
     }
 }
-

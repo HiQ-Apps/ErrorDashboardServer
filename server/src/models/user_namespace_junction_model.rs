@@ -1,5 +1,5 @@
-use sea_orm::{entity::prelude::*, ActiveValue};
 use async_trait::async_trait;
+use sea_orm::{entity::prelude::*, ActiveValue};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -37,12 +37,12 @@ impl RelationTrait for Relation {
     }
 }
 
-
 impl Related<NamespaceEntity> for Entity {
     fn to() -> RelationDef {
         Entity::belongs_to(NamespaceEntity)
             .from(Column::NamespaceId)
-            .to(<NamespaceEntity as sea_orm::EntityTrait>::Column::Id).into()
+            .to(<NamespaceEntity as sea_orm::EntityTrait>::Column::Id)
+            .into()
     }
 }
 
@@ -53,7 +53,7 @@ impl ActiveModelBehavior for ActiveModel {
             id: ActiveValue::Set(Uuid::new_v4()),
             namespace_id: ActiveValue::Set(Uuid::new_v4()),
             user_id: ActiveValue::Set(Uuid::new_v4()),
-            role: ActiveValue::Set(String::new())
+            role: ActiveValue::Set(String::new()),
         }
     }
 }

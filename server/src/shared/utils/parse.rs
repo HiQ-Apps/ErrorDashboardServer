@@ -43,7 +43,6 @@ impl StackTraceInfo {
     }
 }
 
-
 pub fn parse_stack_trace(stack_trace: &String) -> Result<StackTraceInfo, &'static str> {
     let lines: Vec<&str> = stack_trace.lines().collect();
 
@@ -102,4 +101,3 @@ pub fn parse_stack_trace(stack_trace: &String) -> Result<StackTraceInfo, &'stati
         stack_trace_lines,
     ))
 }
-

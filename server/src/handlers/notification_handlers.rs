@@ -4,11 +4,11 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
+use crate::handlers::ws_handlers::notification_ws_session;
 use crate::managers::notification_manager::NotificationServer;
 use crate::services::notification_services::NotificationService;
 use crate::shared::utils::errors::{ExternalError, ServerError};
 use crate::shared::utils::jwt::extract_user_id_from_jwt_header;
-use crate::handlers::ws_handlers::notification_ws_session;
 
 pub struct NotificationHandler;
 
@@ -24,9 +24,12 @@ impl NotificationHandler {
         let user_id = extract_user_id_from_jwt_header(headers, &secret_key)?;
         let query_params = query_params.into_inner();
 
-        match notification_services.get_notifications_by_user_id(user_id, query_params).await {
+        match notification_services
+            .get_notifications_by_user_id(user_id, query_params)
+            .await
+        {
             Ok(notifications) => Ok(HttpResponse::Ok().json(notifications)),
-            Err(err) => Err(err)
+            Err(err) => Err(err),
         }
     }
 
@@ -41,9 +44,12 @@ impl NotificationHandler {
         let user_id = extract_user_id_from_jwt_header(headers, &secret_key)?;
         let notification_id = notification_id.into_inner();
 
-        match notification_services.seen_notification(user_id, notification_id).await {
+        match notification_services
+            .seen_notification(user_id, notification_id)
+            .await
+        {
             Ok(()) => Ok(HttpResponse::Ok().finish()),
-            Err(err) => Err(err)
+            Err(err) => Err(err),
         }
     }
 
@@ -58,9 +64,12 @@ impl NotificationHandler {
         let user_id = extract_user_id_from_jwt_header(headers, &secret_key)?;
         let notification_ids = notification_ids_request.into_inner();
 
-        match notification_services.batch_seen_notifications(user_id, notification_ids).await {
+        match notification_services
+            .batch_seen_notifications(user_id, notification_ids)
+            .await
+        {
             Ok(()) => Ok(HttpResponse::Ok().finish()),
-            Err(err) => Err(err)
+            Err(err) => Err(err),
         }
     }
 
@@ -72,15 +81,14 @@ impl NotificationHandler {
     ) -> Result<HttpResponse, ServerError> {
         let user_id = user_id.into_inner();
         let notification_server = notification_server.get_ref().clone();
-        
-        let (response, session, _msg_stream) = actix_ws::handle(&req, stream).map_err(|err| {
-            ServerError::ExternalError(ExternalError::Actix(err))
-        })?;
+
+        let (response, session, _msg_stream) = actix_ws::handle(&req, stream)
+            .map_err(|err| ServerError::ExternalError(ExternalError::Actix(err)))?;
 
         actix_web::rt::spawn(notification_ws_session(
             session,
             user_id,
-            notification_server
+            notification_server,
         ));
 
         Ok(response)
@@ -94,9 +102,7 @@ impl NotificationHandler {
         let headers = req.headers();
         let secret_key = config.secret_key.clone();
         let user_id = extract_user_id_from_jwt_header(headers, &secret_key)?;
-        
 
-        
         Ok(HttpResponse::Ok().finish())
     }
 }

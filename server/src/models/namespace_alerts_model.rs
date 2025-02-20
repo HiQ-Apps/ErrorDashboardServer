@@ -1,9 +1,9 @@
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue;
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::models::namespace_model::Entity as NamespaceEntity;
 
@@ -14,6 +14,7 @@ pub struct Model {
     pub id: Uuid,
     pub namespace_id: Uuid,
     pub alert_method: String,
+    pub discord_channel_id: Option<String>,
     pub path: Option<String>,
     pub line: Option<i32>,
     pub message: Option<String>,
@@ -56,6 +57,7 @@ impl ActiveModelBehavior for ActiveModel {
             id: ActiveValue::NotSet,
             namespace_id: ActiveValue::Set(Uuid::new_v4()),
             alert_method: ActiveValue::Set(String::new()),
+            discord_channel_id: ActiveValue::Set(None),
             path: ActiveValue::Set(None),
             line: ActiveValue::Set(None),
             message: ActiveValue::Set(None),

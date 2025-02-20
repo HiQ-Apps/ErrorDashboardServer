@@ -1,12 +1,18 @@
-
-use actix_web::{web, HttpResponse, HttpRequest, Result, cookie::{Cookie, SameSite, time::Duration}};
-use oauth2::{AuthorizationCode, TokenResponse, basic::BasicClient};
+use actix_web::{
+    cookie::{time::Duration, Cookie, SameSite},
+    web, HttpRequest, HttpResponse, Result,
+};
+use oauth2::{basic::BasicClient, AuthorizationCode, TokenResponse};
 use std::sync::Arc;
 
-use crate::{config::Config, managers::notification_manager::NotificationServer, services::{AuthService, UserService}};
-use crate::shared::utils::errors::{ServerError, RequestError};
+use crate::shared::utils::errors::{RequestError, ServerError};
 use crate::shared::utils::jwt::{extract_user_id_from_jwt_cookie, extract_user_id_from_jwt_header};
-use shared_types::auth_dtos::{VerifyUserDTO, CallbackQuery};
+use crate::{
+    config::Config,
+    managers::notification_manager::NotificationServer,
+    services::{AuthService, UserService},
+};
+use shared_types::auth_dtos::{CallbackQuery, VerifyUserDTO};
 use shared_types::user_dtos::{UserCreateDTO, UserLoginDTO, UserLoginServiceDTO, UserResponseDTO};
 
 pub struct AuthHandler;
@@ -14,13 +20,18 @@ pub struct AuthHandler;
 impl AuthHandler {
     pub async fn login(
         auth_services: web::Data<Arc<AuthService>>,
-        login_data: web::Json<UserLoginDTO>
+        login_data: web::Json<UserLoginDTO>,
     ) -> Result<HttpResponse, ServerError> {
         let UserLoginDTO { email, password } = login_data.into_inner();
 
         match auth_services.login(email, password).await {
             Ok(user_service_response) => {
-                let UserLoginServiceDTO { user, user_profile, access_token, refresh_token } = user_service_response;
+                let UserLoginServiceDTO {
+                    user,
+                    user_profile,
+                    access_token,
+                    refresh_token,
+                } = user_service_response;
                 let refresh_token_value = refresh_token.refresh_token.clone();
 
                 let user_response = UserResponseDTO {
@@ -49,32 +60,41 @@ impl AuthHandler {
                     .cookie(refresh_token_cookie)
                     .cookie(access_token_cookie)
                     .json(user_response))
-            },
+            }
             Err(err) => Err(err),
         }
     }
 
     pub async fn logout() -> Result<HttpResponse, ServerError> {
         Ok(HttpResponse::Ok()
-            .cookie(Cookie::build("refreshToken", "")
-                .http_only(true)
-                .path("/")
-                .secure(false)
-                .same_site(SameSite::Lax)
-                .max_age(Duration::days(1))
-                .finish())
-            .cookie(Cookie::build("accessToken", "")
-                .http_only(true)
-                .path("/")
-                .secure(false)
-                .same_site(SameSite::Lax)
-                .max_age(Duration::days(1))
-                .finish())
+            .cookie(
+                Cookie::build("refreshToken", "")
+                    .http_only(true)
+                    .path("/")
+                    .secure(false)
+                    .same_site(SameSite::Lax)
+                    .max_age(Duration::days(1))
+                    .finish(),
+            )
+            .cookie(
+                Cookie::build("accessToken", "")
+                    .http_only(true)
+                    .path("/")
+                    .secure(false)
+                    .same_site(SameSite::Lax)
+                    .max_age(Duration::days(1))
+                    .finish(),
+            )
             .finish())
     }
 
-    pub async fn google_login(auth_services: web::Data<Arc<AuthService>>, oauth_client: web::Data<BasicClient>) -> Result<HttpResponse, ServerError> {
-        let login = auth_services.google_login(oauth_client.get_ref().clone()).await;
+    pub async fn google_login(
+        auth_services: web::Data<Arc<AuthService>>,
+        oauth_client: web::Data<BasicClient>,
+    ) -> Result<HttpResponse, ServerError> {
+        let login = auth_services
+            .google_login(oauth_client.get_ref().clone())
+            .await;
 
         match login {
             Ok(login_url) => Ok(login_url),
@@ -87,7 +107,8 @@ impl AuthHandler {
         oauth_client: web::Data<BasicClient>,
         query: web::Query<CallbackQuery>,
     ) -> Result<HttpResponse, ServerError> {
-        let token_result = oauth_client.get_ref()
+        let token_result = oauth_client
+            .get_ref()
             .exchange_code(AuthorizationCode::new(query.code.clone()))
             .request_async(oauth2::reqwest::async_http_client)
             .await;
@@ -97,12 +118,12 @@ impl AuthHandler {
                 let access_token = token.access_token().secret();
 
                 match auth_services.fetch_google_user_info(access_token).await {
-                    Ok(user_info) => {
-                        match auth_services.google_callback(user_info).await {
-                            Ok(user_dto) => Ok(HttpResponse::Ok().append_header(("Location", "/")).json(user_dto)),
-                            Err(err) => Err(ServerError::from(err)),
-                        }
-                    }
+                    Ok(user_info) => match auth_services.google_callback(user_info).await {
+                        Ok(user_dto) => Ok(HttpResponse::Ok()
+                            .append_header(("Location", "/"))
+                            .json(user_dto)),
+                        Err(err) => Err(ServerError::from(err)),
+                    },
                     Err(_) => Err(ServerError::RequestError(RequestError::OAuthCallbackFailed)),
                 }
             }
@@ -110,18 +131,29 @@ impl AuthHandler {
         }
     }
 
-
     pub async fn register(
         auth_services: web::Data<Arc<AuthService>>,
         new_user: web::Json<UserCreateDTO>,
         notification_manager: web::Data<Arc<NotificationServer>>,
     ) -> Result<HttpResponse, ServerError> {
-        let UserCreateDTO { username, email, password } = new_user.into_inner();
+        let UserCreateDTO {
+            username,
+            email,
+            password,
+        } = new_user.into_inner();
         let notification_manager = notification_manager.get_ref().clone();
 
-        match auth_services.register(username, email, password, notification_manager).await {
+        match auth_services
+            .register(username, email, password, notification_manager)
+            .await
+        {
             Ok(user_service_response) => {
-                let UserLoginServiceDTO { user, user_profile, access_token, refresh_token } = user_service_response;
+                let UserLoginServiceDTO {
+                    user,
+                    user_profile,
+                    access_token,
+                    refresh_token,
+                } = user_service_response;
                 let refresh_token_value = refresh_token.refresh_token.clone();
 
                 let user_response = UserResponseDTO {
@@ -148,11 +180,10 @@ impl AuthHandler {
                     .cookie(refresh_token_cookie)
                     .cookie(access_token_cookie)
                     .json(user_response))
-            },
-            Err(err) => Err(err), 
+            }
+            Err(err) => Err(err),
         }
     }
-
 
     pub async fn refresh_access_token(
         req: HttpRequest,
@@ -160,8 +191,12 @@ impl AuthHandler {
         user_services: web::Data<Arc<UserService>>,
         config: web::Data<Arc<Config>>,
     ) -> Result<HttpResponse, ServerError> {
-        let cookies = req.cookies().map_err(|_| ServerError::RequestError(RequestError::InvalidCookies))?;
-        let refresh_token_cookie = cookies.iter().find(|cookie| cookie.name() == "refreshToken");
+        let cookies = req
+            .cookies()
+            .map_err(|_| ServerError::RequestError(RequestError::InvalidCookies))?;
+        let refresh_token_cookie = cookies
+            .iter()
+            .find(|cookie| cookie.name() == "refreshToken");
 
         match refresh_token_cookie {
             Some(refresh_token_cookie) => {
@@ -170,26 +205,35 @@ impl AuthHandler {
                 let token_model = auth_services.find_by_token(refresh_token).await?;
                 match token_model {
                     Some(token_model) => {
-                        let refresh_token_response = auth_services.process_token_refresh(&token_model.token).await?;
+                        let refresh_token_response = auth_services
+                            .process_token_refresh(&token_model.token)
+                            .await?;
                         let new_access_token = refresh_token_response.access_token.clone();
 
-                        let new_access_token_cookie = Cookie::build("accessToken", new_access_token.clone())
-                            .http_only(true)
-                            .secure(false)
-                            .path("/")
-                            .same_site(SameSite::Strict)
-                            .finish();
+                        let new_access_token_cookie =
+                            Cookie::build("accessToken", new_access_token.clone())
+                                .http_only(true)
+                                .secure(false)
+                                .path("/")
+                                .same_site(SameSite::Strict)
+                                .finish();
 
-                        let new_refresh_token_cookie = Cookie::build("refreshToken", refresh_token_response.refresh_token.refresh_token.clone())
-                            .http_only(true)
-                            .secure(false)
-                            .path("/")
-                            .same_site(SameSite::Strict)
-                            .finish();
+                        let new_refresh_token_cookie = Cookie::build(
+                            "refreshToken",
+                            refresh_token_response.refresh_token.refresh_token.clone(),
+                        )
+                        .http_only(true)
+                        .secure(false)
+                        .path("/")
+                        .same_site(SameSite::Strict)
+                        .finish();
 
-                        let user_id = extract_user_id_from_jwt_cookie(&refresh_token_cookie, &config.secret_key)?;
+                        let user_id = extract_user_id_from_jwt_cookie(
+                            &refresh_token_cookie,
+                            &config.secret_key,
+                        )?;
                         let user = user_services.get_user(user_id).await?;
-                        let user_profile = user_services.get_user_profile(user_id).await?;  
+                        let user_profile = user_services.get_user_profile(user_id).await?;
 
                         let user_response = UserResponseDTO {
                             user,
@@ -201,10 +245,10 @@ impl AuthHandler {
                             .cookie(new_access_token_cookie)
                             .cookie(new_refresh_token_cookie)
                             .json(user_response))
-                    },
+                    }
                     None => Err(ServerError::RequestError(RequestError::InvalidToken)),
                 }
-            },
+            }
             None => Err(ServerError::RequestError(RequestError::MissingCookie)),
         }
     }

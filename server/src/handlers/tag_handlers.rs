@@ -3,8 +3,8 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::services::tag_services::TagService;
-use shared_types::tag_dtos::CreateTagDTO;
 use crate::shared::utils::errors::ServerError;
+use shared_types::tag_dtos::CreateTagDTO;
 
 pub struct TagHandler;
 
@@ -29,6 +29,4 @@ impl TagHandler {
             Err(err) => Err(err),
         }
     }
-
 }
-

@@ -10,8 +10,8 @@ pub fn configure(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
             .route("/{id}", web::put().to(BugReportHandler::update_bug_status))
             .service(
                 web::resource("/")
-                .wrap(jwt_middleware.clone())
-                .route(web::get().to(BugReportHandler::get_all_bug_reports))
-            )
-        );
+                    .wrap(jwt_middleware.clone())
+                    .route(web::get().to(BugReportHandler::get_all_bug_reports)),
+            ),
+    );
 }

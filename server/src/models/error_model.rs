@@ -4,9 +4,8 @@ use sea_orm::{entity::prelude::*, ActiveValue};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use shared_types::error_dtos::ErrorDTO;
 use crate::models::namespace_model::Entity as NamespaceEntity;
-
+use shared_types::error_dtos::ErrorDTO;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "errors")]
@@ -28,7 +27,7 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    NamespaceEntity
+    NamespaceEntity,
 }
 
 impl RelationTrait for Relation {
@@ -38,7 +37,6 @@ impl RelationTrait for Relation {
         }
     }
 }
-
 
 impl Related<NamespaceEntity> for Entity {
     fn to() -> RelationDef {
@@ -50,7 +48,7 @@ impl ActiveModel {
     pub fn new(namespace_id: Uuid, namespace: Model) -> Self {
         Self {
             id: ActiveValue::Set(Uuid::new_v4()),
-            namespace_id: ActiveValue::Set(namespace_id),  
+            namespace_id: ActiveValue::Set(namespace_id),
             user_affected: ActiveValue::Set(namespace.user_affected),
             path: ActiveValue::Set(namespace.path),
             line: ActiveValue::Set(namespace.line),

@@ -7,7 +7,7 @@ use sea_orm::DatabaseConnection;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Poll, Context};
+use std::task::{Context, Poll};
 use uuid::Uuid;
 
 use crate::shared::utils::errors::ServerError;
@@ -62,8 +62,14 @@ where
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let headers = req.headers().clone();
 
-        let client_id = headers.get("client_id").and_then(|h| h.to_str().ok()).map(|s| s.to_string());
-        let client_secret = headers.get("client_secret").and_then(|h| h.to_str().ok()).map(|s| s.to_string());
+        let client_id = headers
+            .get("client_id")
+            .and_then(|h| h.to_str().ok())
+            .map(|s| s.to_string());
+        let client_secret = headers
+            .get("client_secret")
+            .and_then(|h| h.to_str().ok())
+            .map(|s| s.to_string());
 
         let fut = self.service.call(req);
         let db_pool = self.db_pool.clone();
@@ -75,21 +81,24 @@ where
                         Ok(valid) if valid => {
                             let res = fut.await?;
                             Ok(res)
-                        },
-                        _ => Err(E::from(ServerError::HttpError(StatusCode::UNAUTHORIZED, "Invalid client_id or client_secret".to_string()))),
+                        }
+                        _ => Err(E::from(ServerError::HttpError(
+                            StatusCode::UNAUTHORIZED,
+                            "Invalid client_id or client_secret".to_string(),
+                        ))),
                     }
                 } else {
-                    Err(E::from(ServerError::HttpError(StatusCode::UNAUTHORIZED, "Invalid client_id format".to_string())))
+                    Err(E::from(ServerError::HttpError(
+                        StatusCode::UNAUTHORIZED,
+                        "Invalid client_id format".to_string(),
+                    )))
                 }
             } else {
-                Err(E::from(ServerError::HttpError(StatusCode::UNAUTHORIZED, "Missing client_id or client_secret header".to_string())))
+                Err(E::from(ServerError::HttpError(
+                    StatusCode::UNAUTHORIZED,
+                    "Missing client_id or client_secret header".to_string(),
+                )))
             }
         })
     }
 }
-
-
-
-
-
-

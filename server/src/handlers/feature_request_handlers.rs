@@ -8,12 +8,15 @@ use shared_types::feature_request_dtos::{CreateFeatureRequestDTO, UpdateFeatureR
 pub struct FeatureRequestHandler;
 
 impl FeatureRequestHandler {
-    pub async fn create_feature_request(      
-        feature_request_services: web::Data<Arc<FeatureRequestService>>,  
+    pub async fn create_feature_request(
+        feature_request_services: web::Data<Arc<FeatureRequestService>>,
         create_feature_request: web::Json<CreateFeatureRequestDTO>,
     ) -> Result<(HttpResponse), ServerError> {
         let create_feature_request = create_feature_request.into_inner();
-        match feature_request_services.create_feature_request(create_feature_request).await {
+        match feature_request_services
+            .create_feature_request(create_feature_request)
+            .await
+        {
             Ok(_) => Ok(HttpResponse::Ok().finish()),
             Err(err) => Err(err),
         }
@@ -33,7 +36,10 @@ impl FeatureRequestHandler {
         update_feature_request: web::Json<UpdateFeatureRequestStatusDTO>,
     ) -> Result<HttpResponse, ServerError> {
         let update_feature_request = update_feature_request.into_inner();
-        match feature_request_services.update_feature_status(update_feature_request).await {
+        match feature_request_services
+            .update_feature_status(update_feature_request)
+            .await
+        {
             Ok(_) => Ok(HttpResponse::Ok().finish()),
             Err(err) => Err(err),
         }
@@ -49,6 +55,4 @@ impl FeatureRequestHandler {
             Err(err) => Err(err),
         }
     }
-
 }
-

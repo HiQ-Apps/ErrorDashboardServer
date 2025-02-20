@@ -1,12 +1,19 @@
 use sea_orm::QueryOrder;
-use sea_orm::{entity::prelude::*, ActiveValue, EntityTrait, IntoActiveModel, DatabaseConnection, QuerySelect, TransactionTrait};
+use sea_orm::{
+    entity::prelude::*, ActiveValue, DatabaseConnection, EntityTrait, IntoActiveModel, QuerySelect,
+    TransactionTrait,
+};
 use shared_types::extra_dtos::QueryParams;
-use shared_types::notification_dtos::{CreateNotificationDTO, NotificationDTO, GetNotificationResponse};
+use shared_types::notification_dtos::{
+    CreateNotificationDTO, GetNotificationResponse, NotificationDTO,
+};
 use std::sync::Arc;
 
 use crate::config::Config;
+use crate::models::notification_model::{
+    ActiveModel, Entity as NotificationEntity, Model as NotificationModel,
+};
 use crate::shared::utils::errors::{ExternalError, ServerError};
-use crate::models::notification_model::{Entity as NotificationEntity, Model as NotificationModel, ActiveModel};
 
 pub struct NotificationService {
     pub db: Arc<DatabaseConnection>,
@@ -18,7 +25,10 @@ impl NotificationService {
         Ok(Self { db, configs })
     }
 
-    pub async fn create_notification(&self, create_notification: CreateNotificationDTO) -> Result<(), ServerError> {
+    pub async fn create_notification(
+        &self,
+        create_notification: CreateNotificationDTO,
+    ) -> Result<(), ServerError> {
         let db = &*self.db;
         // Create notification
         let user_id = create_notification.user_id.clone();
@@ -26,8 +36,11 @@ impl NotificationService {
         let active_notification = notification_model.into_active_model();
 
         let _ = NotificationEntity::insert(active_notification)
-            .exec(db).await.map_err(|err| { ServerError::ExternalError(ExternalError::DB(err));
-        });
+            .exec(db)
+            .await
+            .map_err(|err| {
+                ServerError::ExternalError(ExternalError::DB(err));
+            });
 
         // Delete the oldest notification if the user has more than 10 notifications
         let extra_notifications = NotificationEntity::find()
@@ -49,7 +62,11 @@ impl NotificationService {
         Ok(())
     }
 
-    pub async fn get_notifications_by_user_id(&self, user_id: Uuid, query_params: QueryParams) -> Result<GetNotificationResponse, ServerError> {
+    pub async fn get_notifications_by_user_id(
+        &self,
+        user_id: Uuid,
+        query_params: QueryParams,
+    ) -> Result<GetNotificationResponse, ServerError> {
         // Get notifications by user id
         let offset = query_params.offset;
         let limit = query_params.limit;
@@ -67,7 +84,7 @@ impl NotificationService {
 
         let notifications = notifications
             .iter()
-            .map(|notification| NotificationDTO{
+            .map(|notification| NotificationDTO {
                 id: notification.id.clone(),
                 user_id: notification.user_id.clone(),
                 source: notification.source.clone(),
@@ -77,7 +94,7 @@ impl NotificationService {
                 created_at: notification.created_at.clone(),
             })
             .collect();
-        
+
         let unread_count = NotificationEntity::find()
             .filter(<NotificationEntity as EntityTrait>::Column::UserId.eq(user_id))
             .filter(<NotificationEntity as EntityTrait>::Column::IsRead.eq(false))
@@ -85,14 +102,17 @@ impl NotificationService {
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
-
-        Ok(GetNotificationResponse { 
+        Ok(GetNotificationResponse {
             notifications,
             unread_count,
-    })
+        })
     }
 
-    pub async fn seen_notification(&self, user_id: Uuid, notification_id: Uuid) -> Result<(), ServerError> {
+    pub async fn seen_notification(
+        &self,
+        user_id: Uuid,
+        notification_id: Uuid,
+    ) -> Result<(), ServerError> {
         // Mark notification as seen
         let db = &*self.db;
         let notification = NotificationEntity::find()
@@ -105,12 +125,19 @@ impl NotificationService {
         let notification = notification.unwrap();
         let mut active_notification = notification.into_active_model();
         active_notification.is_read = ActiveValue::Set(true);
-        active_notification.update(db).await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+        active_notification
+            .update(db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
         Ok(())
     }
 
-    pub async fn batch_seen_notifications(&self, user_id: Uuid, notification_ids: Vec<Uuid>) -> Result<(), ServerError> {
+    pub async fn batch_seen_notifications(
+        &self,
+        user_id: Uuid,
+        notification_ids: Vec<Uuid>,
+    ) -> Result<(), ServerError> {
         let db = &*self.db;
         // Mark notifications as seen
         let notifications = NotificationEntity::find()
@@ -119,11 +146,14 @@ impl NotificationService {
             .all(db)
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
-    
+
         for notification in notifications {
             let mut active_notification = notification.into_active_model();
             active_notification.is_read = ActiveValue::Set(true);
-            active_notification.update(db).await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+            active_notification
+                .update(db)
+                .await
+                .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
         }
 
         Ok(())
@@ -141,7 +171,11 @@ impl NotificationService {
         Ok(())
     }
 
-    pub async fn delete_notification(&self, user_id: Uuid, notification_id: Uuid) -> Result<(), ServerError> {
+    pub async fn delete_notification(
+        &self,
+        user_id: Uuid,
+        notification_id: Uuid,
+    ) -> Result<(), ServerError> {
         // Delete notification
         Ok(())
     }

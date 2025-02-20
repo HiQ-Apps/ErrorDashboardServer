@@ -8,7 +8,6 @@ pub fn configure(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
         web::scope("/api/tag")
             .wrap(jwt_middleware.clone())
             .route("/", web::post().to(TagHandler::create_tag))
-            .route("/{id}", web::delete().to(TagHandler::delete_tag))
+            .route("/{id}", web::delete().to(TagHandler::delete_tag)),
     );
 }
-

@@ -1,7 +1,7 @@
 use actix_ws::Session;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use uuid::Uuid;
-use std::sync::Arc;
 
 use crate::managers::namespace_manager::NamespaceServer;
 use crate::managers::notification_manager::NotificationServer;
@@ -43,4 +43,3 @@ pub async fn notification_ws_session(
 
     notification_server.unsubscribe(&user_id, &tx).await;
 }
-

@@ -1,10 +1,11 @@
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use shuttle_runtime::SecretStore;
-use std::{str::FromStr, fmt::Display};
+use std::{fmt::Display, str::FromStr};
 
 pub struct Config {
     pub environment: String,
     pub secret_key: String,
+    pub discord_secret_key: String,
     pub hash_cost: String,
     pub jwt_issuer: String,
     pub jwt_audience: String,
@@ -27,6 +28,7 @@ impl Config {
             environment,
             secret_key: get_secret_var(&secrets, "SECRET_KEY")?,
             hash_cost: get_secret_var(&secrets, "HASH_COST")?,
+            discord_secret_key: get_secret_var(&secrets, "DISCORD_SECRET_KEY")?,
             jwt_issuer: get_secret_var(&secrets, "JWT_ISSUER")?,
             jwt_audience: get_secret_var(&secrets, "JWT_AUDIENCE")?,
             api_port: get_secret_var_as::<u16>(&secrets, "API_PORT")?,

@@ -13,7 +13,10 @@ impl BugReportHandler {
         create_bug_report: web::Json<CreateBugReportDTO>,
     ) -> Result<HttpResponse, ServerError> {
         let create_bug_report = create_bug_report.into_inner();
-        match bug_report_services.create_bug_report(create_bug_report).await {
+        match bug_report_services
+            .create_bug_report(create_bug_report)
+            .await
+        {
             Ok(_) => Ok(HttpResponse::Ok().finish()),
             Err(err) => Err(err),
         }
@@ -33,10 +36,12 @@ impl BugReportHandler {
         update_bug_status: web::Json<UpdateBugReportStatusDTO>,
     ) -> Result<HttpResponse, ServerError> {
         let update_bug_status = update_bug_status.into_inner();
-        match bug_report_services.update_bug_status(update_bug_status).await {
+        match bug_report_services
+            .update_bug_status(update_bug_status)
+            .await
+        {
             Ok(_) => Ok(HttpResponse::Ok().finish()),
             Err(err) => Err(err),
         }
     }
-
 }

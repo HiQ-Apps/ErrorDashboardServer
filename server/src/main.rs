@@ -1,28 +1,38 @@
-mod database;
 mod config;
+mod database;
 mod handlers;
+mod managers;
 mod middlewares;
 mod models;
 mod routes;
 mod services;
-mod managers;
 mod shared {
     pub mod utils;
 }
 mod libs;
 
-use env_logger;
 use actix_web::web;
+use env_logger;
 use log::{error, info};
 use managers::namespace_manager::NamespaceServer;
 use managers::notification_manager::NotificationServer;
-use std::sync::Arc;
+use shared::utils::rate_limit::DynamicStripedRateLimiter;
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_runtime::SecretStore;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
-use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware};
-use crate::routes::{admin_routes, auth_routes, bug_report_routes, error_routes, feature_request_routes, namespace_routes, namespace_alert_routes, user_routes, tag_routes, static_routes, ws_routes, notification_routes};
+use crate::middlewares::{
+    auth_middleware::JwtMiddleware, rate_limit_middleware::RateLimiterMiddleware,
+    sdk_auth_middleware::ClientAuthMiddleware,
+};
+use crate::routes::{
+    admin_routes, auth_routes, bug_report_routes, error_routes, feature_request_routes,
+    namespace_alert_routes, namespace_routes, notification_routes, static_routes, tag_routes,
+    user_routes, ws_routes,
+};
 use crate::services::init_services;
+use crate::shared::utils::discord::DiscordHandler;
 use crate::shared::utils::role::initialize_role_rules;
 use config::Config;
 
@@ -63,17 +73,24 @@ async fn main(
         db_pool: Arc::clone(&db_pool),
     };
 
+    let app_stripe =
+        DynamicStripedRateLimiter::new(8, Duration::from_secs(60), 120, Duration::from_secs(1800));
+    let rate_limit_middleware = RateLimiterMiddleware::new(Arc::clone(&app_stripe));
 
     println!("Starting server...");
 
-    let services =
-        match init_services(db_pool.clone(), config.clone()) {
-            Ok(services) => services,
-            Err(e) => {
-                error!("Failed to initialize services: {}", e);
-                std::process::exit(1);
-            }
-        };
+    let services = match init_services(db_pool.clone(), config.clone()) {
+        Ok(services) => services,
+        Err(e) => {
+            error!("Failed to initialize services: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    // Discord alert service
+    let discord_handler = DiscordHandler::new(&config.discord_secret_key)
+        .await
+        .unwrap();
 
     let namespace_service = Arc::new(services.namespace_service);
     let namespace_alert_service = Arc::new(services.namespace_alerts_services);
@@ -86,7 +103,7 @@ async fn main(
     let feature_request_service = Arc::new(services.feature_request_service);
     let namespace_manager = Arc::new(NamespaceServer::new());
     let notification_manager = Arc::new(NotificationServer::new());
-    
+
     let role_rules = Arc::new(initialize_role_rules());
 
     // Return a closure that configures the service
@@ -105,6 +122,7 @@ async fn main(
             .app_data(web::Data::new(feature_request_service.clone()))
             .app_data(web::Data::new(namespace_manager.clone()))
             .app_data(web::Data::new(notification_manager.clone()))
+            .app_data(web::Data::new(discord_handler))
             .configure(static_routes::configure)
             .configure(auth_routes::configure_without_auth)
             .configure(ws_routes::configure_ws)

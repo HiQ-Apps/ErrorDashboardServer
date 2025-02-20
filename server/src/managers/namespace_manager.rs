@@ -1,10 +1,9 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::{mpsc, watch, Mutex};
 use uuid::Uuid;
-use std::sync::Arc;
 
-use::shared_types::error_dtos::CreateErrorDTO;
-
+use ::shared_types::error_dtos::CreateErrorDTO;
 
 #[derive(Debug, Clone)]
 pub struct NamespaceServer {
@@ -31,10 +30,17 @@ impl NamespaceServer {
 
     pub async fn subscribe(&self, namespace_id: Uuid, tx: mpsc::UnboundedSender<CreateErrorDTO>) {
         let mut sessions = self.sessions.lock().await;
-        sessions.entry(namespace_id).or_insert_with(Vec::new).push(tx);
+        sessions
+            .entry(namespace_id)
+            .or_insert_with(Vec::new)
+            .push(tx);
     }
 
-    pub async fn unsubscribe(&self, namespace_id: &Uuid, tx: &mpsc::UnboundedSender<CreateErrorDTO>) {
+    pub async fn unsubscribe(
+        &self,
+        namespace_id: &Uuid,
+        tx: &mpsc::UnboundedSender<CreateErrorDTO>,
+    ) {
         let mut sessions = self.sessions.lock().await;
         if let Some(subscribers) = sessions.get_mut(namespace_id) {
             subscribers.retain(|subscriber| !subscriber.same_channel(tx));

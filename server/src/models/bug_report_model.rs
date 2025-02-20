@@ -1,6 +1,6 @@
-use sea_orm::{entity::prelude::*, ActiveValue};
-use chrono::{DateTime, Utc};
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
+use sea_orm::{entity::prelude::*, ActiveValue};
 use serde::{Deserialize, Serialize};
 
 use shared_types::bug_report_dtos::CreateBugReportDTO;
@@ -17,15 +17,13 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
-pub enum Relation {
-}
+pub enum Relation {}
 
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         unreachable!();
     }
 }
-
 
 #[async_trait]
 impl ActiveModelBehavior for ActiveModel {
@@ -51,4 +49,3 @@ impl From<CreateBugReportDTO> for ActiveModel {
         }
     }
 }
-
