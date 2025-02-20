@@ -4,9 +4,9 @@ use futures::future::{ok, Ready};
 use futures::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Poll, Context};
+use std::task::{Context, Poll};
 
-use crate::shared::utils::errors::{ServerError, RequestError};
+use crate::shared::utils::errors::{RequestError, ServerError};
 use crate::shared::utils::rate_limit::DynamicStripedRateLimiter;
 
 pub struct RateLimiterMiddleware {
@@ -63,7 +63,11 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         // Maybe not unknown
-        let ip = req.connection_info().realip_remote_addr().unwrap_or("unknown").to_string();
+        let ip = req
+            .connection_info()
+            .realip_remote_addr()
+            .unwrap_or("unknown")
+            .to_string();
 
         let rate_limiter = self.rate_limiter.clone();
         let fut = self.service.call(req);

@@ -1,20 +1,21 @@
-use actix_web::{Error as ActixError, HttpResponse, http::StatusCode, error::ResponseError};
+use actix_web::{error::ResponseError, http::StatusCode, Error as ActixError, HttpResponse};
 use actix_web_actors::ws::ProtocolError;
 use anyhow::Error as AnyhowError;
 use bcrypt::BcryptError;
 use chrono::ParseError;
 use jsonwebtoken::errors::Error as JwtError;
 use lettre::address::AddressError;
+use lettre::error::Error as LettreError;
+use lettre::transport::smtp::Error as SmtpError;
+use reqwest::Error as ReqwestError;
 use sea_orm::error::{DbErr, SqlErr};
 use sea_orm::TransactionError;
 use serde_json::Error as JsonError;
 use serde_valid::Error as ValidationError;
+use serenity::Error as SerenityError;
+use std::io::Error as IoError;
 use thiserror::Error;
 use uuid::Error as UuidError;
-use std::io::Error as IoError;
-use reqwest::Error as ReqwestError;
-use lettre::error::Error as LettreError;
-use lettre::transport::smtp::Error as SmtpError;
 
 // Group enum'd errors into a single enum
 #[derive(Debug, Error)]
@@ -33,7 +34,6 @@ pub enum ServerError {
 
     #[error("HTTP error: {0} - {1}")]
     HttpError(StatusCode, String),
-
 }
 
 impl ResponseError for ServerError {
@@ -41,36 +41,53 @@ impl ResponseError for ServerError {
         match self {
             ServerError::QueryError(ref err) => {
                 let status = match err {
-                    QueryError::UserNotFound | QueryError::NamespaceNotFound | QueryError::UserNamespaceJunctionNotFound 
-                    | QueryError::UserProfileNotFound | QueryError::NamespaceAlertNotFound | QueryError::NotFound
-                    | QueryError::NamespaceAlertUserJunctionNotFound | QueryError::FeatureRequestNotFound => StatusCode::NOT_FOUND,
-                    QueryError::UserExists | QueryError::NamespaceExists | QueryError::UserNamespaceJunctionExists 
+                    QueryError::UserNotFound
+                    | QueryError::NamespaceNotFound
+                    | QueryError::UserNamespaceJunctionNotFound
+                    | QueryError::UserProfileNotFound
+                    | QueryError::NamespaceAlertNotFound
+                    | QueryError::NotFound
+                    | QueryError::NamespaceAlertUserJunctionNotFound
+                    | QueryError::FeatureRequestNotFound
+                    | QueryError::AlertTypeNotFound
+                    | QueryError::DiscordChannelNotFound => StatusCode::NOT_FOUND,
+                    QueryError::UserExists
+                    | QueryError::NamespaceExists
+                    | QueryError::UserNamespaceJunctionExists
                     | QueryError::UserAlreadySubscribed => StatusCode::CONFLICT,
-                    QueryError::PasswordIncorrect | QueryError::OAuthTypeError | QueryError::UserNotNamespaceMember 
-                    | QueryError::InvalidRole | QueryError::UserNotVerified
-                     => StatusCode::UNAUTHORIZED,
+                    QueryError::PasswordIncorrect
+                    | QueryError::OAuthTypeError
+                    | QueryError::UserNotNamespaceMember
+                    | QueryError::InvalidRole
+                    | QueryError::UserNotVerified => StatusCode::UNAUTHORIZED,
                     QueryError::InvalidTimestamp => StatusCode::BAD_REQUEST,
                     _ => StatusCode::BAD_REQUEST,
                 };
                 HttpResponse::build(status).json(format!("{}", self))
-            },
+            }
             ServerError::RequestError(ref err) => {
                 let status = match err {
                     RequestError::OAuthCallbackFailed => StatusCode::INTERNAL_SERVER_ERROR,
                     RequestError::RateLimitExceeded => StatusCode::TOO_MANY_REQUESTS,
-                    RequestError::NamespaceLimitReached | RequestError::PermissionDenied => StatusCode::FORBIDDEN,
-                    RequestError::InvalidCookies | RequestError::InvalidToken | RequestError::MissingCookie => StatusCode::UNAUTHORIZED,
-                    RequestError::MissingUserID | RequestError::MissingHeader | RequestError::StackTraceParsingError
-                    | RequestError::InvalidHeader | RequestError::InvalidQueryParameter => StatusCode::BAD_REQUEST,
+                    RequestError::NamespaceLimitReached | RequestError::PermissionDenied => {
+                        StatusCode::FORBIDDEN
+                    }
+                    RequestError::InvalidCookies
+                    | RequestError::InvalidToken
+                    | RequestError::MissingCookie => StatusCode::UNAUTHORIZED,
+                    RequestError::MissingUserID
+                    | RequestError::MissingHeader
+                    | RequestError::StackTraceParsingError
+                    | RequestError::InvalidHeader
+                    | RequestError::InvalidQueryParameter => StatusCode::BAD_REQUEST,
                 };
                 HttpResponse::build(status).json(format!("{}", self))
-            },
+            }
             ServerError::HttpError(status, message) => HttpResponse::build(*status).json(message),
             _ => HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR).json(format!("{}", self)),
         }
     }
 }
-
 
 #[derive(Debug, Error)]
 pub enum ExternalError {
@@ -127,6 +144,9 @@ pub enum ExternalError {
 
     #[error("SMTP error: {0}")]
     Smtp(SmtpError),
+
+    #[error("Serenity error: {0}")]
+    Serenity(SerenityError),
 }
 
 #[derive(Debug, Error)]
@@ -163,7 +183,7 @@ pub enum QueryError {
 
     #[error("User-Namespace junction not found")]
     NamespaceAlertUserJunctionNotFound,
-    
+
     #[error("Namespace alert not found")]
     NamespaceAlertNotFound,
 
@@ -196,6 +216,15 @@ pub enum QueryError {
 
     #[error("Feature request not found")]
     FeatureRequestNotFound,
+
+    #[error("Alert type not found")]
+    AlertTypeNotFound,
+
+    #[error("Discord channel not found")]
+    DiscordChannelNotFound,
+
+    #[error("Invalid discord channel")]
+    InvalidDiscordChannel,
 }
 
 #[derive(Debug, Error)]
@@ -283,7 +312,7 @@ impl From<AnyhowError> for ExternalError {
 impl From<ParseError> for ExternalError {
     fn from(error: ParseError) -> Self {
         ExternalError::Chrono(error)
-    }   
+    }
 }
 
 impl From<DbErr> for ExternalError {
@@ -296,7 +325,7 @@ impl From<JwtError> for ExternalError {
     fn from(error: JwtError) -> Self {
         ExternalError::Jwt(error)
     }
-}   
+}
 
 impl From<UuidError> for ExternalError {
     fn from(error: UuidError) -> Self {
@@ -332,7 +361,9 @@ impl From<TransactionError<DbErr>> for ServerError {
     fn from(error: TransactionError<DbErr>) -> Self {
         match error {
             TransactionError::Connection(err) => ServerError::ExternalError(ExternalError::DB(err)),
-            TransactionError::Transaction(err) => ServerError::ExternalError(ExternalError::DB(err)),
+            TransactionError::Transaction(err) => {
+                ServerError::ExternalError(ExternalError::DB(err))
+            }
         }
     }
 }

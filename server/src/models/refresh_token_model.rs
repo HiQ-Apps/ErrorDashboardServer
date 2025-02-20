@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
-use sea_orm::{entity::prelude::*, ActiveValue};
 use sea_orm::entity::RelationDef;
+use sea_orm::{entity::prelude::*, ActiveValue};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -66,7 +66,7 @@ impl ActiveModelBehavior for ActiveModel {
             expires_at: ActiveValue::Set(Utc::now() + Duration::days(1)),
             issuer: ActiveValue::Set("default_issuer".to_string()),
             audience: ActiveValue::Set("default_audience".to_string()),
-            revoked: ActiveValue::Set(false)
+            revoked: ActiveValue::Set(false),
         }
     }
 }

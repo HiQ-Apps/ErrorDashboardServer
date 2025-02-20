@@ -3,12 +3,12 @@ use actix_web::dev::{ServiceRequest, ServiceResponse, Transform};
 use actix_web::http::StatusCode;
 use futures::future::{ok, Ready};
 use futures::Future;
-use jsonwebtoken::{Validation, Algorithm};
+use jsonwebtoken::{Algorithm, Validation};
 use sea_orm::DatabaseConnection;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Poll, Context};
+use std::task::{Context, Poll};
 
 use crate::config::Config;
 use crate::shared::utils::errors::ServerError;
@@ -64,15 +64,17 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let headers = req.headers().clone();
-        let cookies_result = req.cookies().map(|cookies| cookies.iter().cloned().collect::<Vec<_>>());
+        let cookies_result = req
+            .cookies()
+            .map(|cookies| cookies.iter().cloned().collect::<Vec<_>>());
 
         let mut found_token: Option<String> = None;
 
         if let Some(auth_header) = headers.get("Authorization") {
             if let Ok(auth_str) = auth_header.to_str() {
-                    found_token = Some(auth_str.to_string());
-                }
+                found_token = Some(auth_str.to_string());
             }
+        }
 
         if found_token.is_none() {
             if let Ok(cookies) = cookies_result {
@@ -105,9 +107,11 @@ where
                     Ok(()) => Ok(res),
                     Err(err) => Err(E::from(err)),
                 }
-
             } else {
-                Err(E::from(ServerError::HttpError(StatusCode::UNAUTHORIZED, "No Authorization header or access_token cookie found.".to_string())))
+                Err(E::from(ServerError::HttpError(
+                    StatusCode::UNAUTHORIZED,
+                    "No Authorization header or access_token cookie found.".to_string(),
+                )))
             }
         })
     }

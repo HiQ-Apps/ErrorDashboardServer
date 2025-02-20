@@ -1,5 +1,12 @@
 // Build query string for database operations
-pub fn create_query(action: &str, field: &str, table:&str, condition:Option<&str>, sort_by: Option<&str>, group_by: Option<&str>) -> String {
+pub fn create_query(
+    action: &str,
+    field: &str,
+    table: &str,
+    condition: Option<&str>,
+    sort_by: Option<&str>,
+    group_by: Option<&str>,
+) -> String {
     let mut query = format!("{} {} FROM {} ", action, field, table);
     if let Some(condition) = condition {
         query.push_str(format!("WHERE {}", condition).as_str());

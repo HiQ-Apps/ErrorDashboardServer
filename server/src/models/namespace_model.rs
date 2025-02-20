@@ -7,7 +7,6 @@ use uuid::Uuid;
 use crate::models::error_model::Entity as ErrorEntity;
 use crate::models::user_namespace_junction_model::Entity as UserNamespaceJunctionEntity;
 
-
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "namespaces")]
 pub struct Model {

@@ -14,12 +14,12 @@ pub struct Model {
     pub error_id: Uuid,
     pub tag_key: String,
     pub tag_value: String,
-    pub tag_color: String
+    pub tag_color: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    ErrorEntity
+    ErrorEntity,
 }
 
 impl RelationTrait for Relation {
@@ -43,14 +43,13 @@ impl ActiveModel {
             error_id: ActiveValue::Set(error_id),
             tag_key: ActiveValue::Set(tag_key),
             tag_value: ActiveValue::Set(tag_value),
-            tag_color: ActiveValue::Set(String::new())
+            tag_color: ActiveValue::Set(String::new()),
         }
     }
 }
 
 #[async_trait]
 impl ActiveModelBehavior for ActiveModel {}
-
 
 impl From<CreateTagRequestDTO> for ActiveModel {
     fn from(dto: CreateTagRequestDTO) -> Self {
@@ -59,11 +58,10 @@ impl From<CreateTagRequestDTO> for ActiveModel {
             error_id: ActiveValue::Set(dto.error_id),
             tag_key: ActiveValue::Set(dto.tag_key),
             tag_value: ActiveValue::Set(dto.tag_value),
-            tag_color: ActiveValue::Set("098585".to_string())
+            tag_color: ActiveValue::Set("098585".to_string()),
         }
     }
 }
-
 
 impl From<CreateTagDTO> for ActiveModel {
     fn from(dto: CreateTagDTO) -> Self {
@@ -72,7 +70,7 @@ impl From<CreateTagDTO> for ActiveModel {
             error_id: ActiveValue::Set(dto.error_id),
             tag_key: ActiveValue::Set(dto.tag_key),
             tag_value: ActiveValue::Set(dto.tag_value),
-            tag_color: ActiveValue::Set(dto.tag_color)
+            tag_color: ActiveValue::Set(dto.tag_color),
         }
     }
 }

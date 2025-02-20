@@ -1,16 +1,23 @@
 use bcrypt::hash;
 use chrono::Utc;
-use sea_orm::{entity::prelude::*, EntityTrait, ActiveValue, TransactionTrait, IntoActiveModel, ConnectionTrait};
-use shared_types::user_dtos::{BaseUserDTO, ResetPasswordRequestDTO, ShortUserDTO, ShortUserProfileDTO, UpdateUserProfileDTO, UserAdminDTO, UserProfileDTO};
+use sea_orm::{
+    entity::prelude::*, ActiveValue, ConnectionTrait, EntityTrait, IntoActiveModel,
+    TransactionTrait,
+};
+use shared_types::user_dtos::{
+    BaseUserDTO, ResetPasswordRequestDTO, ShortUserDTO, ShortUserProfileDTO, UpdateUserProfileDTO,
+    UserAdminDTO, UserProfileDTO,
+};
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::Config;
-use crate::models::user_model::{Entity as UserEntity, ActiveModel as UserActiveModel};
-use crate::models::user_profile_model::{Entity as UserProfileEntity, ActiveModel as UserProfileActiveModel};
-use crate::shared::utils::errors::{ServerError, QueryError, ExternalError};
+use crate::models::user_model::{ActiveModel as UserActiveModel, Entity as UserEntity};
+use crate::models::user_profile_model::{
+    ActiveModel as UserProfileActiveModel, Entity as UserProfileEntity,
+};
+use crate::shared::utils::errors::{ExternalError, QueryError, ServerError};
 use crate::shared::utils::mailing::{send_email, EmailContent};
-
 
 pub struct UserService {
     pub db: Arc<DatabaseConnection>,
@@ -18,19 +25,27 @@ pub struct UserService {
 }
 
 impl UserService {
-    pub fn new(db: Arc<DatabaseConnection>, configs:Arc<Config>) -> Result<Self, ServerError> {
+    pub fn new(db: Arc<DatabaseConnection>, configs: Arc<Config>) -> Result<Self, ServerError> {
         Ok(Self { db, configs })
     }
 
     pub async fn get_all_users(&self) -> Result<Vec<UserAdminDTO>, ServerError> {
         let db = &*self.db;
-        let users = UserEntity::find().all(db).await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
-        let user_profiles = UserProfileEntity::find().all(db).await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+        let users = UserEntity::find()
+            .all(db)
+            .await
+            .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+        let user_profiles = UserProfileEntity::find()
+            .all(db)
+            .await
+            .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
 
         let mut user_list = Vec::new();
 
         for user in users {
-            let user_profile = user_profiles.iter().find(|profile| profile.user_id == user.id);
+            let user_profile = user_profiles
+                .iter()
+                .find(|profile| profile.user_id == user.id);
 
             if let Some(profile) = user_profile {
                 let user_profile = UserAdminDTO {
@@ -51,9 +66,9 @@ impl UserService {
                         role: profile.role.clone(),
                         created_at: profile.created_at,
                         updated_at: profile.updated_at,
-                    }
+                    },
                 };
-        
+
                 user_list.push(user_profile);
             }
         }
@@ -62,8 +77,7 @@ impl UserService {
     }
 
     pub async fn get_user(&self, uid: Uuid) -> Result<ShortUserDTO, ServerError> {
-        let get_base_user_query = UserEntity::find_by_id(uid)
-            .one(&*self.db).await;
+        let get_base_user_query = UserEntity::find_by_id(uid).one(&*self.db).await;
 
         match get_base_user_query {
             Ok(Some(user)) => {
@@ -75,9 +89,9 @@ impl UserService {
                 };
 
                 Ok(user_dto)
-            },
+            }
             Ok(None) => Err(ServerError::from(QueryError::UserNotFound)),
-            Err(err) => Err(ServerError::from(ExternalError::from(err)))
+            Err(err) => Err(ServerError::from(ExternalError::from(err))),
         }
     }
 
@@ -98,9 +112,9 @@ impl UserService {
                 };
 
                 Ok(user_profile_dto)
-            },
+            }
             Ok(None) => Err(ServerError::from(QueryError::UserNotFound)),
-            Err(err) => Err(ServerError::from(ExternalError::from(err)))
+            Err(err) => Err(ServerError::from(ExternalError::from(err))),
         }
     }
 
@@ -115,13 +129,13 @@ impl UserService {
 
         let user = match user_query {
             Some(user_query) => user_query,
-            None => return Err(ServerError::from(QueryError::UserNotFound))
+            None => return Err(ServerError::from(QueryError::UserNotFound)),
         };
 
         if !user.verified {
-            return Err(ServerError::from(QueryError::UserNotVerified))
+            return Err(ServerError::from(QueryError::UserNotVerified));
         } else {
-            return Ok(true)
+            return Ok(true);
         }
     }
 
@@ -137,11 +151,11 @@ impl UserService {
 
         let user = match user_query {
             Some(user_query) => user_query,
-            None => return Err(ServerError::from(QueryError::UserNotFound))
+            None => return Err(ServerError::from(QueryError::UserNotFound)),
         };
 
         let dynamic_forget_pass_url = format!("{}/forget-password/{}", configs.domain, user.id);
-        
+
         let content = EmailContent {
             greeting: "Password Change".to_string(),
             main_message: "Forgot your password?".to_string(),
@@ -149,18 +163,25 @@ impl UserService {
             dynamic_content: None,
         };
 
-        send_email(configs, &user.email, "Higuard Password Change", &content).map_err(|err| ServerError::from(err))?;
+        send_email(configs, &user.email, "Higuard Password Change", &content)
+            .map_err(|err| ServerError::from(err))?;
 
         Ok(())
     }
 
-    pub async fn update_password(&self, uid: Uuid, email: String, password: String) -> Result<(), ServerError> {
+    pub async fn update_password(
+        &self,
+        uid: Uuid,
+        email: String,
+        password: String,
+    ) -> Result<(), ServerError> {
         let db = &*self.db;
         let configs = &*self.configs;
         let now = Utc::now();
         let hash_cost = configs.hash_cost.parse().unwrap();
 
-        let hashed_pass = hash(password, hash_cost).map_err(|err| ServerError::ExternalError(ExternalError::Bcrypt(err)))?;
+        let hashed_pass = hash(password, hash_cost)
+            .map_err(|err| ServerError::ExternalError(ExternalError::Bcrypt(err)))?;
 
         let user_query = UserEntity::find()
             .filter(<UserEntity as EntityTrait>::Column::Id.eq(uid))
@@ -170,11 +191,11 @@ impl UserService {
 
         let user = match user_query {
             Some(user) => user,
-            None => return Err(ServerError::from(QueryError::UserNotFound))
+            None => return Err(ServerError::from(QueryError::UserNotFound)),
         };
 
         if user.email != email {
-            return Err(ServerError::from(QueryError::UserNotFound))
+            return Err(ServerError::from(QueryError::UserNotFound));
         }
 
         let mut active_user = user.into_active_model();
@@ -193,7 +214,10 @@ impl UserService {
         let db = &*self.db;
         let now = Utc::now();
         let configs = &*self.configs;
-        let transaction = db.begin().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+        let transaction = db
+            .begin()
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
         let update_query = UserEntity::find()
             .filter(<UserEntity as EntityTrait>::Column::Id.eq(uid))
@@ -221,21 +245,34 @@ impl UserService {
         match active_user.update(&transaction).await {
             Ok(user) => user,
             Err(err) => {
-                transaction.rollback().await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
-                return Err(ServerError::from(ExternalError::DB(err)))
+                transaction
+                    .rollback()
+                    .await
+                    .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+                return Err(ServerError::from(ExternalError::DB(err)));
             }
         };
 
-        transaction.commit().await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+        transaction
+            .commit()
+            .await
+            .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
 
         Ok(())
     }
 
-    pub async fn update_user_profile(&self, uid: Uuid, update_user_profile: UpdateUserProfileDTO) -> Result<ShortUserProfileDTO, ServerError> {
+    pub async fn update_user_profile(
+        &self,
+        uid: Uuid,
+        update_user_profile: UpdateUserProfileDTO,
+    ) -> Result<ShortUserProfileDTO, ServerError> {
         let db = &*self.db;
         let now = Utc::now();
         let configs = &*self.configs;
-        let transaction = db.begin().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+        let transaction = db
+            .begin()
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
         let hash_cost = configs.hash_cost.parse().unwrap_or(bcrypt::DEFAULT_COST);
         let mut profile_updated = false;
         let mut user_updated = false;
@@ -245,18 +282,25 @@ impl UserService {
             .one(db)
             .await
             .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
-        
+
         let user_profile = match update_query {
             Some(profile) => profile,
             None => return Err(ServerError::from(QueryError::UserNotFound)),
         };
 
-
         let mut active_user_profile = UserProfileActiveModel {
             id: ActiveValue::Set(user_profile.id),
             user_id: ActiveValue::Set(user_profile.user_id),
-            first_name: user_profile.first_name.map_or(ActiveValue::Unchanged(None), |v| ActiveValue::Unchanged(Some(v))),
-            last_name: user_profile.last_name.map_or(ActiveValue::Unchanged(None), |v| ActiveValue::Unchanged(Some(v))),
+            first_name: user_profile
+                .first_name
+                .map_or(ActiveValue::Unchanged(None), |v| {
+                    ActiveValue::Unchanged(Some(v))
+                }),
+            last_name: user_profile
+                .last_name
+                .map_or(ActiveValue::Unchanged(None), |v| {
+                    ActiveValue::Unchanged(Some(v))
+                }),
             avatar_color: ActiveValue::Set(user_profile.avatar_color),
             role: ActiveValue::Set(user_profile.role),
             created_at: ActiveValue::Set(user_profile.created_at),
@@ -316,7 +360,8 @@ impl UserService {
 
         if let Some(ref password) = update_user_profile.password {
             if !password.is_empty() {
-                let hashed_password = hash(password, hash_cost).map_err(|err| ServerError::ExternalError(ExternalError::Bcrypt(err)))?;
+                let hashed_password = hash(password, hash_cost)
+                    .map_err(|err| ServerError::ExternalError(ExternalError::Bcrypt(err)))?;
                 active_user.password = ActiveValue::Set(Some(hashed_password));
                 user_updated = true;
             }
@@ -333,19 +378,29 @@ impl UserService {
         let _updated_user = match active_user.update(&transaction).await {
             Ok(user) => user,
             Err(err) => {
-                transaction.rollback().await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
-                return Err(ServerError::from(ExternalError::DB(err)))
+                transaction
+                    .rollback()
+                    .await
+                    .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+                return Err(ServerError::from(ExternalError::DB(err)));
             }
         };
 
         let updated_user_profile = match active_user_profile.update(&transaction).await {
             Ok(user) => user,
             Err(err) => {
-                transaction.rollback().await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
-                return Err(ServerError::from(ExternalError::DB(err)))}
+                transaction
+                    .rollback()
+                    .await
+                    .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+                return Err(ServerError::from(ExternalError::DB(err)));
+            }
         };
 
-        transaction.commit().await.map_err(|err| ServerError::from(ExternalError::DB(err)))?;
+        transaction
+            .commit()
+            .await
+            .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
 
         let user_profile_dto = ShortUserProfileDTO {
             first_name: updated_user_profile.first_name,
@@ -367,7 +422,7 @@ impl UserService {
 
         match user_profile {
             Some(user_profile) => Ok(user_profile.role),
-            None => Err(ServerError::from(QueryError::UserNotFound))
+            None => Err(ServerError::from(QueryError::UserNotFound)),
         }
     }
 }

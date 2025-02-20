@@ -1,28 +1,38 @@
-mod database;
 mod config;
+mod database;
 mod handlers;
+mod managers;
 mod middlewares;
 mod models;
 mod routes;
 mod services;
-mod managers;
 mod shared {
     pub mod utils;
 }
 mod libs;
 
-use env_logger;
 use actix_web::web;
+use env_logger;
 use log::{error, info};
 use managers::namespace_manager::NamespaceServer;
 use managers::notification_manager::NotificationServer;
-use std::sync::Arc;
+use shared::utils::rate_limit::DynamicStripedRateLimiter;
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_runtime::SecretStore;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
-use crate::middlewares::{auth_middleware::JwtMiddleware, sdk_auth_middleware::ClientAuthMiddleware};
-use crate::routes::{admin_routes, auth_routes, error_routes, feature_request_routes, namespace_routes, namespace_alert_routes, user_routes, tag_routes, static_routes, ws_routes, notification_routes};
+use crate::middlewares::{
+    auth_middleware::JwtMiddleware, rate_limit_middleware::RateLimiterMiddleware,
+    sdk_auth_middleware::ClientAuthMiddleware,
+};
+use crate::routes::{
+    admin_routes, auth_routes, bug_report_routes, error_routes, feature_request_routes,
+    namespace_alert_routes, namespace_routes, notification_routes, static_routes, tag_routes,
+    user_routes, ws_routes,
+};
 use crate::services::init_services;
+use crate::shared::utils::discord::DiscordHandler;
 use crate::shared::utils::role::initialize_role_rules;
 use config::Config;
 
@@ -63,30 +73,37 @@ async fn main(
         db_pool: Arc::clone(&db_pool),
     };
 
+    let app_stripe =
+        DynamicStripedRateLimiter::new(8, Duration::from_secs(60), 120, Duration::from_secs(1800));
+    let rate_limit_middleware = RateLimiterMiddleware::new(Arc::clone(&app_stripe));
 
     println!("Starting server...");
 
-    let services =
-        match init_services(db_pool.clone(), config.clone()) {
-            Ok(services) => services,
-            Err(e) => {
-                error!("Failed to initialize services: {}", e);
-                std::process::exit(1);
-            }
-        };
+    let services = match init_services(db_pool.clone(), config.clone()) {
+        Ok(services) => services,
+        Err(e) => {
+            error!("Failed to initialize services: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    // Discord alert service
+    let discord_handler = DiscordHandler::new(&config.discord_secret_key)
+        .await
+        .unwrap();
 
     let namespace_service = Arc::new(services.namespace_service);
     let namespace_alert_service = Arc::new(services.namespace_alerts_services);
     let user_service = Arc::new(services.user_service);
     let auth_service = Arc::new(services.auth_service);
+    let bug_report_service = Arc::new(services.bug_report_service);
     let error_service = Arc::new(services.error_service);
     let tag_service = Arc::new(services.tag_service);
     let notification_service = Arc::new(services.notification_service);
     let feature_request_service = Arc::new(services.feature_request_service);
-
     let namespace_manager = Arc::new(NamespaceServer::new());
     let notification_manager = Arc::new(NotificationServer::new());
-    
+
     let role_rules = Arc::new(initialize_role_rules());
 
     // Return a closure that configures the service
@@ -98,17 +115,20 @@ async fn main(
             .app_data(web::Data::new(namespace_alert_service.clone()))
             .app_data(web::Data::new(user_service.clone()))
             .app_data(web::Data::new(auth_service.clone()))
+            .app_data(web::Data::new(bug_report_service.clone()))
             .app_data(web::Data::new(error_service.clone()))
             .app_data(web::Data::new(tag_service.clone()))
             .app_data(web::Data::new(notification_service.clone()))
             .app_data(web::Data::new(feature_request_service.clone()))
             .app_data(web::Data::new(namespace_manager.clone()))
             .app_data(web::Data::new(notification_manager.clone()))
+            .app_data(web::Data::new(discord_handler))
             .configure(static_routes::configure)
             .configure(auth_routes::configure_without_auth)
             .configure(ws_routes::configure_ws)
             .configure(|cfg| admin_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| auth_routes::configure_with_auth(cfg, &jwt_middleware))
+            .configure(|cfg| bug_report_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| error_routes::sdk_configure(cfg, &sdk_middleware))
             .configure(|cfg| feature_request_routes::configure(cfg, &jwt_middleware))
             .configure(|cfg| user_routes::configure_user_routes(cfg, &jwt_middleware))

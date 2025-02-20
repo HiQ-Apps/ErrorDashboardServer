@@ -1,14 +1,18 @@
 use actix_web::Result;
-use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
-use chrono_tz::Tz;
-use sea_orm::sea_query::Query;
-use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, QueryOrder, QuerySelect, Condition, DatabaseConnection, JoinType};
+use sea_orm::{
+    entity::prelude::*, Condition, DatabaseConnection, EntityTrait, IntoActiveModel, JoinType,
+    QueryOrder, QuerySelect,
+};
 use std::sync::Arc;
 
 use crate::config::Config;
-use crate::models::feature_request_model::{Entity as FeatureRequestEntity, Model as FeatureRequestModel, ActiveModel};
+use crate::models::feature_request_model::{
+    ActiveModel, Entity as FeatureRequestEntity, Model as FeatureRequestModel,
+};
 use crate::shared::utils::errors::{ExternalError, QueryError, ServerError};
-use shared_types::feature_request_dtos::{CreateFeatureRequestDTO, FeatureRequestDTO, UpdateFeatureRequestStatusDTO};
+use shared_types::feature_request_dtos::{
+    CreateFeatureRequestDTO, FeatureRequestDTO, UpdateFeatureRequestStatusDTO,
+};
 
 pub struct FeatureRequestService {
     pub db: Arc<DatabaseConnection>,
@@ -33,16 +37,14 @@ impl FeatureRequestService {
         Ok(())
     }
 
-    pub async fn get_all_feature_requests(
-        &self,
-    ) -> Result<Vec<FeatureRequestModel>, ServerError> {
+    pub async fn get_all_feature_requests(&self) -> Result<Vec<FeatureRequestModel>, ServerError> {
         let db = &*self.db;
 
         let feature_request = FeatureRequestEntity::find()
             .all(db)
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
-        
+
         Ok(feature_request)
     }
 
@@ -62,18 +64,18 @@ impl FeatureRequestService {
             Some(mut feature_request) => {
                 feature_request.status = update_feature_status.status;
                 let active_feature = feature_request.into_active_model();
-                active_feature.update(db).await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
-            },
+                active_feature
+                    .update(db)
+                    .await
+                    .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+            }
             None => return Err(ServerError::QueryError(QueryError::FeatureRequestNotFound)),
         }
 
         Ok(())
     }
 
-    pub async fn delete_feature_request(
-        &self,
-        id: i32,
-    ) -> Result<(), ServerError> {
+    pub async fn delete_feature_request(&self, id: i32) -> Result<(), ServerError> {
         let db = &*self.db;
 
         let feature_request = FeatureRequestEntity::find()
@@ -84,8 +86,11 @@ impl FeatureRequestService {
 
         match feature_request {
             Some(feature_request) => {
-                feature_request.delete(db).await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
-            },
+                feature_request
+                    .delete(db)
+                    .await
+                    .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+            }
             None => return Err(ServerError::QueryError(QueryError::FeatureRequestNotFound)),
         }
 

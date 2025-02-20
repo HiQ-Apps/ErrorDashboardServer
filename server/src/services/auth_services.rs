@@ -1,23 +1,29 @@
 use actix_web::HttpResponse;
-use bcrypt::{verify, hash};
+use bcrypt::{hash, verify};
 use chrono::Utc;
 use oauth2::basic::BasicClient;
 use sea_orm::{entity::prelude::*, EntityTrait, IntoActiveModel, TransactionTrait};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use shared_types::auth_dtos::RefreshTokenDTO;
-use shared_types::notification_dtos::NotificationDTO;
-use shared_types::user_dtos::{GoogleUserInfoDTO, ShortUserDTO, ShortUserProfileDTO, UserLoginServiceDTO};
 use crate::config::Config;
 use crate::managers::notification_manager::NotificationServer;
 use crate::models::notification_model::{Entity as NotificationEntity, Model as NotificationModel};
-use crate::models::user_profile_model::{Model as UserProfileModel, Entity as UserProfileEntity};
+use crate::models::refresh_token_model::{
+    Entity as RefreshTokenEntity, Model as RefreshTokenModel,
+};
 use crate::models::user_model::{Entity as UserEntity, Model as UserModel};
-use crate::models::refresh_token_model::{Entity as RefreshTokenEntity, Model as RefreshTokenModel};
+use crate::models::user_profile_model::{Entity as UserProfileEntity, Model as UserProfileModel};
+use crate::shared::utils::errors::{ExternalError, QueryError, RequestError, ServerError};
+use crate::shared::utils::jwt::{
+    create_access_token, create_refresh_token, refresh_access_token_util,
+};
 use crate::shared::utils::mailing::{send_email, EmailContent};
-use crate::shared::utils::errors::{ExternalError, QueryError, ServerError, RequestError};
-use crate::shared::utils::jwt::{create_access_token, create_refresh_token, refresh_access_token_util};
+use shared_types::auth_dtos::RefreshTokenDTO;
+use shared_types::notification_dtos::NotificationDTO;
+use shared_types::user_dtos::{
+    GoogleUserInfoDTO, ShortUserDTO, ShortUserProfileDTO, UserLoginServiceDTO,
+};
 
 pub struct AuthService {
     pub db: Arc<DatabaseConnection>,
@@ -32,7 +38,7 @@ impl AuthService {
     pub async fn login(
         &self,
         user_email: String,
-        user_password: String
+        user_password: String,
     ) -> Result<UserLoginServiceDTO, ServerError> {
         let issuer = &self.configs.jwt_issuer;
         let audience = &self.configs.jwt_audience;
@@ -45,16 +51,19 @@ impl AuthService {
             .await
             .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
 
-        
         match found_user {
             Some(user) => {
                 if user.o_auth_provider != "Custom" {
                     return Err(ServerError::QueryError(QueryError::OAuthTypeError));
                 }
 
-                let hashed_password = user.password.clone().ok_or(ServerError::QueryError(QueryError::PasswordNotFound))?;
+                let hashed_password = user
+                    .password
+                    .clone()
+                    .ok_or(ServerError::QueryError(QueryError::PasswordNotFound))?;
 
-                let is_valid = verify(&user_password, &hashed_password).map_err(|err| ServerError::from(ExternalError::Bcrypt(err)))?;
+                let is_valid = verify(&user_password, &hashed_password)
+                    .map_err(|err| ServerError::from(ExternalError::Bcrypt(err)))?;
 
                 if is_valid {
                     let access_token = create_access_token(user.clone(), &self.configs)?;
@@ -69,7 +78,8 @@ impl AuthService {
                         audience: audience.to_string(),
                         revoked: false,
                         id: Uuid::new_v4(),
-                    }.into_active_model();
+                    }
+                    .into_active_model();
 
                     RefreshTokenEntity::insert(refresh_token_model)
                         .exec(db)
@@ -77,22 +87,23 @@ impl AuthService {
                         .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
                     let user_profile = UserProfileEntity::find()
-                        .filter(<UserProfileEntity as sea_orm::EntityTrait>::Column::UserId.eq(user.id))
+                        .filter(
+                            <UserProfileEntity as sea_orm::EntityTrait>::Column::UserId.eq(user.id),
+                        )
                         .one(db)
                         .await
                         .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
                         .ok_or(ServerError::QueryError(QueryError::UserProfileNotFound))?;
 
-                    
                     let user_profile_dto = ShortUserProfileDTO {
                         first_name: user_profile.first_name,
                         last_name: user_profile.last_name,
                         avatar_color: user_profile.avatar_color,
                         role: user_profile.role,
-                        updated_at: now
+                        updated_at: now,
                     };
 
-                    let user_response = UserLoginServiceDTO { 
+                    let user_response = UserLoginServiceDTO {
                         user: ShortUserDTO {
                             id: user.id,
                             username: user.username,
@@ -108,18 +119,23 @@ impl AuthService {
                 } else {
                     Err(ServerError::QueryError(QueryError::PasswordIncorrect))
                 }
-            },
-            None => {
-                Err(ServerError::QueryError(QueryError::UserNotFound))
             }
+            None => Err(ServerError::QueryError(QueryError::UserNotFound)),
         }
     }
 
-    pub async fn google_login(&self, oauth_client: BasicClient ) -> Result<HttpResponse, ServerError> {
+    pub async fn google_login(
+        &self,
+        oauth_client: BasicClient,
+    ) -> Result<HttpResponse, ServerError> {
         let (auth_url, _csrf_token) = oauth_client
             .authorize_url(oauth2::CsrfToken::new_random)
-            .add_scope(oauth2::Scope::new("https://www.googleapis.com/auth/userinfo.profile".to_string()))
-            .add_scope(oauth2::Scope::new("https://www.googleapis.com/auth/userinfo.email".to_string()))
+            .add_scope(oauth2::Scope::new(
+                "https://www.googleapis.com/auth/userinfo.profile".to_string(),
+            ))
+            .add_scope(oauth2::Scope::new(
+                "https://www.googleapis.com/auth/userinfo.email".to_string(),
+            ))
             .url();
 
         Ok(HttpResponse::Found()
@@ -132,7 +148,7 @@ impl AuthService {
         user_info: GoogleUserInfoDTO,
     ) -> Result<UserLoginServiceDTO, ServerError> {
         let db = &*self.db;
-        
+
         let found_user = UserEntity::find()
             .filter(<UserEntity as EntityTrait>::Column::Email.eq(user_info.email.clone()))
             .one(db)
@@ -141,13 +157,12 @@ impl AuthService {
 
         if let Some(user) = found_user {
             self.login_existing_user(user).await
-        } 
-        else {
+        } else {
             self.register_new_user(user_info).await
         }
     }
 
-        pub async fn google_callback(
+    pub async fn google_callback(
         &self,
         user_info: GoogleUserInfoDTO,
     ) -> Result<UserLoginServiceDTO, ServerError> {
@@ -174,7 +189,10 @@ impl AuthService {
         let user_id = Uuid::new_v4();
         let now = Utc::now();
 
-        let transaction = db.begin().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+        let transaction = db
+            .begin()
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
         let new_profile_id = Uuid::new_v4();
         let new_user_profile = UserProfileModel {
@@ -190,8 +208,11 @@ impl AuthService {
 
         if let Err(err) = UserProfileEntity::insert(new_user_profile.into_active_model())
             .exec(&transaction)
-            .await {
-            transaction.rollback().await.map_err(|rollback_err| ServerError::ExternalError(ExternalError::DB(rollback_err)))?;
+            .await
+        {
+            transaction.rollback().await.map_err(|rollback_err| {
+                ServerError::ExternalError(ExternalError::DB(rollback_err))
+            })?;
             return Err(ServerError::ExternalError(ExternalError::DB(err)));
         }
 
@@ -211,12 +232,18 @@ impl AuthService {
 
         if let Err(err) = UserEntity::insert(new_user.into_active_model())
             .exec(&transaction)
-            .await {
-            transaction.rollback().await.map_err(|rollback_err| ServerError::ExternalError(ExternalError::DB(rollback_err)))?;
+            .await
+        {
+            transaction.rollback().await.map_err(|rollback_err| {
+                ServerError::ExternalError(ExternalError::DB(rollback_err))
+            })?;
             return Err(ServerError::ExternalError(ExternalError::DB(err)));
         }
 
-        transaction.commit().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+        transaction
+            .commit()
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
         let access_token = "access_token".to_string();
         let refresh_token_dto = RefreshTokenDTO {
@@ -280,8 +307,10 @@ impl AuthService {
         })
     }
 
-
-    pub async fn fetch_google_user_info(&self, access_token: &str) -> Result<GoogleUserInfoDTO, ServerError> {
+    pub async fn fetch_google_user_info(
+        &self,
+        access_token: &str,
+    ) -> Result<GoogleUserInfoDTO, ServerError> {
         let user_info_url = "https://www.googleapis.com/oauth2/v2/userinfo";
         let client = reqwest::Client::new();
         let res = client
@@ -292,7 +321,9 @@ impl AuthService {
             .map_err(|_| ServerError::ExternalError(ExternalError::OAuth2))?;
 
         if res.status().is_success() {
-            let user_info = res.json::<GoogleUserInfoDTO>().await
+            let user_info = res
+                .json::<GoogleUserInfoDTO>()
+                .await
                 .map_err(|_| ServerError::ExternalError(ExternalError::OAuth2))?;
             Ok(user_info)
         } else {
@@ -313,14 +344,17 @@ impl AuthService {
         let audience = &configs.jwt_audience;
         let admin_email = &configs.gmail_email;
 
-
-        let transaction = db.begin().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+        let transaction = db
+            .begin()
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
         let hash_cost = configs.hash_cost.parse().unwrap_or(bcrypt::DEFAULT_COST);
         let uid = Uuid::new_v4();
         let now = Utc::now();
 
-        let hashed_pass = hash(user_pass, hash_cost).map_err(|err| ServerError::ExternalError(ExternalError::Bcrypt(err)))?;
+        let hashed_pass = hash(user_pass, hash_cost)
+            .map_err(|err| ServerError::ExternalError(ExternalError::Bcrypt(err)))?;
 
         let role = if user_email == *admin_email {
             "admin".to_string()
@@ -337,7 +371,6 @@ impl AuthService {
             role,
             created_at: now,
             updated_at: now,
-        
         };
 
         let user = UserModel {
@@ -356,19 +389,25 @@ impl AuthService {
 
         if let Err(err) = UserProfileEntity::insert(active_user_profile)
             .exec(&transaction)
-            .await {
-                transaction.rollback().await.map_err(|rollback_err| ServerError::ExternalError(ExternalError::DB(rollback_err)))?;
-                return Err(ServerError::ExternalError(ExternalError::DB(err)));
-            }
+            .await
+        {
+            transaction.rollback().await.map_err(|rollback_err| {
+                ServerError::ExternalError(ExternalError::DB(rollback_err))
+            })?;
+            return Err(ServerError::ExternalError(ExternalError::DB(err)));
+        }
 
         let active_user_model = user.clone().into_active_model();
 
         if let Err(err) = UserEntity::insert(active_user_model)
             .exec(&transaction)
-            .await {
-                transaction.rollback().await.map_err(|rollback_err| ServerError::ExternalError(ExternalError::DB(rollback_err)))?;
-                return Err(ServerError::ExternalError(ExternalError::DB(err)));
-            }
+            .await
+        {
+            transaction.rollback().await.map_err(|rollback_err| {
+                ServerError::ExternalError(ExternalError::DB(rollback_err))
+            })?;
+            return Err(ServerError::ExternalError(ExternalError::DB(err)));
+        }
 
         let access_token = create_access_token(user.clone(), configs)?;
         let refresh_token_dto = create_refresh_token(user.id, configs)?;
@@ -382,16 +421,23 @@ impl AuthService {
             audience: audience.to_string(),
             revoked: false,
             id: Uuid::new_v4(),
-        }.into_active_model();
+        }
+        .into_active_model();
 
         if let Err(err) = RefreshTokenEntity::insert(refresh_token_model)
             .exec(&transaction)
-            .await {
-                transaction.rollback().await.map_err(|rollback_err| ServerError::ExternalError(ExternalError::DB(rollback_err)))?;
-                return Err(ServerError::from(ExternalError::DB(err)));
-            }
+            .await
+        {
+            transaction.rollback().await.map_err(|rollback_err| {
+                ServerError::ExternalError(ExternalError::DB(rollback_err))
+            })?;
+            return Err(ServerError::from(ExternalError::DB(err)));
+        }
 
-        transaction.commit().await.map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+        transaction
+            .commit()
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
         let user_response = UserLoginServiceDTO {
             user: ShortUserDTO {
@@ -420,7 +466,8 @@ impl AuthService {
             dynamic_content: format!("Your ID is: {}", uid).into(),
         };
 
-        send_email(configs, &user.email, "Higuard Registration", &content).map_err(|err| ServerError::from(err))?;
+        send_email(configs, &user.email, "Higuard Registration", &content)
+            .map_err(|err| ServerError::from(err))?;
 
         let create_notification = NotificationDTO {
             id: Uuid::new_v4(),
@@ -434,14 +481,15 @@ impl AuthService {
         let broadcast_notification = create_notification.clone();
         let notification_modal = NotificationModel::from(create_notification);
         let active_notification_model = notification_modal.into_active_model();
-        
+
         NotificationEntity::insert(active_notification_model)
             .exec(db)
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
-        notification_manager.broadcast_notification(broadcast_notification, &uid).await;
-
+        notification_manager
+            .broadcast_notification(broadcast_notification, &uid)
+            .await;
 
         Ok(user_response)
     }
@@ -450,11 +498,10 @@ impl AuthService {
         let db = &*self.db;
 
         let found_user: Option<UserModel> = UserEntity::find()
-            .filter(<UserEntity as sea_orm::EntityTrait>::Column::Id
-            .eq(user_id))
+            .filter(<UserEntity as sea_orm::EntityTrait>::Column::Id.eq(user_id))
             .one(db)
             .await
-            .map_err(|err|ServerError::from(ExternalError::DB(err)))?;
+            .map_err(|err| ServerError::from(ExternalError::DB(err)))?;
 
         match found_user {
             Some(user) => {
@@ -469,20 +516,26 @@ impl AuthService {
                 } else {
                     Err(ServerError::QueryError(QueryError::PasswordNotSet))
                 }
-            },
-            None => Err(ServerError::QueryError(QueryError::UserNotFound))
+            }
+            None => Err(ServerError::QueryError(QueryError::UserNotFound)),
         }
     }
 
-    pub async fn find_by_token(&self, token: &str) -> Result<Option<RefreshTokenModel>, ServerError> {
+    pub async fn find_by_token(
+        &self,
+        token: &str,
+    ) -> Result<Option<RefreshTokenModel>, ServerError> {
         RefreshTokenEntity::find()
             .filter(<RefreshTokenEntity as sea_orm::EntityTrait>::Column::Token.eq(token))
             .one(&*self.db)
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))
     }
-    
-    pub async fn process_token_refresh(&self, token: &str) -> Result<UserLoginServiceDTO, ServerError> {
+
+    pub async fn process_token_refresh(
+        &self,
+        token: &str,
+    ) -> Result<UserLoginServiceDTO, ServerError> {
         let db = &*self.db;
         let configs = &*self.configs;
         let issuer = &configs.jwt_issuer;
@@ -502,7 +555,9 @@ impl AuthService {
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
-        let user_id_uuid = token_model.user_id.ok_or(ServerError::RequestError(RequestError::MissingUserID))?;
+        let user_id_uuid = token_model
+            .user_id
+            .ok_or(ServerError::RequestError(RequestError::MissingUserID))?;
 
         let new_refresh_token_dto = create_refresh_token(user_id_uuid, configs)?;
         let new_refresh_token_model = RefreshTokenModel {
@@ -523,7 +578,8 @@ impl AuthService {
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
-        let refreshed_access_token = refresh_access_token_util(new_refresh_token_model, db, configs).await?;
+        let refreshed_access_token =
+            refresh_access_token_util(new_refresh_token_model, db, configs).await?;
 
         let found_user = UserEntity::find()
             .filter(<UserEntity as EntityTrait>::Column::Id.eq(user_id_uuid))
@@ -558,7 +614,5 @@ impl AuthService {
         };
 
         Ok(user_response)
-        
     }
-
 }

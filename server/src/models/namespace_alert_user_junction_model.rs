@@ -1,5 +1,5 @@
-use sea_orm::{entity::prelude::*, ActiveValue};
 use async_trait::async_trait;
+use sea_orm::{entity::prelude::*, ActiveValue};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -58,4 +58,3 @@ impl ActiveModelBehavior for ActiveModel {
         }
     }
 }
-

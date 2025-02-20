@@ -1,9 +1,9 @@
-use lettre::message::{header, Mailbox, Message};
-use lettre::{SmtpTransport, Transport};
-use lettre::transport::smtp::authentication::Credentials;
-use lettre::error::Error as LettreError;
-use crate::shared::utils::errors::{ServerError, ExternalError};
 use crate::config::Config;
+use crate::shared::utils::errors::{ExternalError, ServerError};
+use lettre::error::Error as LettreError;
+use lettre::message::{header, Mailbox, Message};
+use lettre::transport::smtp::authentication::Credentials;
+use lettre::{SmtpTransport, Transport};
 
 pub struct EmailContent {
     pub greeting: String,
@@ -12,12 +12,20 @@ pub struct EmailContent {
     pub dynamic_content: Option<String>,
 }
 
-pub fn send_email(config: &Config, recipient: &str, subject: &str, content: &EmailContent) -> Result<(), ServerError> {
+pub fn send_email(
+    config: &Config,
+    recipient: &str,
+    subject: &str,
+    content: &EmailContent,
+) -> Result<(), ServerError> {
     // Parse the "from" and "to" addresses, mapping AddressError to your custom error type
-    let from_address: Mailbox = config.gmail_email.parse()
+    let from_address: Mailbox = config
+        .gmail_email
+        .parse()
         .map_err(|err| ServerError::ExternalError(ExternalError::Address(err)))?;
-    
-    let to_address: Mailbox = recipient.parse()
+
+    let to_address: Mailbox = recipient
+        .parse()
         .map_err(|err| ServerError::ExternalError(ExternalError::Address(err)))?;
 
     let styled_body = format!(
@@ -46,7 +54,7 @@ pub fn send_email(config: &Config, recipient: &str, subject: &str, content: &Ema
         body = content.body,
         dynamic_content = match &content.dynamic_content {
             Some(value) => format!(
-                r#"<div style="background-color: #e0e0e0; padding: 10px; border-radius: 5px; text-align: center; font-weight: bold; letter-spacing: 1px; font-size: 16px;">{}</div>"#, 
+                r#"<div style="background-color: #e0e0e0; padding: 10px; border-radius: 5px; text-align: center; font-weight: bold; letter-spacing: 1px; font-size: 16px;">{}</div>"#,
                 value.replace("\n", "<br>")
             ),
             None => "".to_string(),
@@ -69,7 +77,9 @@ pub fn send_email(config: &Config, recipient: &str, subject: &str, content: &Ema
         .build();
 
     // Send the email and handle errors
-    mailer.send(&email).map_err(|err| ServerError::ExternalError(ExternalError::Smtp(err)))?;
+    mailer
+        .send(&email)
+        .map_err(|err| ServerError::ExternalError(ExternalError::Smtp(err)))?;
 
     Ok(())
 }

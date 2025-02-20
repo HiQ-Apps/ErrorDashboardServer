@@ -2,7 +2,7 @@ use actix_files::{Files, NamedFile};
 use actix_web::{web, Result};
 use std::path::PathBuf;
 
-use crate::shared::utils::errors::{ServerError, ExternalError};
+use crate::shared::utils::errors::{ExternalError, ServerError};
 
 async fn index_file() -> Result<NamedFile, ServerError> {
     let path: PathBuf = ["server/static/dist", "index.html"].iter().collect();

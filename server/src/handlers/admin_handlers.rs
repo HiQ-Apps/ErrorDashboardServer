@@ -1,11 +1,15 @@
-use actix_web::{web, HttpResponse, HttpRequest, Result};
+use actix_web::{web, HttpRequest, HttpResponse, Result};
 use shared_types::auth_dtos::VerifyUserDTO;
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
-use crate::{services::AuthService, shared::utils::errors::{QueryError, ServerError}};
-use crate::services::{UserService, NamespaceService};
 use crate::config::Config;
+use crate::services::{NamespaceService, UserService};
 use crate::shared::utils::jwt::extract_user_id_from_jwt_header;
+use crate::{
+    services::AuthService,
+    shared::utils::errors::{QueryError, ServerError},
+};
 
 pub struct AdminHandler;
 
@@ -27,7 +31,7 @@ impl AdminHandler {
 
         match user_services.get_all_users().await {
             Ok(user_data) => Ok(HttpResponse::Ok().json(user_data)),
-            Err(err) => Err(err)
+            Err(err) => Err(err),
         }
     }
     pub async fn get_all_namespaces(
@@ -48,7 +52,7 @@ impl AdminHandler {
 
         match namespace_services.get_all_namespaces().await {
             Ok(namespaces) => Ok(HttpResponse::Ok().json(namespaces)),
-            Err(err) => Err(err)
+            Err(err) => Err(err),
         }
     }
 
@@ -77,4 +81,3 @@ impl AdminHandler {
         }
     }
 }
-

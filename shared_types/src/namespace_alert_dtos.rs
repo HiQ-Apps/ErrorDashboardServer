@@ -9,6 +9,7 @@ use serde_valid::Validate;
 pub struct CreateNamespaceAlertRequestDTO {
     pub namespace_id: Uuid,
     pub alert_method: String,
+    pub discord_channel_id: Option<String>,
     pub path: Option<String>,
     pub line: Option<i32>,
     pub message: Option<String>,
@@ -22,14 +23,15 @@ pub struct CreateNamespaceAlertRequestDTO {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
-pub struct NamespaceAlertDTO {
+pub struct NamespaceAlertDTO<'a> {
     pub id: Uuid,
     pub namespace_id: Uuid,
-    pub alert_method: String,
-    pub path: Option<String>,
+    pub alert_method: &'a str,
+    pub discord_channel_id: Option<&'a str>,
+    pub path: Option<&'a str>,
     pub line: Option<i32>,
-    pub message: Option<String>,
-    pub stack_trace: Option<String>,
+    pub message: Option<&'a str>,
+    pub stack_trace: Option<&'a str>,
     pub count_threshold: Option<i32>,
     pub time_window: Option<i64>,
     pub unresolved_time_threshold: Option<i64>,
@@ -45,6 +47,7 @@ pub struct ShortNamespaceAlertDTO {
     pub id: Uuid,
     pub namespace_id: Uuid,
     pub alert_method: String,
+    pub discord_channel_id: Option<String>,
     pub path: Option<String>,
     pub line: Option<i32>,
     pub message: Option<String>,
@@ -59,9 +62,10 @@ pub struct ShortNamespaceAlertDTO {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
-pub struct UpdateNamespaceAlertRequestDTO {
+pub struct UpdateNamespaceAlertRequestDTO{
     pub namespace_id: Uuid,
     pub alert_method: Option<String>,
+    pub discord_channel_id: Option<String>,
     pub path: Option<String>,
     pub line: Option<i32>,
     pub message: Option<String>,

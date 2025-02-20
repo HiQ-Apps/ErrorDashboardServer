@@ -1,28 +1,34 @@
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use std::collections::hash_map::DefaultHasher;
-use std::sync::{Arc, RwLock, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 use tokio::time::interval;
-
- // 60 req/min
-const RATE_LIMIT_DURATION: Duration = Duration::from_secs(60);
-const MAX_REQUESTS_PER_IP: usize = 60;
- // Interval for cleanup task, default to half an hr
-const CLEANUP_INTERVAL: Duration = Duration::from_secs(1800);
 
 pub struct DynamicStripedRateLimiter {
     stripes: Arc<RwLock<Vec<Arc<Mutex<HashMap<String, (usize, Instant)>>>>>>,
     num_stripes: usize,
+
+    rate_limit_duration: Duration,
+    max_requests_per_ip: usize,
+    cleanup_interval: Duration,
 }
 
 impl DynamicStripedRateLimiter {
-    pub fn new(num_stripes: usize) -> Arc<Self> {
+    pub fn new(
+        num_stripes: usize,
+        rate_limit_duration: Duration,
+        max_requests_per_ip: usize,
+        cleanup_interval: Duration,
+    ) -> Arc<Self> {
         let stripes = Self::initialize_stripes(num_stripes);
 
         let limiter = Arc::new(DynamicStripedRateLimiter {
             stripes: Arc::new(RwLock::new(stripes)),
             num_stripes,
+            rate_limit_duration,
+            max_requests_per_ip,
+            cleanup_interval,
         });
 
         // Start the cleanup task
@@ -31,7 +37,9 @@ impl DynamicStripedRateLimiter {
         limiter
     }
 
-    fn initialize_stripes(num_stripes: usize) -> Vec<Arc<Mutex<HashMap<String, (usize, Instant)>>>> {
+    fn initialize_stripes(
+        num_stripes: usize,
+    ) -> Vec<Arc<Mutex<HashMap<String, (usize, Instant)>>>> {
         let mut stripes = Vec::with_capacity(num_stripes);
         for _ in 0..num_stripes {
             stripes.push(Arc::new(Mutex::new(HashMap::new())));
@@ -56,12 +64,12 @@ impl DynamicStripedRateLimiter {
 
         let entry = map.entry(ip.to_string()).or_insert((0, now));
 
-        if now.duration_since(entry.1) > RATE_LIMIT_DURATION {
+        if now.duration_since(entry.1) > self.rate_limit_duration {
             entry.0 = 0;
             entry.1 = now;
         }
 
-        if entry.0 >= MAX_REQUESTS_PER_IP {
+        if entry.0 >= self.max_requests_per_ip {
             false
         } else {
             entry.0 += 1;
@@ -71,7 +79,7 @@ impl DynamicStripedRateLimiter {
 
     fn start_cleanup_task(limiter: Arc<Self>) {
         tokio::spawn(async move {
-            let mut interval = interval(CLEANUP_INTERVAL);
+            let mut interval = interval(limiter.cleanup_interval);
 
             loop {
                 interval.tick().await;
@@ -86,7 +94,9 @@ impl DynamicStripedRateLimiter {
 
         for stripe in stripes.iter() {
             let mut map = stripe.lock().unwrap();
-            map.retain(|_, &mut (_, timestamp)| now.duration_since(timestamp) <= RATE_LIMIT_DURATION);
+            map.retain(|_, &mut (_, timestamp)| {
+                now.duration_since(timestamp) <= self.rate_limit_duration
+            });
         }
     }
 }

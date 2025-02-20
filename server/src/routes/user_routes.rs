@@ -8,9 +8,14 @@ pub fn configure_user_routes(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtM
         web::scope("/api/users")
             // Unauthenticated routes
             .route("/{id}/verify", web::put().to(UserHandler::verify_user))
-            .route("/{id}/{email}/reset-password", web::put().to(UserHandler::update_password))
-            .route("/forgot-password", web::post().to(UserHandler::forgot_password))
-            
+            .route(
+                "/{id}/{email}/reset-password",
+                web::put().to(UserHandler::update_password),
+            )
+            .route(
+                "/forgot-password",
+                web::post().to(UserHandler::forgot_password),
+            )
             // Authenticated routes
             .service(
                 web::resource("/{id}")
@@ -22,6 +27,6 @@ pub fn configure_user_routes(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtM
                     .wrap(jwt_middleware.clone())
                     .route(web::get().to(UserHandler::get_user_profile))
                     .route(web::put().to(UserHandler::update_user_profile)),
-            )
+            ),
     );
 }

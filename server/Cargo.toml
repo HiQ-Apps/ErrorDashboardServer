@@ -44,6 +44,7 @@ tracing = "0.1.40"
 lettre = "0.11.9"
 lettre_email = "0.9.4"
 actix-ws = "0.3.0"
+serenity = "0.12.4"
 
 [[bin]]
 name = "server"
