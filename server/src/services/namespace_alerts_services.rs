@@ -46,6 +46,7 @@ impl NamespaceAlertsService {
             namespace_id: new_namespace_alert.namespace_id,
             discord_channel_id: new_namespace_alert.discord_channel_id,
             alert_method: new_namespace_alert.alert_method,
+            triggered: false,
             path: new_namespace_alert.path,
             line: new_namespace_alert.line,
             message: new_namespace_alert.message,
@@ -109,6 +110,7 @@ impl NamespaceAlertsService {
                 namespace_id: alert.namespace_id,
                 alert_method: alert.alert_method.clone(),
                 discord_channel_id: alert.discord_channel_id.clone(),
+                triggered: alert.triggered,
                 path: alert.path.clone(),
                 line: alert.line.clone(),
                 message: alert.message.clone(),
@@ -156,6 +158,7 @@ impl NamespaceAlertsService {
                 namespace_id: alert.namespace_id,
                 discord_channel_id: alert.discord_channel_id.clone(),
                 alert_method: alert.alert_method.clone(),
+                triggered: alert.triggered,
                 path: alert.path.clone(),
                 line: alert.line.clone(),
                 message: alert.message.clone(),
@@ -351,5 +354,30 @@ impl NamespaceAlertsService {
         });
 
         Ok(profiles)
+    }
+
+    pub async fn reset_trigger(
+        &self,
+        alert_id: Uuid, 
+    )->Result<(), ServerError> {
+        let db = &*self.db;
+
+        let found_alert = NamespaceAlertEntity::find()
+            .filter(<NamespaceAlertEntity as sea_orm::EntityTrait>::Column::Id.eq(alert_id))
+            .one(db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
+            .ok_or(ServerError::QueryError(QueryError::AlertNotFound))?;
+
+        
+        let mut active_alert = found_alert.into_active_model();
+        
+        active_alert.triggered = ActiveValue::Set(false);
+
+        active_alert.update(db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
+        
+        Ok(())
     }
 }

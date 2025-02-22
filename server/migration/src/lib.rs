@@ -18,6 +18,7 @@ mod m20250120_050231_create_feature_request_table;
 mod m20250201_063512_create_bug_reporting;
 mod m20250216_024615_update_namespace_alert_with_discord_id;
 mod m20250219_225925_update_discord_id_string;
+mod m20250220_221738_add_alert_sent_col;
 
 
 pub struct Migrator;
@@ -44,6 +45,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250201_063512_create_bug_reporting::Migration),
             Box::new(m20250216_024615_update_namespace_alert_with_discord_id::Migration),
             Box::new(m20250219_225925_update_discord_id_string::Migration),
+            Box::new(m20250220_221738_add_alert_sent_col::Migration),
         ]
     }
 }

@@ -34,6 +34,11 @@ pub fn configure(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
             .route(
                 "/{id}/subscriptions",
                 web::get().to(NamespaceAlertHandler::get_subscribed_users_by_namespace_alert_id),
-            ),
+            )
+            .route(
+                "/{id}/reset-trigger",
+                web::put().to(NamespaceAlertHandler::reset_trigger),
+            )
+            ,
     );
 }
