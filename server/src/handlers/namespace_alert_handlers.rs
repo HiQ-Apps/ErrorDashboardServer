@@ -111,4 +111,16 @@ impl NamespaceAlertHandler {
             Err(err) => Err(err),
         }
     }
+
+    pub async fn reset_trigger(
+        namespace_alert_services: web::Data<Arc<NamespaceAlertsService>>,
+        alert_id: web::Path<Uuid>,
+    ) -> Result<HttpResponse, ServerError> {
+        let alert_id = alert_id.into_inner();
+        match namespace_alert_services.reset_trigger(alert_id).await {
+            Ok(_) => Ok(HttpResponse::Ok().finish()),
+            Err(err) => Err(err),
+        }
+    }
+    
 }

@@ -151,6 +151,9 @@ pub enum ExternalError {
 
 #[derive(Debug, Error)]
 pub enum QueryError {
+    #[error("Alert not found")]
+    AlertNotFound,
+
     #[error("OAuth2 error")]
     OAuthTypeError,
 

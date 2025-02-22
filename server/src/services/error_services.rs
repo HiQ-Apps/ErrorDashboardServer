@@ -2,6 +2,8 @@ use actix_web::Result;
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 use chrono_tz::Tz;
 use sea_orm::sea_query::Query;
+use sea_orm::ActiveValue::NotSet;
+use sea_orm::Set;
 use sea_orm::{
     entity::prelude::*, Condition, DatabaseConnection, EntityTrait, IntoActiveModel, JoinType,
     QueryOrder, QuerySelect,
@@ -18,7 +20,7 @@ use crate::models::error_tag_model::{
     ActiveModel as ActiveTagModel, Entity as TagEntity, Model as TagModel,
 };
 use crate::models::namespace_alert_user_junction_model::Entity as NamespaceAlertUserJunctionEntity;
-use crate::models::namespace_alerts_model::Entity as NamespaceAlertEntity;
+use crate::models::namespace_alerts_model::{Entity as NamespaceAlertEntity, ActiveModel as NamespaceAlertActiveModel};
 use crate::models::namespace_model::Entity as NamespaceEntity;
 use crate::models::notification_model::{Entity as NotificationEntity, Model as NotificationModel};
 use crate::models::user_model::Entity as UserEntity;
@@ -85,9 +87,15 @@ impl ErrorService {
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
+        let mut alerts_sent: Vec<Uuid> = Vec::new();
+        
         // Find subscribed users for each alert
         for alert in found_alerts {
             // // we need to filter the error based on one of these fields
+            if alert.triggered == true {
+                continue;
+            } 
+
             if let Some(alert_path) = alert.path.clone() {
                 if alert_path != stack_trace_info.file_path {
                     continue;
@@ -111,7 +119,8 @@ impl ErrorService {
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
             for user_alert_junction in subscribed_users {
-                // Check if the alert is an email alert
+                // Check type of alert (discord,email, etc.) and send + notify users.
+                // TODO: Add ability to disable notifications for users
                 match alert.alert_method.as_str() {
                     "email" => {
                         if let Some(count_threshold) = alert.count_threshold {
@@ -205,6 +214,9 @@ impl ErrorService {
 
                                 send_email(configs, &find_user.email, "Error Alert", &content)
                                     .map_err(|err| ServerError::from(err))?;
+
+                                    alerts_sent.push(alert.id);
+
                             } else if let Some(unresolved_time_threshold) =
                                 alert.unresolved_time_threshold
                             {
@@ -288,6 +300,8 @@ impl ErrorService {
 
                                     send_email(configs, &find_user.email, "Error Alert", &content)
                                         .map_err(|err| ServerError::from(err))?;
+
+                                    alerts_sent.push(alert.id);
                                 }
                             } else if let Some(rate_threshold) = alert.rate_threshold {
                                 let time_window = alert.rate_time_window.unwrap();
@@ -387,6 +401,8 @@ impl ErrorService {
 
                                     send_email(configs, &find_user.email, "Error Alert", &content)
                                         .map_err(|err| ServerError::from(err))?;
+
+                                    alerts_sent.push(alert.id);
                                 }
                             } else {
                                 continue;
@@ -489,6 +505,9 @@ impl ErrorService {
                                     .send_discord_alert(channel_id, &content)
                                     .await
                                     .map_err(|err| ServerError::from(err))?;
+
+                                alerts_sent.push(alert.id);
+
                             } else if let Some(unresolved_time_threshold) =
                                 alert.unresolved_time_threshold
                             {
@@ -576,6 +595,8 @@ impl ErrorService {
                                         .send_discord_alert(channel_id, &content)
                                         .await
                                         .map_err(|err| ServerError::from(err))?;
+
+                                    alerts_sent.push(alert.id);
                                 }
                             } else if let Some(rate_threshold) = alert.rate_threshold {
                                 let time_window = alert.rate_time_window.unwrap();
@@ -678,10 +699,14 @@ impl ErrorService {
                                         .send_discord_alert(channel_id, &content)
                                         .await
                                         .map_err(|err| ServerError::from(err))?;
+
+                                    alerts_sent.push(alert.id);
                                 }
                             } else {
                                 continue;
                             }
+
+                        
                         }
                     }
                     _ => {
@@ -690,6 +715,34 @@ impl ErrorService {
                 }
             }
         }
+
+        // Batch update alerts triggered
+        let update_model = NamespaceAlertActiveModel {
+            triggered: Set(true),
+            id: NotSet,
+            namespace_id: NotSet,
+            alert_method: NotSet,
+            discord_channel_id: NotSet,
+            path: NotSet,
+            line: NotSet,
+            message: NotSet,
+            stack_trace: NotSet,
+            count_threshold: NotSet,
+            time_window: NotSet,
+            unresolved_time_threshold: NotSet,
+            rate_threshold: NotSet,
+            rate_time_window: NotSet,
+            created_at: NotSet,
+            updated_at: NotSet,
+        };
+
+        // Update alerts triggered
+        let show_results = NamespaceAlertEntity::update_many()
+            .set(update_model)
+            .filter(<NamespaceAlertEntity as sea_orm::EntityTrait>::Column::Id.is_in(alerts_sent))
+            .exec(db)
+            .await
+            .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
         let create_error = ErrorModel {
             id: Uuid::new_v4(),
@@ -1051,4 +1104,5 @@ impl ErrorService {
         }
         Ok(unique_meta)
     }
+
 }
