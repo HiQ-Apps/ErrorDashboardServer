@@ -83,3 +83,38 @@ pub fn send_email(
 
     Ok(())
 }
+
+pub fn send_email_sms(
+    config: &Config,
+    recipient_number: &str,
+    content: &str,
+)-> Result<(), ServerError> {
+    // Parse the "from" and "to" addresses, mapping AddressError to your custom error type
+    let from_address: Mailbox = config
+        .gmail_email
+        .parse()
+        .map_err(|err| ServerError::ExternalError(ExternalError::Address(err)))?;
+
+    // Cellphone provider gateways
+    let cell_provider = [
+        // At&T
+        "@txt.att.net",
+        // Verizon
+        "@vtext.com",
+        // t-mobile
+        "@tmomail.net",
+        // Sprint
+        "@messaging.sprintpcs.com",
+        // Boost mobile
+        "@sms.myboostmobile.com",
+        // Metro PCS
+        "@mymetropcs.com",
+        // Cricket
+        "@sms.cricketwireless.net",
+        // US cellular
+        "@email.uscc.net",
+    ];
+
+    
+    Ok(())
+}

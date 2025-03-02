@@ -737,7 +737,7 @@ impl ErrorService {
         };
 
         // Update alerts triggered
-        let show_results = NamespaceAlertEntity::update_many()
+        NamespaceAlertEntity::update_many()
             .set(update_model)
             .filter(<NamespaceAlertEntity as sea_orm::EntityTrait>::Column::Id.is_in(alerts_sent))
             .exec(db)

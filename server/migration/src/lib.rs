@@ -19,6 +19,8 @@ mod m20250201_063512_create_bug_reporting;
 mod m20250216_024615_update_namespace_alert_with_discord_id;
 mod m20250219_225925_update_discord_id_string;
 mod m20250220_221738_add_alert_sent_col;
+mod m20250227_040239_add_phone_number_and_provider;
+
 
 
 pub struct Migrator;
@@ -46,6 +48,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250216_024615_update_namespace_alert_with_discord_id::Migration),
             Box::new(m20250219_225925_update_discord_id_string::Migration),
             Box::new(m20250220_221738_add_alert_sent_col::Migration),
+            Box::new(m20250227_040239_add_phone_number_and_provider::Migration),
         ]
     }
 }

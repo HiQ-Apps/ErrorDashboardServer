@@ -11,7 +11,7 @@ impl FeatureRequestHandler {
     pub async fn create_feature_request(
         feature_request_services: web::Data<Arc<FeatureRequestService>>,
         create_feature_request: web::Json<CreateFeatureRequestDTO>,
-    ) -> Result<(HttpResponse), ServerError> {
+    ) -> Result<HttpResponse, ServerError> {
         let create_feature_request = create_feature_request.into_inner();
         match feature_request_services
             .create_feature_request(create_feature_request)

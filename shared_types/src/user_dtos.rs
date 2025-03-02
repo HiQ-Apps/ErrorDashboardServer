@@ -25,6 +25,8 @@ pub struct UserProfileDTO {
     pub last_name: Option<String>,
     pub avatar_color: String,
     pub role: String,
+    pub phone_number: Option<String>,
+    pub phone_provider: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -61,6 +63,8 @@ pub struct ShortUserProfileDTO {
     pub avatar_color: String,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
+    pub phone_number: Option<String>,
+    pub phone_provider: Option<String>,
     pub role: String,
     pub updated_at: DateTime<Utc>
 }
@@ -77,6 +81,8 @@ pub struct UpdateUserProfileDTO {
     pub avatar_color: Option<String>,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
+    pub phone_number: Option<String>,
+    pub phone_provider: Option<String>,
     pub password: Option<String>,
     pub username: Option<String>,
 }
