@@ -31,17 +31,19 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(BugReport::Issue).string().not_null())
                     .col(ColumnDef::new(BugReport::Description).string().not_null())
                     .col(ColumnDef::new(BugReport::Status).string().not_null())
-                    .col(ColumnDef::new(BugReport::CreatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(BugReport::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-
         manager
             .drop_table(Table::drop().table(BugReport::Table).to_owned())
             .await
     }
 }
-

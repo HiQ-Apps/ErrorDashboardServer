@@ -33,6 +33,7 @@ use crate::routes::{
 };
 use crate::services::init_services;
 use crate::shared::utils::discord::DiscordHandler;
+use crate::shared::utils::mailing::SERVICE_MAPPING;
 use crate::shared::utils::role::initialize_role_rules;
 use config::Config;
 
@@ -123,6 +124,7 @@ async fn main(
             .app_data(web::Data::new(namespace_manager.clone()))
             .app_data(web::Data::new(notification_manager.clone()))
             .app_data(web::Data::new(discord_handler))
+            .app_data(web::Data::new(SERVICE_MAPPING.clone()))
             .configure(static_routes::configure)
             .configure(auth_routes::configure_without_auth)
             .configure(ws_routes::configure_ws)

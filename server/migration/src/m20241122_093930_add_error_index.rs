@@ -15,7 +15,8 @@ impl MigrationTrait for Migration {
                     .table(Errors::Table)
                     .col(Errors::Id)
                     .to_owned(),
-            ).await?;
+            )
+            .await?;
 
         Ok(())
     }
@@ -27,7 +28,8 @@ impl MigrationTrait for Migration {
                     .name("idx_error_id")
                     .table(Errors::Table)
                     .to_owned(),
-            ).await?;
+            )
+            .await?;
         Ok(())
     }
 }

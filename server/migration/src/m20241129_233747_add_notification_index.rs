@@ -13,12 +13,12 @@ impl MigrationTrait for Migration {
             .execute(Statement::from_string(
                 manager.get_database_backend(),
                 "CREATE INDEX idx_notification_user_id_created_at_desc \
-                 ON notification (user_id, created_at DESC)".to_string(),
+                 ON notification (user_id, created_at DESC)"
+                    .to_string(),
             ))
             .await?;
         Ok(())
     }
-    
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
@@ -31,4 +31,3 @@ impl MigrationTrait for Migration {
         Ok(())
     }
 }
-

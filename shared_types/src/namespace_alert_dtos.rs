@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use chrono::{DateTime, Utc};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_valid::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
@@ -61,10 +61,9 @@ pub struct ShortNamespaceAlertDTO {
     pub rate_time_window: Option<i64>,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
-pub struct UpdateNamespaceAlertRequestDTO{
+pub struct UpdateNamespaceAlertRequestDTO {
     pub namespace_id: Uuid,
     pub alert_method: Option<String>,
     pub discord_channel_id: Option<String>,
@@ -87,4 +86,3 @@ pub struct NamespaceAlertSubscriptionRequestDTO {
     pub namespace_id: Uuid,
     pub namespace_alert_id: Uuid,
 }
-

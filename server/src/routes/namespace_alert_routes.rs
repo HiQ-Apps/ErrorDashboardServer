@@ -38,7 +38,6 @@ pub fn configure(cfg: &mut web::ServiceConfig, jwt_middleware: &JwtMiddleware) {
             .route(
                 "/{id}/reset-trigger",
                 web::put().to(NamespaceAlertHandler::reset_trigger),
-            )
-            ,
+            ),
     );
 }

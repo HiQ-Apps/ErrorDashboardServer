@@ -2,8 +2,8 @@ pub use sea_orm_migration::prelude::*;
 
 mod m20230914_054832_create_user_table;
 mod m20230921_034443_create_refresh_token_table;
-mod m20231013_200027_create_namespace_table;
 mod m20231013_164343_create_error_table;
+mod m20231013_200027_create_namespace_table;
 mod m20231015_093305_create_user_namespace_junction_table;
 mod m20240616_024612_create_error_tags;
 mod m20240622_185137_create_user_profile;
@@ -20,8 +20,6 @@ mod m20250216_024615_update_namespace_alert_with_discord_id;
 mod m20250219_225925_update_discord_id_string;
 mod m20250220_221738_add_alert_sent_col;
 mod m20250227_040239_add_phone_number_and_provider;
-
-
 
 pub struct Migrator;
 

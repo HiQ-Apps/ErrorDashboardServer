@@ -14,7 +14,7 @@ pub enum Errors {
     StackTrace,
     Resolved,
     CreatedAt,
-    UpdatedAt
+    UpdatedAt,
 }
 
 #[derive(DeriveMigrationName)]
@@ -28,25 +28,33 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Errors::Table)
                     .if_not_exists()
-                        .col(ColumnDef::new(Errors::Id).uuid().primary_key())
-                        .col(ColumnDef::new(Errors::UserAffected).string().not_null())
-                        .col(ColumnDef::new(Errors::Path).string().not_null())
-                        .col(ColumnDef::new(Errors::Line).integer().not_null())
-                        .col(ColumnDef::new(Errors::Message).string().not_null())
-                        .col(ColumnDef::new(Errors::NamespaceId).uuid().not_null())
-                        .foreign_key(
-                            ForeignKey::create()
+                    .col(ColumnDef::new(Errors::Id).uuid().primary_key())
+                    .col(ColumnDef::new(Errors::UserAffected).string().not_null())
+                    .col(ColumnDef::new(Errors::Path).string().not_null())
+                    .col(ColumnDef::new(Errors::Line).integer().not_null())
+                    .col(ColumnDef::new(Errors::Message).string().not_null())
+                    .col(ColumnDef::new(Errors::NamespaceId).uuid().not_null())
+                    .foreign_key(
+                        ForeignKey::create()
                             .name("fk_error_namespace")
                             .from(Errors::Table, Errors::NamespaceId)
                             .to(Namespaces::Table, Namespaces::Id)
                             .on_delete(ForeignKeyAction::Cascade)
                             .on_update(ForeignKeyAction::Cascade),
-                        )
-                        .col(ColumnDef::new(Errors::StackTrace).string().not_null())
-                        .col(ColumnDef::new(Errors::Resolved).boolean().not_null())
-                        .col(ColumnDef::new(Errors::CreatedAt).timestamp_with_time_zone().not_null())
-                        .col(ColumnDef::new(Errors::UpdatedAt).timestamp_with_time_zone().not_null())
-                        .to_owned(),
+                    )
+                    .col(ColumnDef::new(Errors::StackTrace).string().not_null())
+                    .col(ColumnDef::new(Errors::Resolved).boolean().not_null())
+                    .col(
+                        ColumnDef::new(Errors::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Errors::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .to_owned(),
             )
             .await
     }

@@ -32,17 +32,26 @@ pub enum Relation {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
+            Self::UserProfileEntity => {
+                Entity::belongs_to(UserProfileEntity)
+                    .from(Column::UserProfileId)
+                    .to(<UserProfileEntity as EntityTrait>::Column::Id)
+                    .into()
+            }
             Self::RefreshTokenEntity => Entity::has_many(RefreshTokenEntity).into(),
-            Self::UserProfileEntity => Entity::has_one(UserProfileEntity).into(),
         }
     }
 }
 
 impl Related<UserProfileEntity> for Entity {
     fn to() -> RelationDef {
-        Relation::UserProfileEntity.def()
+        Entity::belongs_to(UserProfileEntity)
+            .from(Column::UserProfileId)
+            .to(<UserProfileEntity as EntityTrait>::Column::Id)
+            .into()
     }
 }
+
 
 impl Related<RefreshTokenEntity> for Entity {
     fn to() -> RelationDef {

@@ -122,5 +122,4 @@ impl NamespaceAlertHandler {
             Err(err) => Err(err),
         }
     }
-    
 }

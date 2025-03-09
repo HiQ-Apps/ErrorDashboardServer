@@ -1,6 +1,5 @@
-use sea_orm_migration::prelude::*;
 use super::m20240916_025827_create_namespace_alerts::NamespaceAlerts;
-
+use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -15,7 +14,8 @@ impl MigrationTrait for Migration {
                     .table(NamespaceAlerts::Table)
                     .col(NamespaceAlerts::NamespaceId)
                     .to_owned(),
-            ).await?;
+            )
+            .await?;
 
         manager
             .create_index(
@@ -25,18 +25,21 @@ impl MigrationTrait for Migration {
                     .col(NamespaceAlerts::NamespaceId)
                     .col(NamespaceAlerts::AlertMethod)
                     .to_owned(),
-            ).await?;
+            )
+            .await?;
 
         Ok(())
     }
-    
+
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .drop_index(
-                Index::drop().name("idx_namespace_id")
+                Index::drop()
+                    .name("idx_namespace_id")
                     .table(NamespaceAlerts::Table)
-                    .to_owned())
-                    .await?;
+                    .to_owned(),
+            )
+            .await?;
 
         manager
             .drop_index(
@@ -44,9 +47,9 @@ impl MigrationTrait for Migration {
                     .name("idx_namespace_method")
                     .table(NamespaceAlerts::Table)
                     .to_owned(),
-            ).await?;
+            )
+            .await?;
 
         Ok(())
     }
-    
 }

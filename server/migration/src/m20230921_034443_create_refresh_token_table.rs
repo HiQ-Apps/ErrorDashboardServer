@@ -26,7 +26,12 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(RefreshTokens::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(RefreshTokens::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(RefreshTokens::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(RefreshTokens::UserId).uuid().not_null())
                     .foreign_key(
                         ForeignKey::create()
@@ -37,11 +42,20 @@ impl MigrationTrait for Migration {
                             .on_update(ForeignKeyAction::Cascade),
                     )
                     .col(ColumnDef::new(RefreshTokens::Token).string().not_null())
-                    .col(ColumnDef::new(RefreshTokens::IssuedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(RefreshTokens::IssuedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(RefreshTokens::ExpiresAt).timestamp_with_time_zone())
                     .col(ColumnDef::new(RefreshTokens::Issuer).string().not_null())
                     .col(ColumnDef::new(RefreshTokens::Audience).string().not_null())
-                    .col(ColumnDef::new(RefreshTokens::Revoked).boolean().not_null().default(false))
+                    .col(
+                        ColumnDef::new(RefreshTokens::Revoked)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
                     .to_owned(),
             )
             .await

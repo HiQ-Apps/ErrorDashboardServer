@@ -21,7 +21,7 @@ impl MigrationTrait for Migration {
                         ColumnDef::new(NamespaceAlertsTriggered::Triggered)
                             .boolean()
                             .default(false)
-                            .not_null()
+                            .not_null(),
                     )
                     .to_owned(),
             )
@@ -34,8 +34,8 @@ impl MigrationTrait for Migration {
                 Table::alter()
                     .table(NamespaceAlerts::Table)
                     .drop_column(NamespaceAlertsTriggered::Triggered)
-                    .to_owned()
+                    .to_owned(),
             )
-        .await
+            .await
     }
 }

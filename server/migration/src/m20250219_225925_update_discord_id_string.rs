@@ -18,10 +18,8 @@ impl MigrationTrait for Migration {
                 Table::alter()
                     .table(NamespaceAlerts::Table)
                     .modify_column(
-                        ColumnDef::new(NamespaceAlertsWithDiscordId::DiscordChannelId)
-                            .string()
+                        ColumnDef::new(NamespaceAlertsWithDiscordId::DiscordChannelId).string(),
                     )
-                    
                     .to_owned(),
             )
             .await
@@ -34,9 +32,10 @@ impl MigrationTrait for Migration {
                     .table(NamespaceAlerts::Table)
                     .modify_column(
                         ColumnDef::new(NamespaceAlertsWithDiscordId::DiscordChannelId)
-                            .big_integer()
-                    ).to_owned()
+                            .big_integer(),
+                    )
+                    .to_owned(),
             )
-        .await
+            .await
     }
 }

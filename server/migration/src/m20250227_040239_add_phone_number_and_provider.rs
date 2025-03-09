@@ -11,7 +11,6 @@ pub enum UserPhoneAndProvider {
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
-
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
@@ -22,12 +21,12 @@ impl MigrationTrait for Migration {
                     .add_column(
                         ColumnDef::new(UserPhoneAndProvider::PhoneNumber)
                             .string()
-                            .null()
+                            .null(),
                     )
                     .add_column(
                         ColumnDef::new(UserPhoneAndProvider::PhoneProvider)
                             .string()
-                            .null()
+                            .null(),
                     )
                     .to_owned(),
             )
@@ -44,6 +43,6 @@ impl MigrationTrait for Migration {
                     .drop_column(UserPhoneAndProvider::PhoneProvider)
                     .to_owned(),
             )
-            .await        
+            .await
     }
 }

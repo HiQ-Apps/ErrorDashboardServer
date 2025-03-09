@@ -1,3 +1,6 @@
+use once_cell::sync::Lazy;
+use std::collections::HashMap;
+
 use crate::config::Config;
 use crate::shared::utils::errors::{ExternalError, ServerError};
 use lettre::error::Error as LettreError;
@@ -11,6 +14,43 @@ pub struct EmailContent {
     pub body: String,
     pub dynamic_content: Option<String>,
 }
+
+pub static SERVICE_MAPPING: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
+    let cell_provider_extensions = [
+        // AT&T
+        "@txt.att.net",
+        // Verizon
+        "@vtext.com",
+        // T-Mobile
+        "@tmomail.net",
+        // Sprint
+        "@messaging.sprintpcs.com",
+        // Boost Mobile
+        "@sms.myboostmobile.com",
+        // Metro PCS
+        "@mymetropcs.com",
+        // Cricket
+        "@sms.cricketwireless.net",
+        // US Cellular
+        "@email.uscc.net",
+    ];
+    let service_names = [
+        "AT&T",
+        "Verizon",
+        "T-Mobile",
+        "Sprint",
+        "Boost Mobile",
+        "Metro PCS",
+        "Cricket",
+        "US Cellular",
+    ];
+
+    let mut map = HashMap::new();
+    for (i, name) in service_names.iter().enumerate() {
+        map.insert(*name, cell_provider_extensions[i]);
+    }
+    map
+});
 
 pub fn send_email(
     config: &Config,
@@ -86,35 +126,40 @@ pub fn send_email(
 
 pub fn send_email_sms(
     config: &Config,
+    service_mapping: &HashMap<&str, &str>,
     recipient_number: &str,
+    recipient_service: &str,
     content: &str,
-)-> Result<(), ServerError> {
+) -> Result<(), ServerError> {
     // Parse the "from" and "to" addresses, mapping AddressError to your custom error type
     let from_address: Mailbox = config
         .gmail_email
         .parse()
         .map_err(|err| ServerError::ExternalError(ExternalError::Address(err)))?;
 
-    // Cellphone provider gateways
-    let cell_provider = [
-        // At&T
-        "@txt.att.net",
-        // Verizon
-        "@vtext.com",
-        // t-mobile
-        "@tmomail.net",
-        // Sprint
-        "@messaging.sprintpcs.com",
-        // Boost mobile
-        "@sms.myboostmobile.com",
-        // Metro PCS
-        "@mymetropcs.com",
-        // Cricket
-        "@sms.cricketwireless.net",
-        // US cellular
-        "@email.uscc.net",
-    ];
+    let to_address = format!("{}{}", recipient_number, service_mapping[recipient_service]);
 
-    
+    let to_address: Mailbox = to_address
+        .parse()
+        .map_err(|err| ServerError::ExternalError(ExternalError::Address(err)))?;
+
+    let email = Message::builder()
+        .from(from_address)
+        .to(to_address)
+        .subject("Error Dashboard Alert")
+        .body(content.to_string())
+        .map_err(|err| ServerError::ExternalError(ExternalError::Lettre(LettreError::from(err))))?;
+
+    let creds = Credentials::new(config.gmail_email.clone(), config.gmail_token_pass.clone());
+
+    let mailer = SmtpTransport::relay("smtp.gmail.com")
+        .map_err(|err| ServerError::ExternalError(ExternalError::Smtp(err)))?
+        .credentials(creds)
+        .build();
+
+    mailer
+        .send(&email)
+        .map_err(|err| ServerError::ExternalError(ExternalError::Smtp(err)))?;
+
     Ok(())
 }

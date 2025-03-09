@@ -105,8 +105,6 @@ impl AuthService {
                         updated_at: now,
                     };
 
-                    println!("User profile: {:?}", user_profile_dto);
-
                     let user_response = UserLoginServiceDTO {
                         user: ShortUserDTO {
                             id: user.id,

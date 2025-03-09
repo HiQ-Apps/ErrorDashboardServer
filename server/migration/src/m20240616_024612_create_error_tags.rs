@@ -1,5 +1,5 @@
-use sea_orm_migration::prelude::*;
 use super::m20231013_164343_create_error_table::Errors;
+use sea_orm_migration::prelude::*;
 
 #[derive(DeriveIden)]
 pub enum ErrorTags {
@@ -38,7 +38,7 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
-        
+
         // tag index
         manager
             .create_index(
@@ -67,11 +67,21 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_index(Index::drop().name("idx_error_tags_error_id").table(ErrorTags::Table).to_owned())
+            .drop_index(
+                Index::drop()
+                    .name("idx_error_tags_error_id")
+                    .table(ErrorTags::Table)
+                    .to_owned(),
+            )
             .await?;
 
         manager
-            .drop_index(Index::drop().name("idx_tags_key_value_sorted").table(ErrorTags::Table).to_owned())
+            .drop_index(
+                Index::drop()
+                    .name("idx_tags_key_value_sorted")
+                    .table(ErrorTags::Table)
+                    .to_owned(),
+            )
             .await?;
 
         manager
@@ -79,4 +89,3 @@ impl MigrationTrait for Migration {
             .await
     }
 }
-

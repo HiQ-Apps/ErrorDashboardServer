@@ -356,10 +356,7 @@ impl NamespaceAlertsService {
         Ok(profiles)
     }
 
-    pub async fn reset_trigger(
-        &self,
-        alert_id: Uuid, 
-    )->Result<(), ServerError> {
+    pub async fn reset_trigger(&self, alert_id: Uuid) -> Result<(), ServerError> {
         let db = &*self.db;
 
         let found_alert = NamespaceAlertEntity::find()
@@ -369,15 +366,15 @@ impl NamespaceAlertsService {
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?
             .ok_or(ServerError::QueryError(QueryError::AlertNotFound))?;
 
-        
         let mut active_alert = found_alert.into_active_model();
-        
+
         active_alert.triggered = ActiveValue::Set(false);
 
-        active_alert.update(db)
+        active_alert
+            .update(db)
             .await
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
-        
+
         Ok(())
     }
 }

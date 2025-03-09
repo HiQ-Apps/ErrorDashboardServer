@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse, Result};
 use shared_types::extra_dtos::FilterRequest;
+use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -22,6 +23,7 @@ impl ErrorHandler {
         error_services: web::Data<Arc<ErrorService>>,
         notification_manager: web::Data<Arc<NotificationServer>>,
         namespace_manager: web::Data<Arc<NamespaceServer>>,
+        service_mapping: web::Data<HashMap<&'static str, &'static str>>,
         new_error: web::Json<CreateErrorRequest>,
     ) -> Result<HttpResponse, ServerError> {
         let error_dto = new_error.into_inner();
@@ -29,6 +31,7 @@ impl ErrorHandler {
         let client_id_header = headers.get("client_id").unwrap();
         let notification_manager = notification_manager.get_ref();
         let discord_handler = discord_handler.get_ref();
+        let service_mapping = service_mapping.get_ref();
 
         let client_id = match client_id_header.to_str() {
             Ok(client_id) => client_id,
@@ -42,6 +45,7 @@ impl ErrorHandler {
                 error_dto.clone(),
                 client_id,
                 notification_manager,
+                service_mapping,
             )
             .await;
 

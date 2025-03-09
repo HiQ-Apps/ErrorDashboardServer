@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_valid::Validate;
 use uuid::Uuid;
 
@@ -23,7 +23,6 @@ pub struct NotificationDTO {
     pub is_read: bool,
     pub created_at: DateTime<Utc>,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
