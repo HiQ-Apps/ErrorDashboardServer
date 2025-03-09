@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use serde_valid::Validate;
 use uuid::Uuid;
@@ -12,7 +12,7 @@ pub struct RefreshTokenDTO {
     pub expires_at: DateTime<Utc>,
     pub jwt_iss: String,
     pub jwt_aud: String,
-    pub revoked: bool
+    pub revoked: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
@@ -25,20 +25,20 @@ pub struct Claims {
     pub exp: DateTime<Utc>,
     pub iss: String,
     pub aud: String,
-    pub data: Option<JsonValue>
+    pub data: Option<JsonValue>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct RefreshTokenServiceDTO {
     pub refresh_token: String,
-    pub access_token: String
+    pub access_token: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct VerifyUserDTO {
-    pub password: String
+    pub password: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]

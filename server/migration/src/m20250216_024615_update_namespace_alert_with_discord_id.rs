@@ -19,9 +19,8 @@ impl MigrationTrait for Migration {
                     .table(NamespaceAlerts::Table)
                     .add_column_if_not_exists(
                         ColumnDef::new(NamespaceAlertsWithDiscordId::DiscordChannelId)
-                            .big_integer()
+                            .big_integer(),
                     )
-                    
                     .to_owned(),
             )
             .await

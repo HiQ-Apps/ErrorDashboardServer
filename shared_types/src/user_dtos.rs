@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_valid::Validate;
 use uuid::Uuid;
 
@@ -25,6 +25,8 @@ pub struct UserProfileDTO {
     pub last_name: Option<String>,
     pub avatar_color: String,
     pub role: String,
+    pub phone_number: Option<String>,
+    pub phone_provider: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -52,7 +54,7 @@ pub struct MemberListDTO {
     pub id: Uuid,
     pub username: String,
     pub email: String,
-    pub role: String
+    pub role: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
@@ -61,8 +63,10 @@ pub struct ShortUserProfileDTO {
     pub avatar_color: String,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
+    pub phone_number: Option<String>,
+    pub phone_provider: Option<String>,
     pub role: String,
-    pub updated_at: DateTime<Utc>
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
@@ -77,6 +81,8 @@ pub struct UpdateUserProfileDTO {
     pub avatar_color: Option<String>,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
+    pub phone_number: Option<String>,
+    pub phone_provider: Option<String>,
     pub password: Option<String>,
     pub username: Option<String>,
 }
@@ -107,7 +113,7 @@ pub struct UserLoginServiceDTO {
     pub user: ShortUserDTO,
     pub user_profile: ShortUserProfileDTO,
     pub access_token: String,
-    pub refresh_token: RefreshTokenDTO
+    pub refresh_token: RefreshTokenDTO,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
@@ -125,7 +131,6 @@ pub struct UserAdminDTO {
     pub user_profile: UserProfileDTO,
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
 pub struct GoogleUserInfoDTO {
@@ -136,15 +141,14 @@ pub struct GoogleUserInfoDTO {
     // Whether the email is verified
     pub email_verified: bool,
     // Full name
-    pub name: String,      
-    // First name   
+    pub name: String,
+    // First name
     pub given_name: String,
     // Last name
     pub family_name: String,
     // URL to the user's profile picture
     pub picture: String,
 }
-
 
 impl From<UserLoginServiceDTO> for UserResponseDTO {
     fn from(service_dto: UserLoginServiceDTO) -> Self {

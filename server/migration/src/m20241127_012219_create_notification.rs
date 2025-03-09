@@ -14,7 +14,6 @@ pub enum Notification {
     CreatedAt,
 }
 
-
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
@@ -32,11 +31,7 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .primary_key(),
                     )
-                    .col(
-                        ColumnDef::new(Notification::UserId)
-                            .uuid()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Notification::UserId).uuid().not_null())
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_notification_user")
@@ -49,7 +44,11 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Notification::Text).string().not_null())
                     .col(ColumnDef::new(Notification::Source).string().not_null())
                     .col(ColumnDef::new(Notification::IsRead).boolean().not_null())
-                    .col(ColumnDef::new(Notification::CreatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Notification::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await

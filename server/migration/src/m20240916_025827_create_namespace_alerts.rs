@@ -21,7 +21,6 @@ pub enum NamespaceAlerts {
     UpdatedAt,
 }
 
-
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
@@ -39,16 +38,24 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(NamespaceAlerts::NamespaceId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(NamespaceAlerts::NamespaceId)
+                            .uuid()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
-                        .name("fk_namespace_alerts")
-                        .from(NamespaceAlerts::Table, NamespaceAlerts::NamespaceId)
-                        .to(Namespaces::Table, Namespaces::Id)
-                        .on_delete(ForeignKeyAction::Cascade)
-                        .on_update(ForeignKeyAction::Cascade)
+                            .name("fk_namespace_alerts")
+                            .from(NamespaceAlerts::Table, NamespaceAlerts::NamespaceId)
+                            .to(Namespaces::Table, Namespaces::Id)
+                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_update(ForeignKeyAction::Cascade),
                     )
-                    .col(ColumnDef::new(NamespaceAlerts::AlertMethod).string().not_null())
+                    .col(
+                        ColumnDef::new(NamespaceAlerts::AlertMethod)
+                            .string()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(NamespaceAlerts::Path).string())
                     .col(ColumnDef::new(NamespaceAlerts::Line).integer())
                     .col(ColumnDef::new(NamespaceAlerts::Message).string())
@@ -58,7 +65,11 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(NamespaceAlerts::UnresolvedTimeThreshold).big_integer())
                     .col(ColumnDef::new(NamespaceAlerts::RateThreshold).integer())
                     .col(ColumnDef::new(NamespaceAlerts::RateTimeWindow).big_integer())
-                    .col(ColumnDef::new(NamespaceAlerts::CreatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(NamespaceAlerts::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(NamespaceAlerts::UpdatedAt).timestamp_with_time_zone())
                     .to_owned(),
             )

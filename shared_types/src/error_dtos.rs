@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 use serde_valid::Validate;
 use uuid::Uuid;
 
-use super::tag_dtos::{TagDTO, ShortTagNoIdDTO, ShortTagDTO, CreateTagClientNoIdDTO, CreateTagRequestDTO};
+use super::tag_dtos::{
+    CreateTagClientNoIdDTO, CreateTagRequestDTO, ShortTagDTO, ShortTagNoIdDTO, TagDTO,
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
@@ -23,7 +25,6 @@ pub struct GetAggregatedStatusErrorDTO {
     pub user_affected_count: i32,
     pub error_count: i32,
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
@@ -122,9 +123,8 @@ pub struct ErrorMetaDTO {
 #[serde(rename_all = "camelCase")]
 pub struct GroupedAggregateErrorCountDTO {
     pub group_key: String,
-    pub count: i64
+    pub count: i64,
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
@@ -148,4 +148,3 @@ pub struct AggregateErrorDTO {
     pub count: i64,
     pub time: DateTime<Utc>,
 }
-

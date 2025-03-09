@@ -29,19 +29,25 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(FeatureRequest::Title).string().not_null())
-                    .col(ColumnDef::new(FeatureRequest::Description).string().not_null())
+                    .col(
+                        ColumnDef::new(FeatureRequest::Description)
+                            .string()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(FeatureRequest::Status).string().not_null())
-                    .col(ColumnDef::new(FeatureRequest::CreatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(FeatureRequest::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-
         manager
             .drop_table(Table::drop().table(FeatureRequest::Table).to_owned())
             .await
     }
 }
-

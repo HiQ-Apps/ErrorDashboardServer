@@ -20,13 +20,16 @@ use crate::models::error_tag_model::{
     ActiveModel as ActiveTagModel, Entity as TagEntity, Model as TagModel,
 };
 use crate::models::namespace_alert_user_junction_model::Entity as NamespaceAlertUserJunctionEntity;
-use crate::models::namespace_alerts_model::{Entity as NamespaceAlertEntity, ActiveModel as NamespaceAlertActiveModel};
+use crate::models::namespace_alerts_model::{
+    ActiveModel as NamespaceAlertActiveModel, Entity as NamespaceAlertEntity,
+};
 use crate::models::namespace_model::Entity as NamespaceEntity;
 use crate::models::notification_model::{Entity as NotificationEntity, Model as NotificationModel};
 use crate::models::user_model::Entity as UserEntity;
+use crate::models::user_profile_model::Entity as UserProfileEntity;
 use crate::shared::utils::discord::DiscordHandler;
 use crate::shared::utils::errors::{ExternalError, QueryError, RequestError, ServerError};
-use crate::shared::utils::mailing::{send_email, EmailContent};
+use crate::shared::utils::mailing::{send_email, send_email_sms, EmailContent};
 use crate::shared::utils::parse::{parse_stack_trace, StackTraceInfo};
 use shared_types::error_dtos::{
     AggregateErrorDTO, CreateErrorDTO, CreateErrorRequest, ErrorDTO, ErrorMetaDTO,
@@ -50,6 +53,7 @@ impl ErrorService {
         error: CreateErrorRequest,
         namespace_client_id: Uuid,
         notification_manager: &Arc<NotificationServer>,
+        service_mapping: &HashMap<&'static str, &'static str>,
     ) -> Result<CreateErrorDTO, ServerError> {
         let now = Utc::now();
         let configs = &*self.configs;
@@ -88,13 +92,13 @@ impl ErrorService {
             .map_err(|err| ServerError::ExternalError(ExternalError::DB(err)))?;
 
         let mut alerts_sent: Vec<Uuid> = Vec::new();
-        
+
         // Find subscribed users for each alert
         for alert in found_alerts {
             // // we need to filter the error based on one of these fields
             if alert.triggered == true {
                 continue;
-            } 
+            }
 
             if let Some(alert_path) = alert.path.clone() {
                 if alert_path != stack_trace_info.file_path {
@@ -215,8 +219,7 @@ impl ErrorService {
                                 send_email(configs, &find_user.email, "Error Alert", &content)
                                     .map_err(|err| ServerError::from(err))?;
 
-                                    alerts_sent.push(alert.id);
-
+                                alerts_sent.push(alert.id);
                             } else if let Some(unresolved_time_threshold) =
                                 alert.unresolved_time_threshold
                             {
@@ -507,7 +510,6 @@ impl ErrorService {
                                     .map_err(|err| ServerError::from(err))?;
 
                                 alerts_sent.push(alert.id);
-
                             } else if let Some(unresolved_time_threshold) =
                                 alert.unresolved_time_threshold
                             {
@@ -705,8 +707,345 @@ impl ErrorService {
                             } else {
                                 continue;
                             }
+                        }
+                    }
+                    "text" => {
+                        if let Some(count_threshold) = alert.count_threshold {
+                            let time_window = alert.time_window.unwrap();
+                            let time_window_minutes = time_window / 60000;
+                            let time_window_start = now - Duration::minutes(time_window_minutes);
 
-                        
+                            // Find all errors in the time window
+                            let mut query = ErrorEntity::find()
+                                .filter(
+                                    <ErrorEntity as sea_orm::EntityTrait>::Column::NamespaceId
+                                        .eq(found_namespace.id),
+                                )
+                                .filter(
+                                    <ErrorEntity as sea_orm::EntityTrait>::Column::CreatedAt
+                                        .gt(time_window_start),
+                                );
+                            // Add filter for whichever alert field we are looking for
+
+                            if let Some(alert_path) = &alert.path {
+                                query = query.filter(
+                                    <ErrorEntity as sea_orm::EntityTrait>::Column::Path
+                                        .eq(alert_path.clone()),
+                                );
+                            }
+                            if let Some(alert_line) = &alert.line {
+                                query = query.filter(
+                                    <ErrorEntity as sea_orm::EntityTrait>::Column::Line
+                                        .eq(alert_line.clone()),
+                                );
+                            }
+                            if let Some(alert_message) = &alert.message {
+                                query = query.filter(
+                                    <ErrorEntity as sea_orm::EntityTrait>::Column::Message
+                                        .eq(alert_message.clone()),
+                                );
+                            }
+
+                            let error_count = query.count(&*self.db).await.map_err(|err| {
+                                ServerError::ExternalError(ExternalError::DB(err))
+                            })?;
+
+                            // Check if error count is equal to threshold because we don't want to spam users after it hits the threshold
+                            if error_count > count_threshold as u64 {
+                                let content = format!("\nAlert {} has been triggered for a namespace you are subscribed to by the ID of {}.\n\nPlease log in to your account to view the error details and resolve the issue. {}", alert.id, alert.namespace_id, configs.domain);
+
+                                // Get user email for each user and send email
+                                let (user, user_profile) = UserEntity::find()
+                                    .filter(
+                                        <UserEntity as sea_orm::EntityTrait>::Column::Id
+                                            .eq(user_alert_junction.user_id),
+                                    )
+                                    .find_also_related(UserProfileEntity)
+                                    .one(db)
+                                    .await
+                                    .map_err(|err| {
+                                        ServerError::ExternalError(ExternalError::DB(err))
+                                    })?
+                                    .ok_or(ServerError::QueryError(QueryError::UserNotFound))?;
+
+                                let user_profile = user_profile.ok_or(ServerError::QueryError(
+                                    QueryError::UserProfileNotFound,
+                                ))?;
+                                
+                                if user_profile.phone_number.is_none() {
+                                    continue;
+                                };
+
+                                let create_notification = NotificationDTO {
+                                    id: Uuid::new_v4(),
+                                    user_id: user.id,
+                                    title: "Higuard Alert Notification".to_string(),
+                                    text: format!("Your Higuard alert {} has been triggered for a namespace you are subscribed to by the ID of {}", alert.id, alert.namespace_id),
+                                    source: "HiGuard Alert System".to_string(),
+                                    is_read: false,
+                                    created_at: now,
+                                };
+
+                                let broadcast_notification = create_notification.clone();
+
+                                let notification_model =
+                                    NotificationModel::from(create_notification);
+                                let active_create_notification =
+                                    notification_model.into_active_model();
+
+                                NotificationEntity::insert(active_create_notification)
+                                    .exec(db)
+                                    .await
+                                    .map_err(|err| {
+                                        ServerError::ExternalError(ExternalError::DB(err))
+                                    })?;
+
+                                notification_manager
+                                    .broadcast_notification(broadcast_notification, &user.id)
+                                    .await;
+
+                                // check if phone number and phone provider are in the user profile
+                                // if they are, send the sms
+                                // if not, continue to check the next alert
+                                // as_deref() converts Option<String> to &str
+                                if user_profile.phone_number.is_some()
+                                    && user_profile.phone_provider.is_some()
+                                {
+                                    if let (Some(phone_number), Some(phone_provider)) = (
+                                        user_profile.phone_number.as_deref(),
+                                        user_profile.phone_provider.as_deref(),
+                                    ) {
+                                        send_email_sms(
+                                            configs,
+                                            service_mapping,
+                                            phone_number,
+                                            phone_provider,
+                                            &content,
+                                        )
+                                        .map_err(|err| ServerError::from(err))?;
+                                    }
+                                    alerts_sent.push(alert.id);
+                                }
+                            } else if let Some(unresolved_time_threshold) =
+                                alert.unresolved_time_threshold
+                            {
+                                let time_window = unresolved_time_threshold;
+                                let time_window_minutes = time_window / 60000;
+                                let time_window_start =
+                                    now - Duration::minutes(time_window_minutes);
+                                // Find all errors that are unresolved in the unresolved time threshold
+                                let errors = ErrorEntity::find()
+                                    .filter(
+                                        <ErrorEntity as sea_orm::EntityTrait>::Column::NamespaceId
+                                            .eq(found_namespace.id),
+                                    )
+                                    .filter(
+                                        <ErrorEntity as sea_orm::EntityTrait>::Column::Resolved
+                                            .eq(false),
+                                    )
+                                    .filter(
+                                        <ErrorEntity as sea_orm::EntityTrait>::Column::CreatedAt
+                                            .gt(time_window_start),
+                                    )
+                                    .all(&*self.db)
+                                    .await
+                                    .map_err(|err| {
+                                        ServerError::ExternalError(ExternalError::DB(err))
+                                    })?;
+
+                                let error_ids =
+                                    errors.iter().map(|error| error.id).collect::<Vec<Uuid>>();
+
+                                // Warn users if the error has been unresolved for the threshold time
+                                if errors.len() > 0 {
+                                    let content = format!("\nAlert {} has been triggered for a namespace you are subscribed to by the ID of {}.\n\nPlease log in to your account to view the error details and resolve the issue. {}", alert.id, alert.namespace_id, configs.domain);
+
+                                    let (user, user_profile) = UserEntity::find()
+                                        .filter(
+                                            <UserEntity as sea_orm::EntityTrait>::Column::Id
+                                                .eq(user_alert_junction.user_id),
+                                        )
+                                        .find_also_related(UserProfileEntity)
+                                        .one(db)
+                                        .await
+                                        .map_err(|err| {
+                                            ServerError::ExternalError(ExternalError::DB(err))
+                                        })?
+                                        .ok_or(ServerError::QueryError(QueryError::UserNotFound))?;
+
+                                    let user_profile = user_profile.ok_or(
+                                        ServerError::QueryError(QueryError::UserProfileNotFound),
+                                    )?;
+
+                                    if user_profile.phone_number.is_none() {
+                                        continue;
+                                    };
+
+                                    let create_notification = NotificationDTO {
+                              id: Uuid::new_v4(),
+                              user_id: user.id,
+                              title: "Alert Notification".to_string(),
+                              text: format!("Alert {} has been triggered for a namespace you are subscribed to by the ID of {}", alert.id, alert.namespace_id),
+                              source: "HiGuard Alert System".to_string(),
+                              is_read: false,
+                              created_at: now,
+                          };
+                                    let broadcast_notification = create_notification.clone();
+
+                                    let notification_model =
+                                        NotificationModel::from(create_notification);
+                                    let active_create_notification =
+                                        notification_model.into_active_model();
+
+                                    NotificationEntity::insert(active_create_notification)
+                                        .exec(&*self.db)
+                                        .await
+                                        .map_err(|err| {
+                                            ServerError::ExternalError(ExternalError::DB(err))
+                                        })?;
+
+                                    notification_manager
+                                        .broadcast_notification(broadcast_notification, &user.id)
+                                        .await;
+
+                                    if user_profile.phone_number.is_some()
+                                        && user_profile.phone_provider.is_some()
+                                    {
+                                        if let (Some(phone_number), Some(phone_provider)) = (
+                                            user_profile.phone_number.as_deref(),
+                                            user_profile.phone_provider.as_deref(),
+                                        ) {
+                                            send_email_sms(
+                                                configs,
+                                                service_mapping,
+                                                phone_number,
+                                                phone_provider,
+                                                &content,
+                                            )
+                                            .map_err(|err| ServerError::from(err))?;
+                                        }
+                                        alerts_sent.push(alert.id);
+                                    }
+                                }
+                            } else if let Some(rate_threshold) = alert.rate_threshold {
+                                let time_window = alert.rate_time_window.unwrap();
+                                let time_window_minutes = time_window / 60000;
+                                let time_window_start: DateTime<Utc> =
+                                    now - Duration::minutes(time_window_minutes);
+
+                                // Find all errors in the time window
+                                let mut error_query = ErrorEntity::find()
+                                    .filter(
+                                        <ErrorEntity as sea_orm::EntityTrait>::Column::NamespaceId
+                                            .eq(found_namespace.id),
+                                    )
+                                    .filter(
+                                        <ErrorEntity as sea_orm::EntityTrait>::Column::CreatedAt
+                                            .gt(time_window_start),
+                                    );
+
+                                if let Some(alert_path) = &alert.path {
+                                    error_query = error_query.filter(
+                                        <ErrorEntity as sea_orm::EntityTrait>::Column::Path
+                                            .eq(alert_path.clone()),
+                                    );
+                                }
+                                if let Some(alert_line) = &alert.line {
+                                    error_query = error_query.filter(
+                                        <ErrorEntity as sea_orm::EntityTrait>::Column::Line
+                                            .eq(alert_line.clone()),
+                                    );
+                                }
+                                if let Some(alert_message) = &alert.message {
+                                    error_query = error_query.filter(
+                                        <ErrorEntity as sea_orm::EntityTrait>::Column::Message
+                                            .eq(alert_message.clone()),
+                                    );
+                                }
+
+                                let error_count =
+                                    error_query.count(&*self.db).await.map_err(|err| {
+                                        ServerError::ExternalError(ExternalError::DB(err))
+                                    })?;
+
+                                // Check if the rate at which errors are being created is greater than the threshold
+                                // Calculate rate by dividing the number of errors by the time window
+                                // Time is all calculated in milliseconds so we need to convert the time window to milliseconds
+                                let rate = error_count as f64 / (time_window as f64 * 60.0);
+
+                                if rate > rate_threshold as f64 {
+                                    let content = format!("\nAlert {} has been triggered for a namespace you are subscribed to by the ID of {}.\n\nPlease log in to your account to view the error details and resolve the issue. {}", alert.id, alert.namespace_id, configs.domain);
+
+                                    let (user, user_profile) = UserEntity::find()
+                                        .filter(
+                                            <UserEntity as sea_orm::EntityTrait>::Column::Id
+                                                .eq(user_alert_junction.user_id),
+                                        )
+                                        .find_also_related(UserProfileEntity)
+                                        .one(db)
+                                        .await
+                                        .map_err(|err| {
+                                            ServerError::ExternalError(ExternalError::DB(err))
+                                        })?
+                                        .ok_or(ServerError::QueryError(QueryError::UserNotFound))?;
+
+                                    let user_profile = user_profile.ok_or(
+                                        ServerError::QueryError(QueryError::UserProfileNotFound),
+                                    )?;
+
+                                    if user_profile.phone_number.is_none() {
+                                        continue;
+                                    };
+
+                                    let create_notification = NotificationDTO {
+                                        id: Uuid::new_v4(),
+                                        user_id: user.id,
+                                        title: "Alert Notification".to_string(),
+                                        text: format!("Alert {} has been triggered for a namespace you are subscribed to by the ID of {}", alert.id, alert.namespace_id),
+                                        source: "HiGuard Alert System".to_string(),
+                                        is_read: false,
+                                        created_at: now,
+                                    };
+                                    let broadcast_notification = create_notification.clone();
+
+                                    let notification_model =
+                                        NotificationModel::from(create_notification);
+                                    let active_create_notification =
+                                        notification_model.into_active_model();
+
+                                    NotificationEntity::insert(active_create_notification)
+                                        .exec(&*self.db)
+                                        .await
+                                        .map_err(|err| {
+                                            ServerError::ExternalError(ExternalError::DB(err))
+                                        })?;
+
+                                    notification_manager
+                                        .broadcast_notification(broadcast_notification, &user.id)
+                                        .await;
+
+                                    if user_profile.phone_number.is_some()
+                                        && user_profile.phone_provider.is_some()
+                                    {
+                                        if let (Some(phone_number), Some(phone_provider)) = (
+                                            user_profile.phone_number.as_deref(),
+                                            user_profile.phone_provider.as_deref(),
+                                        ) {
+                                            send_email_sms(
+                                                configs,
+                                                service_mapping,
+                                                phone_number,
+                                                phone_provider,
+                                                &content,
+                                            )
+                                            .map_err(|err| ServerError::from(err))?;
+                                        }
+                                        alerts_sent.push(alert.id);
+                                    }
+                                }
+                            } else {
+                                continue;
+                            }
                         }
                     }
                     _ => {
@@ -737,7 +1076,7 @@ impl ErrorService {
         };
 
         // Update alerts triggered
-        let show_results = NamespaceAlertEntity::update_many()
+        NamespaceAlertEntity::update_many()
             .set(update_model)
             .filter(<NamespaceAlertEntity as sea_orm::EntityTrait>::Column::Id.is_in(alerts_sent))
             .exec(db)
@@ -1104,5 +1443,4 @@ impl ErrorService {
         }
         Ok(unique_meta)
     }
-
 }

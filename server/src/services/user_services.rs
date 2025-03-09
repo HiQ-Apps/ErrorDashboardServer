@@ -62,6 +62,8 @@ impl UserService {
                         user_id: profile.user_id,
                         first_name: profile.first_name.clone(),
                         last_name: profile.last_name.clone(),
+                        phone_number: profile.phone_number.clone(),
+                        phone_provider: profile.phone_provider.clone(),
                         avatar_color: profile.avatar_color.clone(),
                         role: profile.role.clone(),
                         created_at: profile.created_at,
@@ -106,6 +108,8 @@ impl UserService {
                 let user_profile_dto = ShortUserProfileDTO {
                     first_name: user.first_name,
                     last_name: user.last_name,
+                    phone_number: user.phone_number,
+                    phone_provider: user.phone_provider,
                     role: user.role,
                     avatar_color: user.avatar_color,
                     updated_at: user.updated_at,
@@ -301,6 +305,16 @@ impl UserService {
                 .map_or(ActiveValue::Unchanged(None), |v| {
                     ActiveValue::Unchanged(Some(v))
                 }),
+            phone_number: user_profile
+                .phone_number
+                .map_or(ActiveValue::Unchanged(None), |v| {
+                    ActiveValue::Unchanged(Some(v))
+                }),
+            phone_provider: user_profile
+                .phone_provider
+                .map_or(ActiveValue::Unchanged(None), |v| {
+                    ActiveValue::Unchanged(Some(v))
+                }),
             avatar_color: ActiveValue::Set(user_profile.avatar_color),
             role: ActiveValue::Set(user_profile.role),
             created_at: ActiveValue::Set(user_profile.created_at),
@@ -367,6 +381,20 @@ impl UserService {
             }
         }
 
+        if let Some(ref phone_number) = update_user_profile.phone_number {
+            if !phone_number.is_empty() {
+                active_user_profile.phone_number = ActiveValue::Set(Some(phone_number.clone()));
+                profile_updated = true;
+            }
+        }
+
+        if let Some(ref phone_provider) = update_user_profile.phone_provider {
+            if !phone_provider.is_empty() {
+                active_user_profile.phone_provider = ActiveValue::Set(Some(phone_provider.clone()));
+                profile_updated = true;
+            }
+        }
+
         if profile_updated {
             active_user_profile.updated_at = ActiveValue::Set(now);
         }
@@ -405,6 +433,8 @@ impl UserService {
         let user_profile_dto = ShortUserProfileDTO {
             first_name: updated_user_profile.first_name,
             last_name: updated_user_profile.last_name,
+            phone_number: updated_user_profile.phone_number,
+            phone_provider: updated_user_profile.phone_provider,
             avatar_color: updated_user_profile.avatar_color,
             role: updated_user_profile.role,
             updated_at: updated_user_profile.updated_at,

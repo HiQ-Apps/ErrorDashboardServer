@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_valid::Validate;
 use uuid::Uuid;
 
@@ -20,7 +20,7 @@ pub struct GetNamespaceResponseDTO {
     pub client_id: Uuid,
     pub client_secret: String,
     pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
@@ -44,9 +44,8 @@ pub struct NamespaceDTO {
     pub client_id: Uuid,
     pub client_secret: String,
     pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>
+    pub updated_at: DateTime<Utc>,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
 #[serde(rename_all = "camelCase")]
@@ -64,7 +63,7 @@ pub struct GetNamespacesByUserResponseDTO {
     pub active: bool,
     pub service_name: String,
     pub environment_type: String,
-    pub role: String
+    pub role: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Validate)]
