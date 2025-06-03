@@ -20,6 +20,9 @@ mod m20250216_024615_update_namespace_alert_with_discord_id;
 mod m20250219_225925_update_discord_id_string;
 mod m20250220_221738_add_alert_sent_col;
 mod m20250227_040239_add_phone_number_and_provider;
+mod m20250423_183514_create_namespace_subscriptions;
+mod m20250505_220324_create_subscription_plans;
+mod m20250505_224027_seed_subscription_plans;
 
 pub struct Migrator;
 
@@ -29,8 +32,8 @@ impl MigratorTrait for Migrator {
         vec![
             Box::new(m20230914_054832_create_user_table::Migration),
             Box::new(m20230921_034443_create_refresh_token_table::Migration),
-            Box::new(m20231013_200027_create_namespace_table::Migration),
             Box::new(m20231013_164343_create_error_table::Migration),
+            Box::new(m20231013_200027_create_namespace_table::Migration),
             Box::new(m20231015_093305_create_user_namespace_junction_table::Migration),
             Box::new(m20240616_024612_create_error_tags::Migration),
             Box::new(m20240622_185137_create_user_profile::Migration),
@@ -47,6 +50,9 @@ impl MigratorTrait for Migrator {
             Box::new(m20250219_225925_update_discord_id_string::Migration),
             Box::new(m20250220_221738_add_alert_sent_col::Migration),
             Box::new(m20250227_040239_add_phone_number_and_provider::Migration),
+            Box::new(m20250423_183514_create_namespace_subscriptions::Migration),
+            Box::new(m20250505_220324_create_subscription_plans::Migration),
+            Box::new(m20250505_224027_seed_subscription_plans::Migration),
         ]
     }
 }
